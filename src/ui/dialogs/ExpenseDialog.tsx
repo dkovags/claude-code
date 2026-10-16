@@ -674,7 +674,7 @@ export function currencySymbol(code: string): string {
   }
 }
 
-/** Campo "Com você e:" — escolha de amigos (com criação rápida) ou de um grupo. */
+/** Campo "Com você e:": escolha de amigos (com criação rápida) ou de um grupo. */
 function ParticipantPicker({
   groupId,
   friends,

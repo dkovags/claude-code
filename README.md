@@ -17,14 +17,17 @@ Funciona no navegador do computador e do celular, pode ser instalado como aplica
 - **Comentários** e **histórico de alterações** em cada despesa.
 - **Totais** e **gráficos** (gastos por categoria e por mês), **busca** e **exportação para planilha** (CSV que o Excel abre direto).
 - **Várias moedas**, com saldos separados por moeda, como no Splitwise.
-- **Backup e restauração** em arquivo, tema claro e escuro e lembrete de cobrança pelo WhatsApp.
+- **Chave Pix** de cada pessoa, que aparece na hora de acertar as contas (com botão de copiar) e vai junto no lembrete
+  de cobrança pelo WhatsApp.
+- **_Backup_ e restauração** em arquivo, tema claro e escuro e botão para instalar o app no celular.
+- **Sincronização na nuvem** opcional, para cada amigo usar no próprio celular (veja abaixo).
 
 ## Onde ficam os dados
 
 O app tem dois modos:
 
 - **Só neste aparelho** (padrão): os dados ficam no armazenamento do navegador. Use **Conta > Fazer backup** de vez em
-  quando; o arquivo serve para restaurar tudo ou passar os dados para outro aparelho.
+  quando; o arquivo de *backup* serve para restaurar tudo ou passar os dados para outro aparelho.
 - **Sincronizado na nuvem** (opcional, como no Splitwise): cada pessoa entra com a conta Google e vê, no próprio
   celular, os grupos e despesas de que participa. Quem você cadastrar com e-mail passa a ver o que vocês dividem assim
   que entrar com a conta Google desse e-mail. Funciona sem internet e envia as alterações quando a conexão volta.
@@ -44,7 +47,7 @@ O Firebase tem um plano gratuito (Spark) que sobra para uso pessoal.
 5. Informe essa configuração ao app, de um destes jeitos:
    - no GitHub, em **Settings > Secrets and variables > Actions > Variables**, crie a variável `FIREBASE_CONFIG` com o
      objeto em JSON (por exemplo `{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}`) e rode o
-     workflow de novo; ou
+     *workflow* de novo; ou
    - cole o objeto em `FIREBASE_CONFIG`, no arquivo `src/config.ts`.
 
 Esses dados de configuração não são secretos: quem protege os dados são as regras do passo 3. Com elas, cada pessoa só
@@ -56,10 +59,10 @@ e tocar em **Conta > Enviar dados deste aparelho** para levar tudo para a nuvem.
 ## Como publicar (GitHub Pages)
 
 1. No GitHub, abra **Settings > Pages** e, em **Source**, escolha **GitHub Actions**.
-2. Rode de novo o workflow **Testes e publicação** (aba **Actions**) ou faça um novo push na branch padrão.
+2. Rode de novo o *workflow* **Testes e publicação** (aba **Actions**) ou faça um novo *push* na *branch* padrão.
 3. O endereço do app aparece no resultado do passo **Publicar** (algo como `https://<usuário>.github.io/<repositório>/`).
 
-Enquanto o Pages não estiver ativado, o workflow só roda os testes e o build, sem marcar erro.
+Enquanto o Pages não estiver ativado, o *workflow* só roda os testes e o *build*, sem marcar erro.
 
 Outra opção é publicar no próprio Firebase Hosting: `npm run build` e depois
 `npx firebase-tools deploy --only hosting,firestore:rules --project <id-do-projeto>`.
