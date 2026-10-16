@@ -11,6 +11,8 @@ export interface StoreStatus {
   email?: string;
   /** Alterações ainda não enviadas ao servidor. */
   pending?: number;
+  /** Erro que impediu o carregamento. */
+  error?: string;
 }
 
 export interface DataStore {

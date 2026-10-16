@@ -131,6 +131,29 @@ export function Onboarding() {
   );
 }
 
+/** Falha ao carregar os dados da nuvem (configuração incompleta do Firebase, por exemplo). */
+export function LoadError({ message }: { message: string }) {
+  const store = useStore() as CloudStore;
+  return (
+    <Card>
+      <div className="form-errors">{message}</div>
+      <p className="muted small">O passo a passo de configuração está no README do projeto.</p>
+      <button className="btn btn-orange btn-block" onClick={() => window.location.reload()}>
+        Tentar de novo
+      </button>
+      <div className="center pad">
+        <button className="link-btn" onClick={() => store.signOut()}>
+          Sair da conta
+        </button>
+        {" · "}
+        <button className="link-btn" onClick={() => switchMode("local")}>
+          Usar só neste aparelho
+        </button>
+      </div>
+    </Card>
+  );
+}
+
 /** Tela de entrada do modo sincronizado. */
 export function Login() {
   const store = useStore() as CloudStore;

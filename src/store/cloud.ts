@@ -139,6 +139,19 @@ export class CloudStore implements DataStore {
     this.errorListeners.forEach((l) => l(msg));
   }
 
+  /** Falha ao carregar: sem isso a tela ficaria "carregando" para sempre. */
+  private loadError(err: unknown) {
+    console.error(err);
+    if (this.status.phase !== "loading") return this.reportError(err);
+    const code = (err as { code?: string })?.code || "";
+    const error = code.includes("permission-denied")
+      ? "O Firestore recusou o acesso. Confira se as regras do arquivo firestore.rules foram publicadas no Firebase."
+      : code.includes("failed-precondition") || code.includes("not-found")
+        ? "O banco Firestore ainda não foi criado neste projeto do Firebase."
+        : "Não foi possível carregar os dados da nuvem.";
+    this.setStatus({ error });
+  }
+
   private onUser(u: User | null) {
     this.unsubs.forEach((f) => f());
     this.unsubs = [];
@@ -187,7 +200,7 @@ export class CloudStore implements DataStore {
           this.loaded.groups = true;
           this.rebuild();
         },
-        (e) => this.reportError(e),
+        (e) => this.loadError(e),
       ),
       onSnapshot(
         visible("expenses"),
@@ -196,7 +209,7 @@ export class CloudStore implements DataStore {
           this.loaded.expenses = true;
           this.rebuild();
         },
-        (e) => this.reportError(e),
+        (e) => this.loadError(e),
       ),
       onSnapshot(
         userRef,
@@ -205,7 +218,7 @@ export class CloudStore implements DataStore {
           this.loaded.user = true;
           this.rebuild();
         },
-        (e) => this.reportError(e),
+        (e) => this.loadError(e),
       ),
       onSnapshot(
         profileRef,
@@ -449,7 +462,12 @@ export class CloudStore implements DataStore {
       ...this.appendOrSet("history", prev.history, next.history),
       ...this.appendOrSet("comments", prev.comments, next.comments),
     ];
-    if (json(prevDoc?.visibleTo?.slice().sort()) !== json(visibleTo.slice().sort())) pairs.push(["visibleTo", visibleTo]);
+    // só acrescenta e-mails quando possível, para não tirar o acesso de quem entrou no grupo ao mesmo tempo
+    const before = prevDoc?.visibleTo || [];
+    const missing = visibleTo.filter((m) => !before.includes(m));
+    const extra = before.filter((m) => !visibleTo.includes(m));
+    if (extra.length) pairs.push(["visibleTo", visibleTo]);
+    else if (missing.length) pairs.push(["visibleTo", arrayUnion(...missing)]);
     for (const [id, info] of Object.entries(people))
       if (json(prevDoc?.people?.[id]) !== json(info)) pairs.push([new FieldPath("people", id), info]);
     this.update(ref, pairs);

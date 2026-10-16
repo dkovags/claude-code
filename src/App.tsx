@@ -18,7 +18,7 @@ import { AllExpenses } from "./ui/pages/AllExpenses";
 import { Dashboard, FriendsPage, GroupsPage } from "./ui/pages/Dashboard";
 import { FriendPage } from "./ui/pages/FriendPage";
 import { GroupPage, NonGroupPage } from "./ui/pages/GroupPage";
-import { Login, Onboarding, Splash } from "./ui/pages/Welcome";
+import { LoadError, Login, Onboarding, Splash } from "./ui/pages/Welcome";
 import { useRoute } from "./ui/router";
 
 function createLocalStore(): DataStore {
@@ -213,7 +213,7 @@ function Main() {
   useTheme(ds?.prefs.theme);
   useRecurring();
   if (store.mode === "cloud" && status.phase === "signedOut") return <Login />;
-  if (status.phase === "loading") return <Splash />;
+  if (status.phase === "loading") return status.error ? <LoadError message={status.error} /> : <Splash />;
   if (!ds) return store.mode === "cloud" ? <Splash /> : <Onboarding />;
   return (
     <Shell>
