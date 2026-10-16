@@ -52,10 +52,14 @@ function useAppStore(): DataStore | null {
   return store;
 }
 
+/** Tema escolhido pela página que hospeda o app (por exemplo, um visualizador embutido), se houver. */
+const hostTheme = typeof document !== "undefined" ? document.documentElement.dataset.theme : undefined;
+
 function useTheme(theme: string | undefined) {
   useEffect(() => {
     const apply = () => {
-      const dark = theme === "dark" || (theme !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      const systemDark = hostTheme ? hostTheme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const dark = theme === "dark" || (theme !== "light" && systemDark);
       document.documentElement.dataset.theme = dark ? "dark" : "light";
       document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#1f2a27" : "#5bc5a7");
     };
