@@ -5,9 +5,18 @@ import type { Ctx, Result } from "./actions";
 import { normalizeDataset } from "./dataset";
 import { applyOps, type Op } from "./ops";
 
+export interface StoreStatus {
+  /** loading: carregando; signedOut: precisa entrar (nuvem); ready: pronto. */
+  phase: "loading" | "signedOut" | "ready";
+  email?: string;
+  /** Alterações ainda não enviadas ao servidor. */
+  pending?: number;
+}
+
 export interface DataStore {
   readonly mode: "local" | "cloud";
   getSnapshot(): Dataset | null;
+  getStatus(): StoreStatus;
   subscribe(listener: () => void): () => void;
   /** Aplica alterações. Erros de gravação são avisados pelos ouvintes de onError. */
   commit(ops: Op[]): void;
@@ -71,6 +80,9 @@ export class LocalStore implements DataStore {
   }
 
   getSnapshot = (): Dataset | null => this.ds;
+
+  private readonly readyStatus: StoreStatus = { phase: "ready" };
+  getStatus = (): StoreStatus => this.readyStatus;
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);

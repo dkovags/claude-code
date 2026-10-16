@@ -85,7 +85,7 @@ export function buildFeed(ds: Dataset): FeedItem[] {
   for (const g of Object.values(ds.groups))
     g.history.forEach((h, i) => out.push({ kind: "group", key: `g:${g.id}:${i}`, ts: h.ts, by: h.by, entry: h, group: g }));
   for (const p of Object.values(ds.people))
-    if (p.id !== ds.meId && p.createdBy && !p.hidden)
+    if (p.id !== ds.meId && p.createdBy === ds.meId && !p.hidden)
       out.push({ kind: "friend", key: `p:${p.id}`, ts: p.createdAt, by: p.createdBy, person: p });
   return out.sort((a, b) => b.ts.localeCompare(a.ts) || a.key.localeCompare(b.key));
 }

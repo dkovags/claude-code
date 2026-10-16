@@ -1,6 +1,7 @@
 import { colorFor, isValidEmail, normalizeEmail } from "../domain/people";
 import type { Dataset, Expense, Group, Person } from "../domain/types";
 import { UserError, type Ctx } from "./actions";
+import { emailId } from "./rename";
 
 /** Cria os dados iniciais com o próprio usuário. */
 export function createDataset(ctx: Omit<Ctx, "me">, input: { name: string; email?: string; currency: string }): Dataset {
@@ -8,7 +9,7 @@ export function createDataset(ctx: Omit<Ctx, "me">, input: { name: string; email
   if (!name) throw new UserError("Informe o seu nome.");
   const email = normalizeEmail(input.email);
   if (email && !isValidEmail(email)) throw new UserError("E-mail inválido.");
-  const meId = ctx.id("p_");
+  const meId = email ? emailId(email) : ctx.id("p_");
   const me: Person = { id: meId, name, color: colorFor(meId), createdAt: ctx.now };
   if (email) me.email = email;
   return {

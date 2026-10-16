@@ -4,7 +4,7 @@ import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 
-const PORT = 4173 + Math.floor(Math.random() * 500);
+const PORT = 4200 + Math.floor(Math.random() * 300);
 const server = spawn("npx", ["vite", "preview", "--port", String(PORT), "--strictPort"], { stdio: "pipe", detached: true });
 await new Promise((resolve, reject) => {
   server.stdout.on("data", (d) => String(d).includes("Local") && resolve());

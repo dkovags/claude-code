@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// Regras de segurança do Rateio no Firestore.
+// Cada grupo e cada despesa guarda em "visibleTo" os e-mails de quem pode ver e editar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null && request.auth.token.email_verified == true;
+    }
+    function canSee(data) {
+      return request.auth.token.email in data.visibleTo;
+    }
+
+    // Perfil público (nome escolhido pela pessoa). Qualquer usuário logado pode ler um perfil pelo e-mail.
+    match /profiles/{email} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, update: if signedIn() && email == request.auth.token.email
+        && request.resource.data.keys().hasOnly(['name', 'email', 'color'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80;
+      allow delete: if false;
+    }
+
+    // Dados particulares: amigos cadastrados e preferências.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /groups/{id} {
+      allow read: if signedIn() && (resource == null || canSee(resource.data));
+      allow create: if signedIn() && canSee(request.resource.data);
+      allow update: if signedIn() && canSee(resource.data);
+      allow delete: if false;
+    }
+
+    match /expenses/{id} {
+      allow read: if signedIn() && (resource == null || canSee(resource.data));
+      allow create: if signedIn() && canSee(request.resource.data);
+      allow update: if signedIn() && canSee(resource.data);
+      allow delete: if false;
+    }
+  }
+}

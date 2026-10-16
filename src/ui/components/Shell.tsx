@@ -1,9 +1,12 @@
-import { ChevronLeft, Flag, LayoutDashboard, List, Plus, Receipt, Search, Tag, User, Users, Activity, CircleUser } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import {
+  Activity, ChevronLeft, CircleUser, CloudCheck, CloudOff, CloudUpload, Flag, LayoutDashboard, List, Plus, Receipt, Search,
+  Tag, User, Users,
+} from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { friendsOf, isValidEmail, findPersonByEmail } from "../../domain/people";
 import * as A from "../../store/actions";
 import { APP_NAME } from "../../config";
-import { useData, useIsMobile, useRun, useUI } from "../context";
+import { useData, useIsMobile, useRun, useStatus, useStore, useUI } from "../context";
 import { href, navigate, useRoute, type Route } from "../router";
 import { Avatar } from "./basics";
 import { Logo } from "./Logo";
@@ -82,7 +85,7 @@ function LeftNav({ route }: { route: Route }) {
       </div>
       {friends.length === 0 && <div className="nav-empty">Adicione amigos para dividir despesas.</div>}
       {friends.map((p) => (
-        <NavLink key={p.id} to={`/friends/${p.id}`} active={route.name === "friend" && route.id === p.id} icon={<User size={15} />}>
+        <NavLink key={p.id} to={`/friends/${encodeURIComponent(p.id)}`} active={route.name === "friend" && route.id === p.id} icon={<User size={15} />}>
           {p.name}
         </NavLink>
       ))}
@@ -131,6 +134,7 @@ function TopBar({ route }: { route: Route }) {
           </a>
         )}
         <div className="topbar-right">
+          <SyncIndicator />
           <a className="icon-btn light" href={href("/all")} aria-label="Buscar" title="Buscar despesas">
             <Search size={20} />
           </a>
@@ -143,6 +147,39 @@ function TopBar({ route }: { route: Route }) {
         </div>
       </div>
     </header>
+  );
+}
+
+function useOnline(): boolean {
+  const [online, setOnline] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+  return online;
+}
+
+/** Ícone de sincronização (só no modo nuvem). */
+function SyncIndicator() {
+  const store = useStore();
+  const status = useStatus();
+  const online = useOnline();
+  if (store.mode !== "cloud") return null;
+  const [Icon, title] = !online
+    ? [CloudOff, "Sem internet: as alterações serão enviadas quando a conexão voltar"]
+    : status.pending
+      ? [CloudUpload, "Enviando alterações…"]
+      : [CloudCheck, "Tudo sincronizado"];
+  return (
+    <a className={`icon-btn light sync ${!online ? "offline" : status.pending ? "busy" : ""}`} href={href("/account")} title={title} aria-label={title}>
+      <Icon size={20} />
+    </a>
   );
 }
 

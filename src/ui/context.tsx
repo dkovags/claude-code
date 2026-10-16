@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useSyncExternalStore, 
 import { buildLedger, type Ledger } from "../domain/balances";
 import type { Dataset, ID } from "../domain/types";
 import { UserError, type Ctx, type Result } from "../store/actions";
-import { run, type DataStore } from "../store/store";
+import { run, type DataStore, type StoreStatus } from "../store/store";
 
 /* ---------- dados ---------- */
 
@@ -16,6 +16,11 @@ export function useStore(): DataStore {
   const s = useContext(StoreContext);
   if (!s) throw new Error("StoreProvider ausente");
   return s;
+}
+
+export function useStatus(): StoreStatus {
+  const store = useStore();
+  return useSyncExternalStore(store.subscribe, store.getStatus);
 }
 
 export function useDatasetOrNull(): Dataset | null {

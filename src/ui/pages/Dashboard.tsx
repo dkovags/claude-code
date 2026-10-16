@@ -42,7 +42,7 @@ function FriendBalanceRow({ id, balance, sign }: { id: ID; balance: Balance; sig
   const part: Balance = {};
   for (const [c, v] of Object.entries(balance)) if (Math.sign(v) === sign) part[c] = v;
   return (
-    <a className="friend-balance" href={href(`/friends/${id}`)}>
+    <a className="friend-balance" href={href(`/friends/${encodeURIComponent(id)}`)}>
       <Avatar person={ds.people[id]} size={40} />
       <div>
         <div className="name">{personName(ds, id)}</div>
@@ -230,7 +230,7 @@ export function FriendsPage() {
         {[...friends.map((p) => p.id), ...withBalance].map((id) => {
           const bal = ledger.friendBalance.get(id) || {};
           return (
-            <a className="list-card" key={id} href={href(`/friends/${id}`)}>
+            <a className="list-card" key={id} href={href(`/friends/${encodeURIComponent(id)}`)}>
               <Avatar person={ds.people[id]} size={48} />
               <div className="list-card-body">
                 <div className="name">{personName(ds, id)}</div>

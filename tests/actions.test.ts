@@ -5,6 +5,7 @@ import { splitEqual } from "../src/domain/split";
 import * as A from "../src/store/actions";
 import { createDataset, normalizeDataset, toBackup } from "../src/store/dataset";
 import { LocalStore, MemoryStorage, run } from "../src/store/store";
+import { initialState } from "../src/ui/dialogs/ExpenseDialog";
 
 let n = 0;
 const ctxBase = () => ({ now: new Date(Date.UTC(2026, 9, 16, 12, 0, n++)).toISOString(), today: "2026-10-16", id: (p = "") => `${p}${++n}` });
@@ -110,6 +111,68 @@ describe("ações", () => {
     const restored = normalizeDataset(JSON.parse(toBackup(store.getSnapshot()!)));
     expect(restored).toEqual(store.getSnapshot());
     expect(() => normalizeDataset({ foo: 1 })).toThrow();
+  });
+
+  it("identifica pelo e-mail e renomeia quando a pessoa ganha um e-mail", () => {
+    const { store, me, ana, bia } = setup();
+    expect(me).toBe("m:diego@example.com");
+    expect(ana).toBe("m:ana@example.com");
+    expect(bia.startsWith("p_")).toBe(true);
+    const g = run(store, A.createGroup, { name: "Casa", type: "home", currency: "BRL", simplifyDebts: false, memberIds: [ana, bia] });
+    const e = run(store, A.saveExpense, {
+      groupId: g, description: "Gás", cost: 9000, currency: "BRL", date: "2026-10-10", category: "utilities.gas",
+      paidBy: { [bia]: 9000 }, owedBy: splitEqual(9000, [me, ana, bia]), splitMode: "equal", repeat: "never",
+    });
+    run(store, A.addComment, e, "Obrigado, Bia!");
+    const before = buildLedger(store.getSnapshot()!).friendBalance.get(bia);
+    const newId = run(store, A.updatePerson, bia, { name: "Bia", email: "Bia@Example.com" });
+    expect(newId).toBe("m:bia@example.com");
+    const ds = store.getSnapshot()!;
+    expect(ds.people[bia]).toBeUndefined();
+    expect(ds.people[newId].email).toBe("bia@example.com");
+    expect(ds.groups[g].memberIds).toContain(newId);
+    expect(Object.keys(ds.expenses[e].paidBy)).toEqual([newId]);
+    expect(buildLedger(ds).friendBalance.get(newId)).toEqual(before);
+    // o próprio usuário trocando de e-mail
+    const meNew = run(store, A.updatePerson, me, { name: "Diego", email: "diego@novo.com" });
+    const ds2 = store.getSnapshot()!;
+    expect(ds2.meId).toBe(meNew);
+    expect(ds2.groups[g].memberIds[0]).toBe(meNew);
+    expect(ds2.groups[g].createdBy).toBe(meNew);
+    expect(ds2.expenses[e].comments[0].by).toBe(meNew);
+    expect(buildLedger(ds2).total).toEqual({ BRL: -3000 });
+  });
+
+  it("mantém quem saiu do grupo ao editar uma despesa antiga", () => {
+    const { store, me, ana, bia } = setup();
+    const g = run(store, A.createGroup, { name: "Casa", type: "home", currency: "BRL", simplifyDebts: false, memberIds: [ana, bia] });
+    const e = run(store, A.saveExpense, {
+      groupId: g, description: "Pizza", cost: 9000, currency: "BRL", date: "2026-10-10", category: "food.dining",
+      paidBy: { [me]: 9000 }, owedBy: splitEqual(9000, [me, ana, bia]), splitMode: "equal", repeat: "never",
+    });
+    run(store, A.recordPayments, [{ from: bia, to: me, amount: 3000, currency: "BRL", date: "2026-10-11", groupId: g }]);
+    run(store, A.removeMember, g, bia);
+    const cur = store.getSnapshot()!.expenses[e];
+    run(store, A.saveExpense, { ...cur, description: "Pizza de sexta" }, e);
+    expect(store.getSnapshot()!.expenses[e].owedBy[bia]).toBe(3000);
+    // mas não dá para incluir quem nunca esteve na despesa e não é do grupo
+    const carla = run(store, A.addPerson, { name: "Carla" });
+    expect(() =>
+      run(store, A.saveExpense, { ...cur, owedBy: { [me]: 3000, [ana]: 3000, [carla]: 3000 } }, e),
+    ).toThrow(/não participa/);
+  });
+
+  it("formulário de edição não inclui você numa despesa da qual você não participa", () => {
+    const { store, ana, bia, me } = setup();
+    const e = run(store, A.saveExpense, {
+      groupId: null, description: "Táxi", cost: 4000, currency: "BRL", date: "2026-10-10", category: "transport.taxi",
+      paidBy: { [ana]: 4000 }, owedBy: { [ana]: 2000, [bia]: 2000 }, splitMode: "equal", repeat: "never",
+    });
+    const ds = store.getSnapshot()!;
+    const init = initialState(ds, ds.expenses[e]);
+    expect(init.friends.sort()).toEqual([ana, bia].sort());
+    expect(init.excluded).toEqual([me]);
+    expect(init.payerId).toBe(ana);
   });
 
   it("guarda uma cópia quando os dados salvos estão corrompidos", () => {

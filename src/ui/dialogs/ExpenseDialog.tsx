@@ -45,6 +45,8 @@ function orderPeople(ds: Dataset, ids: ID[]): ID[] {
 interface Init {
   groupId: ID | null;
   friends: ID[];
+  /** Participantes de uma despesa de grupo em edição (inclusive quem já saiu do grupo). */
+  kept: ID[];
   description: string;
   category: string;
   amountText: string;
@@ -60,7 +62,7 @@ interface Init {
   splitTexts: Record<SplitMode, Texts>;
 }
 
-function initialState(ds: Dataset, e: Expense | undefined, groupId?: ID | null, friendId?: ID): Init {
+export function initialState(ds: Dataset, e: Expense | undefined, groupId?: ID | null, friendId?: ID): Init {
   const me = ds.meId;
   const empty = { equal: {}, exact: {}, percent: {}, shares: {}, adjust: {} } as Record<SplitMode, Texts>;
   if (!e) {
@@ -68,6 +70,7 @@ function initialState(ds: Dataset, e: Expense | undefined, groupId?: ID | null, 
     return {
       groupId: g && !g.deletedAt ? g.id : null,
       friends: friendId ? [friendId] : [],
+      kept: [],
       description: "",
       category: DEFAULT_CATEGORY,
       amountText: "",
@@ -85,16 +88,19 @@ function initialState(ds: Dataset, e: Expense | undefined, groupId?: ID | null, 
   }
   const ids = expenseParticipants(e);
   const payers = Object.keys(e.paidBy);
+  const friends = e.groupId ? [] : ids.filter((id) => id !== me);
+  // pessoas que aparecem no formulário: membros do grupo (e quem já estava na despesa) ou você e os amigos escolhidos
+  const shown = e.groupId ? [...new Set([...(ds.groups[e.groupId]?.memberIds || []), ...ids])] : [me, ...friends];
   const splitTexts = { ...empty };
   const vals = e.splitValues || (e.splitMode === "exact" ? e.owedBy : {});
   const texts: Texts = {};
   for (const [id, v] of Object.entries(vals))
     texts[id] = e.splitMode === "exact" || e.splitMode === "adjust" ? formatInput(v, e.currency) : numText(v);
   splitTexts[e.splitMode] = texts;
-  const members = e.groupId ? ds.groups[e.groupId]?.memberIds || ids : ids;
   return {
     groupId: e.groupId,
-    friends: e.groupId ? [] : ids.filter((id) => id !== me),
+    friends,
+    kept: e.groupId ? ids : [],
     description: e.description,
     category: e.category,
     amountText: formatInput(e.cost, e.currency),
@@ -106,7 +112,7 @@ function initialState(ds: Dataset, e: Expense | undefined, groupId?: ID | null, 
     payerId: payers.length === 1 ? payers[0] : me,
     payerTexts: Object.fromEntries(payers.map((id) => [id, formatInput(e.paidBy[id], e.currency)])),
     splitMode: e.splitMode,
-    excluded: e.splitMode === "equal" ? members.filter((id) => !(id in e.owedBy)) : [],
+    excluded: e.splitMode === "equal" ? shown.filter((id) => !(id in e.owedBy)) : [],
     splitTexts,
   };
 }
@@ -150,10 +156,11 @@ export function ExpenseDialog({
   const [submitted, setSubmitted] = useState(false);
 
   const group = groupId ? ds.groups[groupId] : null;
-  const people = useMemo(
-    () => orderPeople(ds, group ? group.memberIds : [me, ...friends]),
-    [ds, group, me, friends],
-  );
+  const people = useMemo(() => {
+    if (!group) return orderPeople(ds, [me, ...friends]);
+    const kept = group.id === init.groupId ? init.kept : [];
+    return orderPeople(ds, [...new Set([...group.memberIds, ...kept])]);
+  }, [ds, group, me, friends, init]);
   const cost = parseAmount(amountText, currency);
   const validCost = cost !== null && cost > 0 ? cost : null;
   const effectivePayer = people.includes(payerId) ? payerId : people[0];

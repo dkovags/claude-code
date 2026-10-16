@@ -27,9 +27,30 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          # configuração do Firebase (opcional), em Settings > Secrets and variables > Actions > Variables
+          VITE_FIREBASE_CONFIG: ${{ vars.FIREBASE_CONFIG }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+  cloud:
+    name: Testes da nuvem (emuladores do Firebase)
+    runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run test:cloud
 
   # Publica no GitHub Pages quando o Pages estiver ativado (Settings > Pages > Source: GitHub Actions).
   # Enquanto não estiver, a publicação é pulada sem marcar erro.
@@ -55,7 +76,7 @@ jobs:
 
   deploy:
     name: Publicar
-    needs: [build, pages-check]
+    needs: [build, cloud, pages-check]
     if: needs.pages-check.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     permissions:

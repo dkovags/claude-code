@@ -178,7 +178,7 @@ export function ActivityPage() {
   const open = (item: FeedItem) => {
     if (item.kind === "expense" || item.kind === "comment") ui.open({ type: "expenseDetail", expenseId: item.expense.id });
     else if (item.kind === "group") navigate(`/groups/${item.group.id}`);
-    else navigate(`/friends/${item.person.id}`);
+    else navigate(`/friends/${encodeURIComponent(item.person.id)}`);
   };
   return (
     <Page title="Atividade recente" icon={<Flag size={22} className="muted" />} hideHeaderOnMobile>

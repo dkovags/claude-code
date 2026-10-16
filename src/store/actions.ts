@@ -1,5 +1,5 @@
 import { describeExpenseChanges, describeGroupChanges } from "../domain/activity";
-import { buildLedger, memberBalance } from "../domain/balances";
+import { buildLedger, memberBalance, participants } from "../domain/balances";
 import { DEFAULT_CATEGORY, PAYMENT_CATEGORY } from "../domain/categories";
 import { isValidISODate } from "../domain/dates";
 import { formatBalance, isZero } from "../domain/money";
@@ -10,6 +10,7 @@ import type {
   Cents, Comment, Dataset, Expense, Group, GroupType, HistoryEntry, ID, Person, Prefs, Repeat, SplitMode,
 } from "../domain/types";
 import type { Op } from "./ops";
+import { emailId, renamePersonOps } from "./rename";
 
 export interface Ctx {
   me: ID;
@@ -52,13 +53,15 @@ export function addPerson(ds: Dataset, ctx: Ctx, input: { name: string; email?: 
       fail(`${existing.name} já está na sua lista de amigos.`);
     }
   }
-  const id = ctx.id("p_");
+  const id = email ? emailId(email) : ctx.id("p_");
+  if (ds.people[id]) fail("Essa pessoa já existe.");
   const person: Person = { id, name, color: colorFor(id), createdAt: ctx.now, createdBy: ctx.me };
   if (email) person.email = email;
   return { ops: [{ t: "person", next: person }], value: id };
 }
 
-export function updatePerson(ds: Dataset, _ctx: Ctx, id: ID, input: { name: string; email?: string }): Result {
+/** Edita nome e e-mail. Quem ganha (ou troca) o e-mail passa a ser identificado por ele em todos os registros. */
+export function updatePerson(ds: Dataset, _ctx: Ctx, id: ID, input: { name: string; email?: string }): Result<ID> {
   const prev = ds.people[id] ?? fail("Pessoa não encontrada.");
   const name = input.name.trim();
   if (!name) fail("Informe o nome.");
@@ -71,8 +74,17 @@ export function updatePerson(ds: Dataset, _ctx: Ctx, id: ID, input: { name: stri
   const next: Person = { ...prev, name };
   if (email) next.email = email;
   else delete next.email;
-  if (next.name === prev.name && next.email === prev.email) return { ops: [], value: undefined };
-  return { ops: [{ t: "person", prev, next }], value: undefined };
+  if (next.name === prev.name && next.email === prev.email) return { ops: [], value: id };
+  const newId = email && email !== prev.email ? emailId(email) : id;
+  if (newId === id) return { ops: [{ t: "person", prev, next }], value: id };
+  if (ds.people[newId]) fail("Já existe uma pessoa com esse e-mail.");
+  const ops: Op[] = [
+    { t: "removePerson", id },
+    { t: "person", next: { ...next, id: newId } },
+    ...renamePersonOps(ds, id, newId),
+  ];
+  if (id === ds.meId) ops.push({ t: "meId", id: newId });
+  return { ops, value: newId };
 }
 
 /** Remove (ou devolve) alguém da lista de amigos. Só é possível remover quem está quite. */
@@ -196,7 +208,7 @@ export interface ExpenseInput {
   repeat: Repeat;
 }
 
-function validateExpense(ds: Dataset, input: ExpenseInput, payment: boolean): void {
+function validateExpense(ds: Dataset, input: ExpenseInput, payment: boolean, prev?: Expense): void {
   if (!payment && !input.description.trim()) fail("Informe uma descrição.");
   if (!Number.isInteger(input.cost) || input.cost <= 0) fail("Informe um valor maior que zero.");
   if (!isValidISODate(input.date)) fail("Data inválida.");
@@ -211,7 +223,10 @@ function validateExpense(ds: Dataset, input: ExpenseInput, payment: boolean): vo
   if (input.groupId) {
     const g = ds.groups[input.groupId] ?? fail("Grupo não encontrado.");
     if (g.deletedAt) fail("Este grupo foi excluído.");
-    for (const id of ids) if (!g.memberIds.includes(id)) fail(`${personName(ds, id)} não participa deste grupo.`);
+    // quem saiu do grupo continua nas despesas antigas e pode continuar nelas ao editar
+    const kept = prev && prev.groupId === input.groupId ? participants(prev) : [];
+    for (const id of ids)
+      if (!g.memberIds.includes(id) && !kept.includes(id)) fail(`${personName(ds, id)} não participa deste grupo.`);
   }
 }
 
@@ -247,7 +262,7 @@ export function saveExpense(ds: Dataset, ctx: Ctx, raw: ExpenseInput, id?: ID): 
     return { ops: [{ t: "expense", next: e }], value: newIdValue };
   }
   const prev = ds.expenses[id] ?? fail("Despesa não encontrada.");
-  validateExpense(ds, input, prev.payment);
+  validateExpense(ds, input, prev.payment, prev);
   const next: Expense = { ...prev, ...input };
   if (!next.notes) delete next.notes;
   if (!input.splitValues) delete next.splitValues;

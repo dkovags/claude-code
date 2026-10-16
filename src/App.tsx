@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { APP_NAME } from "./config";
 import { todayISO } from "./domain/dates";
-import { newId } from "./domain/ids";
-import { CURRENCIES } from "./domain/money";
 import * as A from "./store/actions";
-import { createDataset, normalizeDataset } from "./store/dataset";
+import { getEmulator, getFirebaseConfig, readMode } from "./store/firebaseConfig";
 import { run, type DataStore, LocalStore, MemoryStorage } from "./store/store";
-import { Logo } from "./ui/components/Logo";
 import { Shell } from "./ui/components/Shell";
-import { StoreProvider, UIContext, useDatasetOrNull, useStore, useUI, type Dialog, type Toast, type UI } from "./ui/context";
+import {
+  StoreProvider, UIContext, useDatasetOrNull, useStatus, useStore, useUI, type Dialog, type Toast, type UI,
+} from "./ui/context";
 import { ExpenseDialog } from "./ui/dialogs/ExpenseDialog";
 import { FriendDialog } from "./ui/dialogs/FriendDialog";
 import { GroupDialog } from "./ui/dialogs/GroupDialog";
@@ -20,10 +18,10 @@ import { AllExpenses } from "./ui/pages/AllExpenses";
 import { Dashboard, FriendsPage, GroupsPage } from "./ui/pages/Dashboard";
 import { FriendPage } from "./ui/pages/FriendPage";
 import { GroupPage, NonGroupPage } from "./ui/pages/GroupPage";
+import { Login, Onboarding, Splash } from "./ui/pages/Welcome";
 import { useRoute } from "./ui/router";
-import { downloadFile } from "./ui/download";
 
-function createStore(): DataStore {
+function createLocalStore(): DataStore {
   try {
     const storage = window.localStorage;
     storage.getItem("teste");
@@ -32,6 +30,26 @@ function createStore(): DataStore {
     // navegador bloqueando o armazenamento (modo privado restrito): funciona só enquanto a página estiver aberta
     return new LocalStore(new MemoryStorage());
   }
+}
+
+/** Modo sincronizado quando o Firebase está configurado e a pessoa escolheu entrar com Google. */
+function useAppStore(): DataStore | null {
+  const [cfg] = useState(getFirebaseConfig);
+  const [store, setStore] = useState<DataStore | null>(() => (cfg && readMode() === "cloud" ? null : createLocalStore()));
+  useEffect(() => {
+    if (store || !cfg) return;
+    let alive = true;
+    import("./store/cloud")
+      .then(({ CloudStore }) => alive && setStore(new CloudStore({ config: cfg, emulator: getEmulator() })))
+      .catch((e) => {
+        console.error(e);
+        if (alive) setStore(createLocalStore());
+      });
+    return () => {
+      alive = false;
+    };
+  }, [store, cfg]);
+  return store;
 }
 
 function useTheme(theme: string | undefined) {
@@ -160,14 +178,14 @@ function Pages() {
   }
 }
 
-/** Gera despesas recorrentes vencidas ao abrir o app e quando ele volta a ficar visível. */
+/** Gera despesas recorrentes vencidas ao abrir o app, quando os dados chegam e quando ele volta a ficar visível. */
 function useRecurring() {
   const store = useStore();
   useEffect(() => {
     let last = "";
     const tick = () => {
       const today = todayISO();
-      if (today === last || !store.getSnapshot()) return;
+      if (today === last || !store.getSnapshot() || store.getStatus().phase !== "ready") return;
       last = today;
       try {
         run(store, A.spawnRecurring);
@@ -176,10 +194,12 @@ function useRecurring() {
       }
     };
     tick();
+    const stop = store.subscribe(tick);
     const onVis = () => document.visibilityState === "visible" && tick();
     document.addEventListener("visibilitychange", onVis);
     const timer = setInterval(tick, 60 * 60 * 1000);
     return () => {
+      stop();
       document.removeEventListener("visibilitychange", onVis);
       clearInterval(timer);
     };
@@ -187,95 +207,18 @@ function useRecurring() {
 }
 
 function Main() {
+  const store = useStore();
+  const status = useStatus();
   const ds = useDatasetOrNull();
   useTheme(ds?.prefs.theme);
   useRecurring();
-  if (!ds) return <Onboarding />;
+  if (store.mode === "cloud" && status.phase === "signedOut") return <Login />;
+  if (status.phase === "loading") return <Splash />;
+  if (!ds) return store.mode === "cloud" ? <Splash /> : <Onboarding />;
   return (
     <Shell>
       <Pages />
     </Shell>
-  );
-}
-
-function Onboarding() {
-  const store = useStore();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [currency, setCurrency] = useState("BRL");
-  const [error, setError] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
-  const corrupted = store instanceof LocalStore ? store.corrupted : null;
-
-  const start = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      store.replace(createDataset({ now: new Date().toISOString(), today: todayISO(), id: newId }, { name, email, currency }));
-    } catch (err) {
-      setError(err instanceof A.UserError ? err.message : "Não foi possível começar.");
-    }
-  };
-
-  return (
-    <div className="onboarding">
-      <div className="onboarding-card">
-        <Logo size={72} inverted />
-        <h1>{APP_NAME}</h1>
-        <p className="tagline">Divida despesas com amigos, a casa, a viagem e o casal, sem planilha e sem confusão.</p>
-        {corrupted && (
-          <div className="banner warn">
-            Os dados salvos neste aparelho estão danificados e não puderam ser abertos.{" "}
-            <button className="link-btn" onClick={() => downloadFile("dados-danificados.json", corrupted, "application/json")}>
-              Baixar uma cópia
-            </button>{" "}
-            antes de começar de novo.
-          </div>
-        )}
-        <form onSubmit={start}>
-          <label className="field">
-            <span>Como você se chama?</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder="Seu nome" />
-          </label>
-          <label className="field">
-            <span>Seu e-mail (opcional)</span>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@exemplo.com" />
-          </label>
-          <label className="field">
-            <span>Moeda principal</span>
-            <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.code} – {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {error && <div className="form-errors">{error}</div>}
-          <button className="btn btn-orange btn-block" type="submit">
-            Começar
-          </button>
-        </form>
-        <button className="link-btn" onClick={() => fileRef.current?.click()}>
-          Já tenho um backup: restaurar
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          hidden
-          onChange={async (e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (!f) return;
-            try {
-              store.replace(normalizeDataset(JSON.parse(await f.text())));
-            } catch (err) {
-              setError(err instanceof A.UserError ? err.message : "Não foi possível ler este arquivo.");
-            }
-          }}
-        />
-      </div>
-    </div>
   );
 }
 
@@ -287,7 +230,8 @@ function ErrorListener() {
 }
 
 export default function App() {
-  const [store] = useState(createStore);
+  const store = useAppStore();
+  if (!store) return <Splash />;
   return (
     <StoreProvider store={store}>
       <UIProvider>
