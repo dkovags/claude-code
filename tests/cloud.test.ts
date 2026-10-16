@@ -136,10 +136,11 @@ describe.skipIf(!FS || !AUTH)("sincronização na nuvem (emulador)", () => {
     expect(buildLedger(ds(carla)).total).toEqual({});
   });
 
-  it("nome escolhido pela própria pessoa aparece para os outros", async () => {
-    run(ana, A.updatePerson, ANA, { name: "Ana S.", email: "ana@example.com" });
+  it("nome e chave Pix escolhidos pela própria pessoa aparecem para os outros", async () => {
+    run(ana, A.updatePerson, ANA, { name: "Ana S.", email: "ana@example.com", pix: "ana@pix.com" });
     const fresh = await login("Diego2", "diego@example.com");
     await waitFor(() => ds(fresh).people[ANA]?.name === "Ana S.", "novo nome da Ana");
+    expect(ds(fresh).people[ANA].pix).toBe("ana@pix.com");
   });
 
   it("exclusão e restauração sincronizam", async () => {

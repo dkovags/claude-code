@@ -37,6 +37,7 @@ interface Profile {
   name: string;
   email: string;
   color: number;
+  pix?: string;
 }
 
 export interface CloudOptions {
@@ -259,8 +260,10 @@ export class CloudStore implements DataStore {
       const mail = emailOf(p.id);
       if (!mail) continue;
       const prof = this.profiles.get(mail);
-      if (prof) p.name = prof.name;
-      else this.requestProfile(mail);
+      if (prof) {
+        p.name = prof.name;
+        if (prof.pix) p.pix = prof.pix;
+      } else this.requestProfile(mail);
     }
     const myProfile = this.profiles.get(this.email);
     people[this.meId] = {
@@ -272,6 +275,8 @@ export class CloudStore implements DataStore {
       createdAt: people[this.meId]?.createdAt || "",
     };
     delete people[this.meId].hidden;
+    if (myProfile?.pix) people[this.meId].pix = myProfile.pix;
+    else delete people[this.meId].pix;
     try {
       this.ds = normalizeDataset({
         version: 1,
@@ -459,7 +464,14 @@ export class CloudStore implements DataStore {
       switch (op.t) {
         case "person":
           if (op.next.id === this.meId) {
-            this.track(setDoc(doc(this.db, "profiles", this.email), { name: op.next.name, email: this.email, color: op.next.color }));
+            this.track(
+              setDoc(doc(this.db, "profiles", this.email), {
+                name: op.next.name,
+                email: this.email,
+                color: op.next.color,
+                pix: op.next.pix,
+              }),
+            );
           } else {
             this.update(this.userRef(), [[new FieldPath("people", op.next.id), op.next]]);
             // o novo nome também vai para os grupos e despesas em que a pessoa aparece

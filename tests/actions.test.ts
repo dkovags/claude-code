@@ -175,6 +175,16 @@ describe("ações", () => {
     expect(init.payerId).toBe(ana);
   });
 
+  it("guarda a chave Pix", () => {
+    const { store, me } = setup();
+    const caio = run(store, A.addPerson, { name: "Caio", pix: " caio@pix.com " });
+    expect(store.getSnapshot()!.people[caio].pix).toBe("caio@pix.com");
+    run(store, A.updatePerson, me, { name: "Diego", email: "diego@example.com", pix: "123.456.789-00" });
+    expect(store.getSnapshot()!.people[me].pix).toBe("123.456.789-00");
+    run(store, A.updatePerson, me, { name: "Diego", email: "diego@example.com", pix: "" });
+    expect(store.getSnapshot()!.people[me].pix).toBeUndefined();
+  });
+
   it("guarda uma cópia quando os dados salvos estão corrompidos", () => {
     const storage = new MemoryStorage();
     storage.setItem("rateio:data:v1", "{quebrado");

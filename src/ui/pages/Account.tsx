@@ -14,6 +14,7 @@ import { Avatar } from "../components/basics";
 import { Page } from "../components/Shell";
 import { useData, useRun, useStatus, useStore, useUI } from "../context";
 import { downloadFile } from "../download";
+import { useInstallPrompt } from "../install";
 import { navigate } from "../router";
 
 /** Dados do modo local guardados neste aparelho (para enviar à nuvem). */
@@ -123,6 +124,7 @@ export function AccountPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const person = ds.people[me];
   const cloud = store.mode === "cloud";
+  const install = useInstallPrompt();
 
   const importFile = async (file: File) => {
     try {
@@ -155,6 +157,11 @@ export function AccountPage() {
           <div className="profile-info">
             <div className="profile-name">{person.name}</div>
             <div className="muted">{person.email || "sem e-mail"}</div>
+            {person.pix ? (
+              <div className="muted small">Chave Pix: {person.pix}</div>
+            ) : (
+              <div className="muted small">Cadastre sua chave Pix em Editar para facilitar os pagamentos.</div>
+            )}
           </div>
           <button className="btn btn-gray btn-sm" onClick={() => ui.open({ type: "friend", personId: me })}>
             <Pencil size={14} /> Editar
@@ -226,6 +233,11 @@ export function AccountPage() {
           <h2>
             <Smartphone size={18} /> Instalar no celular
           </h2>
+          {install && (
+            <button className="btn btn-mint" onClick={install}>
+              <Smartphone size={16} /> Instalar o {APP_NAME}
+            </button>
+          )}
           <p className="small">
             No <b>Android</b> (Chrome): menu ⋮ e “Instalar app” ou “Adicionar à tela inicial”. No <b>iPhone</b> (Safari):
             botão Compartilhar e “Adicionar à Tela de Início”. O {APP_NAME} abre como um aplicativo e funciona sem internet.

@@ -224,6 +224,25 @@ try {
   await page.locator(".confirm-modal").getByRole("button", { name: "Importar" }).click();
   await page.waitForTimeout(200);
 
+  // chave Pix: a Ana cadastra a dela e ela aparece quando vou pagá-la
+  await page.locator(".nav-link", { hasText: "Ana Souza" }).click();
+  await page.getByRole("button", { name: "Configurações" }).click();
+  await page.getByPlaceholder("CPF, e-mail, celular ou chave aleatória").fill("ana@pix.com");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await closed(page);
+  await page.getByRole("button", { name: "Adicionar uma despesa" }).first().click();
+  await page.getByLabel("Descrição").fill("Sorvete");
+  await page.getByLabel("Valor").fill("20");
+  await page.locator(".paid-split .pill").first().click();
+  await page.getByRole("button", { name: "Ana Souza" }).click();
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await closed(page);
+  await page.getByRole("button", { name: "Acertar contas" }).first().click();
+  await page.locator(".settle-choice", { hasText: "Você deve" }).first().click();
+  await page.locator(".modal .pix code", { hasText: "ana@pix.com" }).waitFor();
+  await shot(page, "19d-pix");
+  await page.getByLabel("Fechar").click();
+
   // celular
   const m = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: "pt-BR", reducedMotion: "reduce" });
   const state = await page.evaluate(() => localStorage.getItem("rateio:data:v1"));

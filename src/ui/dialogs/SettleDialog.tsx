@@ -7,6 +7,7 @@ import { personName, who } from "../../domain/people";
 import type { Cents, ID } from "../../domain/types";
 import * as A from "../../store/actions";
 import { Avatar, Modal } from "../components/basics";
+import { PixKey } from "../components/PixKey";
 import { useData, useRun, useUI } from "../context";
 import { currencySymbol } from "./ExpenseDialog";
 
@@ -276,6 +277,7 @@ export function SettleDialog({
           autoFocus
         />
       </div>
+      {to && from === me && ds.people[to]?.pix && <PixKey person={ds.people[to]} />}
       {useParts && (
         <div className="banner info">
           Serão registrados {splitParts!.length} pagamentos, um em cada grupo, zerando o saldo de vocês:

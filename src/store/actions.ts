@@ -40,7 +40,7 @@ const entry = (ctx: Ctx, type: HistoryEntry["type"], extra: Partial<HistoryEntry
 
 /* ---------------- pessoas ---------------- */
 
-export function addPerson(ds: Dataset, ctx: Ctx, input: { name: string; email?: string }): Result<ID> {
+export function addPerson(ds: Dataset, ctx: Ctx, input: { name: string; email?: string; pix?: string }): Result<ID> {
   const name = input.name.trim();
   if (!name) fail("Informe o nome.");
   const email = normalizeEmail(input.email);
@@ -57,11 +57,18 @@ export function addPerson(ds: Dataset, ctx: Ctx, input: { name: string; email?: 
   if (ds.people[id]) fail("Essa pessoa já existe.");
   const person: Person = { id, name, color: colorFor(id), createdAt: ctx.now, createdBy: ctx.me };
   if (email) person.email = email;
+  const pix = input.pix?.trim();
+  if (pix) person.pix = pix.slice(0, 140);
   return { ops: [{ t: "person", next: person }], value: id };
 }
 
 /** Edita nome e e-mail. Quem ganha (ou troca) o e-mail passa a ser identificado por ele em todos os registros. */
-export function updatePerson(ds: Dataset, _ctx: Ctx, id: ID, input: { name: string; email?: string }): Result<ID> {
+export function updatePerson(
+  ds: Dataset,
+  _ctx: Ctx,
+  id: ID,
+  input: { name: string; email?: string; pix?: string },
+): Result<ID> {
   const prev = ds.people[id] ?? fail("Pessoa não encontrada.");
   const name = input.name.trim();
   if (!name) fail("Informe o nome.");
@@ -74,7 +81,13 @@ export function updatePerson(ds: Dataset, _ctx: Ctx, id: ID, input: { name: stri
   const next: Person = { ...prev, name };
   if (email) next.email = email;
   else delete next.email;
-  if (next.name === prev.name && next.email === prev.email) return { ops: [], value: id };
+  if (input.pix !== undefined) {
+    const pix = input.pix.trim();
+    if (pix.length > 140) fail("Chave Pix muito longa.");
+    if (pix) next.pix = pix;
+    else delete next.pix;
+  }
+  if (next.name === prev.name && next.email === prev.email && next.pix === prev.pix) return { ops: [], value: id };
   const newId = email && email !== prev.email ? emailId(email) : id;
   if (newId === id) return { ops: [{ t: "person", prev, next }], value: id };
   if (ds.people[newId]) fail("Já existe uma pessoa com esse e-mail.");

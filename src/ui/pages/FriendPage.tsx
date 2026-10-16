@@ -6,6 +6,7 @@ import { firstName, personName } from "../../domain/people";
 import type { ID } from "../../domain/types";
 import { Avatar, EmptyState, OweText } from "../components/basics";
 import { ExpenseList } from "../components/ExpenseList";
+import { PixKey } from "../components/PixKey";
 import { MainActions, Page } from "../components/Shell";
 import { useData, useUI } from "../context";
 import { downloadFile, shareText, slug } from "../download";
@@ -39,6 +40,7 @@ function FriendBalanceCard({ id }: { id: ID }) {
             </span>
           </div>
         ))}
+      <PixKey person={ds.people[id]} />
     </div>
   );
 }
@@ -59,10 +61,13 @@ export function FriendPage({ id }: { id: ID }) {
   });
   const bal = ledger.friendBalance.get(id) || {};
   const owesMe = positivePart(bal);
+  const myPix = ds.people[me]?.pix;
   const remind = () =>
     shareText(
       `Oi, ${firstName(person.name)}! Passando para lembrar do nosso acerto no ${APP_NAME}: ` +
-        `ficou ${formatBalance(owesMe)} para você me pagar. Valeu!`,
+        `ficou ${formatBalance(owesMe)} para você me pagar.` +
+        (myPix ? ` Minha chave Pix: ${myPix}` : "") +
+        " Valeu!",
     );
   const exportCsv = () =>
     downloadFile(`${slug(person.name)}.csv`, expensesToCsv(ds, shared, [me, id]), "text/csv;charset=utf-8");

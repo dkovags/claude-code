@@ -16,6 +16,8 @@ export interface Person {
   createdBy?: ID;
   /** Amizade removida: a pessoa some da lista de amigos, mas continua nos grupos e despesas antigas. */
   hidden?: boolean;
+  /** Chave Pix para receber pagamentos. */
+  pix?: string;
 }
 
 export type GroupType = "home" | "trip" | "couple" | "other";

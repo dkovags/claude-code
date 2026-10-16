@@ -14,13 +14,14 @@ export function FriendDialog({ personId, email: initialEmail, onClose }: { perso
   const person = personId ? ds.people[personId] : undefined;
   const [name, setName] = useState(person?.name || "");
   const [email, setEmail] = useState(person?.email || initialEmail || "");
+  const [pix, setPix] = useState(person?.pix || "");
   const isMe = personId === me;
   // na nuvem o e-mail identifica a conta: o seu é o da conta Google, e o de um amigo não muda depois de cadastrado
   const emailLocked = useStore().mode === "cloud" && (isMe || !!person?.email);
 
   const save = () => {
     if (person) {
-      const newId = runAction(A.updatePerson, person.id, { name, email });
+      const newId = runAction(A.updatePerson, person.id, { name, email, pix });
       if (newId) {
         onClose();
         ui.toast(isMe ? "Perfil atualizado." : "Amigo atualizado.");
@@ -28,7 +29,7 @@ export function FriendDialog({ personId, email: initialEmail, onClose }: { perso
       }
       return;
     }
-    const id = runAction(A.addPerson, { name, email });
+    const id = runAction(A.addPerson, { name, email, pix });
     if (id) {
       onClose();
       ui.toast(`${name.trim()} foi adicionado(a) aos seus amigos.`);
@@ -78,6 +79,20 @@ export function FriendDialog({ personId, email: initialEmail, onClose }: { perso
               estiver ativa.
             </small>
           )}
+        </label>
+        <label className="field">
+          <span>Chave Pix (opcional)</span>
+          <input
+            value={pix}
+            onChange={(e) => setPix(e.target.value)}
+            placeholder="CPF, e-mail, celular ou chave aleatória"
+            autoComplete="off"
+          />
+          <small className="muted">
+            {isMe
+              ? "Aparece para quem for te pagar e vai junto nos lembretes de cobrança."
+              : "Aparece na hora de acertar as contas, para você copiar e pagar pelo app do banco."}
+          </small>
         </label>
         <button type="submit" hidden />
       </form>

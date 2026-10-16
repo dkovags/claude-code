@@ -2314,6 +2314,40 @@ textarea:focus {
   opacity: 0.75;
 }
 
+.pix {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--mint-soft);
+  border: 1px solid #bfe9dc;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+
+:root[data-theme="dark"] .pix {
+  border-color: #2c5a4d;
+}
+
+.pix-label {
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.pix-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.pix code {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
 /* ===== Avisos ===== */
 .toasts {
   position: fixed;
