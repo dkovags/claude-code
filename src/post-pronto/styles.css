@@ -394,6 +394,10 @@ h3 {
 .field-row .handle {
   flex: 0 1 220px;
 }
+/* controles lado a lado só quando cada um cabe inteiro (senão, um embaixo do outro) */
+.field-row.controls > * {
+  flex-basis: 280px;
+}
 
 input:not([type]),
 input[type="text"],
@@ -1638,6 +1642,7 @@ input.emoji-input {
 }
 /* a figurinha tracejada: na parte livre da tela ou onde a pessoa arrastar */
 .sticker-drag {
+  position: relative;
   flex: none;
   display: flex;
   justify-content: center;
@@ -1653,6 +1658,30 @@ input.emoji-input {
 }
 .sticker-drag.movable:active {
   cursor: grabbing;
+}
+.ghost-remove {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #15171c;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.ghost-remove:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.sticker-editor > .btn {
+  justify-self: start;
 }
 .sticker-drag.movable:focus-visible {
   outline: 2px solid var(--focus);
@@ -1839,6 +1868,7 @@ input.emoji-input {
   gap: 16px;
   width: min(100%, 500px);
   max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   overflow: auto;
   padding: 24px;
   background: var(--sheet);
@@ -1855,6 +1885,7 @@ input.emoji-input {
 
 .capture-image {
   max-height: 55vh;
+  max-height: 55dvh;
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -1988,11 +2019,85 @@ input.emoji-input {
   .btn.big {
     width: 100%;
   }
+  /* editor dos textos: a foto em cima e os campos na largura toda */
+  .frame-editor {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .frame-editor .story-thumb {
+    width: 56px;
+  }
+  .sticker-fields select {
+    flex-basis: 100%;
+  }
+  .inline-form {
+    flex-wrap: wrap;
+  }
+  .inline-form input {
+    flex-basis: 100%;
+  }
+  /* opções numa grade (as fontes em 2 × 2), em vez de uma sobrando sozinha na segunda linha */
+  .segmented[data-cols] {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  }
+  .segmented[data-cols] button {
+    justify-content: center;
+  }
   .alert {
     margin: 14px 14px 0;
   }
   .option {
     padding: 14px;
+  }
+}
+
+/* ===== Telas de toque (celular e tablet) e telas de celular: alvos de pelo menos 40 px ===== */
+@media (pointer: coarse), (max-width: 560px) {
+  .btn {
+    min-height: 44px;
+  }
+  .btn.small {
+    min-height: 40px;
+  }
+  .chip,
+  .segmented button,
+  .toggle,
+  .step,
+  .tag-editor input {
+    min-height: 40px;
+  }
+  .step {
+    min-width: 40px;
+  }
+  .tag button {
+    width: 32px;
+    height: 32px;
+    margin: -6px -4px -6px -2px;
+  }
+  .frame .thumb {
+    width: 100px;
+  }
+  .frame-tools {
+    gap: 2px;
+  }
+  .frame-tools button {
+    width: 32px;
+    height: 32px;
+  }
+  .nav {
+    width: 40px;
+    height: 40px;
+  }
+  input[type="range"] {
+    height: 32px;
+  }
+  .pick-links a:not(.btn) {
+    padding-block: 8px;
+  }
+  .ghost-remove {
+    width: 36px;
+    height: 36px;
   }
 }
 

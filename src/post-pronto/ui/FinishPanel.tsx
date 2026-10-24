@@ -1,6 +1,6 @@
 import {
   ArrowLeft, Crop, Download, ExternalLink, FileText, Images, Lightbulb, ListOrdered, MapPin, Move, Share2,
-  Sticker as StickerIcon, Type,
+  Sticker as StickerIcon, Trash2, Type,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bothParts, fullCaption, musicLabel, postText, stickerSummary, storiesText } from "../caption";
@@ -106,7 +106,15 @@ function PlaceSection({
 }
 
 /** Stories: as figurinhas interativas a adicionar em cada tela, com o texto pronto para copiar. */
-function StickersSection({ frames, hashtags }: { frames: StoryFrame[]; hashtags: string[] }) {
+function StickersSection({
+  frames,
+  hashtags,
+  onRemove,
+}: {
+  frames: StoryFrame[];
+  hashtags: string[];
+  onRemove: (index: number) => void;
+}) {
   const withSticker = frames.flatMap((f, i) => (f.sticker ? [{ i, sticker: f.sticker }] : []));
   if (!withSticker.length && !hashtags.length) return null;
   const several = frames.length > 1;
@@ -132,6 +140,14 @@ function StickersSection({ frames, hashtags }: { frames: StoryFrame[]; hashtags:
               {sticker.options.length > 1 && (
                 <CopyButton text={sticker.options.join("\n")} label="Copiar opções" className="btn ghost small" />
               )}
+              <button
+                type="button"
+                className="btn ghost small"
+                aria-label={several ? `Remover a figurinha da tela ${i + 1}` : "Remover a figurinha"}
+                onClick={() => onRemove(i)}
+              >
+                <Trash2 size={14} aria-hidden="true" /> Remover
+              </button>
             </p>
           </li>
         ))}
@@ -482,6 +498,7 @@ export function FinishPanel({
             <Segmented<OverlayStyle>
               label={twoParts ? "Fonte do trecho 1" : "Estilo"}
               options={styleOptions}
+              narrowColumns={2}
               value={finish.overlay.style}
               onChange={(style) => setOverlay({ style })}
             />
@@ -489,11 +506,12 @@ export function FinishPanel({
               <Segmented<OverlayStyle>
                 label="Fonte do trecho 2"
                 options={styleOptions}
+                narrowColumns={2}
                 value={finish.overlay.style2}
                 onChange={(style2) => setOverlay({ style2 })}
               />
             )}
-            <div className="field-row">
+            <div className="field-row controls">
               <Segmented<Overlay["position"]>
                 label="Posição"
                 options={[
@@ -514,7 +532,7 @@ export function FinishPanel({
                 onChange={(color) => setOverlay({ color })}
               />
             </div>
-            <div className={twoParts ? "field-row" : undefined}>
+            <div className={twoParts ? "field-row controls" : undefined}>
               <div className="field">
                 <label className="label" htmlFor="pp-overlay-size">
                   {twoParts ? "Tamanho do trecho 1" : "Tamanho"}
@@ -580,6 +598,7 @@ export function FinishPanel({
               }))}
               value={finish.format}
               onChange={(format) => set({ format })}
+              narrowColumns={3}
             />
             <p className="hint">
               {spec.hint}. {several && "No carrossel, todas as fotos usam o mesmo formato."}
@@ -630,7 +649,19 @@ export function FinishPanel({
         )}
       </section>
 
-      {stories && <StickersSection frames={frames.slice(0, photos.length)} hashtags={storyTags} />}
+      {stories && (
+        <StickersSection
+          frames={frames.slice(0, photos.length)}
+          hashtags={storyTags}
+          onRemove={(i) => {
+            setFrames(photos.map((_, k) => {
+              const f = frames[k] ?? { text: "", sticker: null };
+              return k === i ? { ...f, sticker: null, stickerAt: undefined } : f;
+            }));
+            notify("Figurinha removida.");
+          }}
+        />
+      )}
       <MusicSection music={result.music} value={finish.music} onChange={(i) => set({ music: i })} stories={stories} />
       <PlaceSection
         places={result.places}

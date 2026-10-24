@@ -326,6 +326,39 @@ async function hermetic(ctx) {
   // fontes do Google viram CSS vazio (o teste não depende de internet)
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ status: 200, contentType: "text/css", body: "" }));
 }
+/**
+ * Confere o leiaute: nada rola para o lado, nenhum controle sai da tela e, no celular, os controles têm tamanho de
+ * toque (40 px; 32 px nos controles deslizantes e nos botões pequenos das fotos e das hashtags).
+ */
+async function checkLayout(page, label, phone) {
+  await noHorizontalScroll(page, label);
+  const problems = await page.evaluate((phone) => {
+    const W = window.innerWidth;
+    const out = [];
+    const scrolls = (el) => {
+      for (let p = el.parentElement; p; p = p.parentElement) if (/(auto|scroll)/.test(getComputedStyle(p).overflowX)) return true;
+      return false;
+    };
+    for (const el of document.querySelectorAll("button, a, input, select, textarea, label.toggle, .chip")) {
+      const b = el.getBoundingClientRect();
+      const st = getComputedStyle(el);
+      if (!b.width || !b.height || st.visibility === "hidden" || st.opacity === "0" || el.matches(".file-input")) continue;
+      if (el.closest(".story-screen, .feed, .mini-preview")) continue;
+      const name = (el.getAttribute("aria-label") || el.textContent || el.getAttribute("placeholder") || el.tagName).trim().slice(0, 40);
+      if ((b.right > W + 1 || b.left < -1) && !scrolls(el)) out.push(`${name} sai da tela`);
+      if (!phone) continue;
+      if (el.matches("input[type=radio], input[type=checkbox]") && el.closest("label")) continue;
+      if (el.tagName === "A" && el.closest("p") && !el.matches(".btn")) continue;
+      const min = el.matches("input[type=range]") || el.closest(".frame-tools, .tag") ? 32 : 40;
+      if (b.height < min - 0.5 || (el.matches("button, .btn, select") && b.width < min - 0.5)) {
+        out.push(`${name} pequeno para tocar (${Math.round(b.width)}×${Math.round(b.height)})`);
+      }
+    }
+    return [...new Set(out)];
+  }, phone);
+  expect(problems.length === 0, `${label}: ${problems.join("; ")}`);
+}
+
 /** Posição do elemento depois que a tela assenta (o React pode desenhar o último movimento um instante depois). */
 async function settledBox(locator) {
   let box = await locator.boundingBox();
@@ -602,8 +635,20 @@ try {
   ).split(" ").map(Number);
   expect(screenInfo[0] >= 1200 && screenInfo[1] > 1500 && screenInfo[2] > 500, `imagem da tela: ${screenInfo}`);
 
+  // tirar as figurinhas: pela lista da etapa final e pelo × da figurinha tracejada
+  await page.getByRole("button", { name: "Remover a figurinha da tela 2" }).click();
+  await page.getByText("Figurinha removida.").waitFor();
+  expect(!(await page.locator(".how").innerText()).includes("Enquete"), "o passo a passo esquece a enquete removida");
+  await page.getByRole("button", { name: "Remover a figurinha", exact: true }).click();
+  expect((await page.locator(".story-screen .sticker-ghost").count()) === 0, "a figurinha some da prévia");
+  expect((await page.locator(".picks.stickers").innerText()).trim().startsWith("Hashtag:"), "na lista fica só a hashtag");
+
   // de volta à escolha, o editor mostra os dois trechos
   await page.getByRole("button", { name: "Voltar para os textos" }).click();
+  expect(
+    (await page.getByLabel("Figurinha (você adiciona no Instagram)").nth(1).inputValue()) === "",
+    "a tela 2 fica sem figurinha",
+  );
   expect((await page.getByLabel("Trecho 2 da tela 1 (outra fonte)").inputValue()) === "e um dinossauro de chantilly", "trecho 2 no editor");
   await page.getByRole("button", { name: "Confirmar textos" }).click();
   await page.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
@@ -720,6 +765,11 @@ try {
   expect((await m.locator(".option").first().locator(".story-frame").count()) === 1, "com 1 foto, cada versão tem 1 tela");
   await shot(m, "11-celular-versoes");
   await m.getByRole("button", { name: "Usar e editar" }).nth(2).click();
+  // tirar a figurinha pelo editor dos textos
+  await m.locator(".story-screen .sticker-ghost").waitFor();
+  await m.getByRole("button", { name: "Remover figurinha" }).click();
+  expect((await m.getByLabel("Figurinha (você adiciona no Instagram)").inputValue()) === "", "o editor fica sem figurinha");
+  expect((await m.locator(".story-screen .sticker-ghost").count()) === 0, "a prévia fica sem figurinha");
   await m.getByRole("button", { name: "Confirmar textos" }).click();
   await m.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
   await shot(m, "12-celular-pronto");
@@ -893,6 +943,59 @@ try {
   await hintBox.getByRole("button", { name: "Copiar link" }).waitFor();
   await shot(d, "21-artefato-android-app");
   await droid.close();
+
+  // ============ 6. Tamanhos de tela: Android (pequeno e grande), notebook e monitor ============
+  const SIZES = [
+    { name: "android-360", width: 360, height: 780, phone: true },
+    { name: "android-412", width: 412, height: 915, phone: true },
+    { name: "notebook-1024", width: 1024, height: 768, phone: false },
+    { name: "monitor-1440", width: 1440, height: 900, phone: false },
+  ];
+  for (const size of SIZES) {
+    const sized = await browser.newContext({
+      viewport: { width: size.width, height: size.height },
+      isMobile: size.phone,
+      hasTouch: size.phone,
+      locale: "pt-BR",
+      reducedMotion: "reduce",
+    });
+    await hermetic(sized);
+    await sized.route("https://artefato.teste/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: skeleton }));
+    await sized.addInitScript(
+      ({ QUESTIONS_LOOSE, STORY_SUGGESTIONS }) => {
+        const sample = async () => {
+          throw { code: "invalid_request" };
+        };
+        sample.json = async (input) => (input.includes("Antes de escrever") ? QUESTIONS_LOOSE : STORY_SUGGESTIONS);
+        sample.limits = async () => ({ images: { maxCount: 5, maxInputBytes: 20e6, mediaTypes: ["image/jpeg"] } });
+        const downloads = { save: async () => ({ status: "saved" }) };
+        window.claude = { use: async (name) => (name === "sample" ? sample : name === "downloads" ? downloads : null) };
+      },
+      { QUESTIONS_LOOSE, STORY_SUGGESTIONS },
+    );
+    const sp = (current = await sized.newPage());
+    watch(sp);
+    await sp.goto("https://artefato.teste/");
+    await sp.getByRole("heading", { name: "Post Pronto" }).waitFor();
+    await checkLayout(sp, `${size.name}, início`, size.phone);
+    await sp.locator('input[type="file"]').setInputFiles([
+      { name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA },
+      { name: "bolo.jpg", mimeType: "image/jpeg", buffer: photoB },
+    ]);
+    await sp.locator(".film .frame:not(.add)").nth(1).waitFor();
+    await checkLayout(sp, `${size.name}, fotos`, size.phone);
+    await sp.getByRole("button", { name: "Sugerir textos" }).click();
+    await sp.getByRole("button", { name: "Pular e gerar assim mesmo" }).click();
+    await sp.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
+    await sp.getByRole("button", { name: "Usar e editar" }).first().click();
+    await sp.getByText("Dois trechos com fontes diferentes").click();
+    await checkLayout(sp, `${size.name}, escolha`, size.phone);
+    await sp.getByRole("button", { name: "Confirmar textos" }).click();
+    await sp.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
+    await checkLayout(sp, `${size.name}, etapa final`, size.phone);
+    await shot(sp, `30-tamanho-${size.name}`, true);
+    await sized.close();
+  }
 
   if (errors.length) fail(`Erros no console:\n${errors.join("\n")}`);
   console.log(`OK: stories e feed na página publicada, no celular e no artefato. Capturas em ${OUT}/`);

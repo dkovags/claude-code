@@ -1,5 +1,5 @@
 import { Check, Copy, Undo2, WandSparkles, X } from "lucide-react";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { type CSSProperties, useEffect, useId, useState, type ReactNode } from "react";
 import { cleanHashtags } from "../prompts";
 import { copyText } from "../save";
 
@@ -43,17 +43,24 @@ export function Segmented<K extends string>({
   value,
   onChange,
   hideLabel,
+  narrowColumns,
 }: {
   label: string;
   options: { id: K; label: ReactNode; title?: string }[];
   value: K;
   onChange: (v: K) => void;
   hideLabel?: boolean;
+  /** No celular, as opções em uma grade com este número de colunas. */
+  narrowColumns?: number;
 }) {
   return (
     <div className="field" role="radiogroup" aria-label={label}>
       {!hideLabel && <span className="label">{label}</span>}
-      <div className="segmented">
+      <div
+        className="segmented"
+        data-cols={narrowColumns}
+        style={narrowColumns ? ({ "--cols": narrowColumns } as CSSProperties) : undefined}
+      >
         {options.map((o) => (
           <button
             key={o.id}

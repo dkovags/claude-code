@@ -1,4 +1,4 @@
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, Trash2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { bothParts, STICKER_LABELS, STORY_WORDS, stickerSummary, wordCount } from "../caption";
 import type { Photo } from "../photos";
@@ -81,6 +81,11 @@ function StickerEditor({
             onChange={(options) => onChange({ ...sticker, options })}
           />
         </div>
+      )}
+      {sticker && (
+        <button type="button" className="btn ghost small" onClick={() => onChange(null)}>
+          <Trash2 size={14} aria-hidden="true" /> Remover figurinha
+        </button>
       )}
       {sticker?.kind === "slider" && (
         <div className="field">

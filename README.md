@@ -137,7 +137,12 @@ de *stories*; o de *feed* continua disponível.
   junta de novo. As fontes ficam em **Texto nas fotos**, logo abaixo dos botões de baixar; no celular, uma prévia
   pequena no canto acompanha os ajustes.
 - **Figurinha tracejada**: na prévia, dá para arrastar a figurinha (ou movê-la com as setas) para ver onde ela fica
-  melhor em cada tela. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona arrastando com o dedo.
+  melhor em cada tela, e tirá-la pelo × no canto. Também dá para tirar pelo botão **Remover** na lista de figurinhas
+  da etapa final ou no editor dos textos. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona
+  arrastando com o dedo.
+- **Celular e computador**: no computador, a prévia fica ao lado dos controles; no celular, tudo vem numa coluna, com
+  controles do tamanho do dedo (pelo menos 40 px), opções em grade e o editor dos textos na largura toda. O teste de
+  ponta a ponta confere as etapas em 360, 412, 1024 e 1440 px de largura.
 - **Imagem da tela**: o botão no alto cria uma imagem da página inteira, em qualquer etapa, e mostra antes de baixar;
   se o download não funcionar, dá para tocar e segurar a imagem para salvar. Serve também quando o celular não deixa
   fazer captura de tela, como na aba anônima do Chrome no Android.

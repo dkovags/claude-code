@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Heart, Link2, MapPin, Music, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, Link2, MapPin, Music, Send, X } from "lucide-react";
 import { type KeyboardEvent, type PointerEvent, useRef } from "react";
 import { STICKER_LABELS } from "../caption";
 import { formatSpec, type Framing, type Overlay } from "../render";
@@ -49,6 +49,7 @@ export function StoryPreview({
   sticker,
   stickerAt,
   onStickerMove,
+  onStickerRemove,
   handle,
   music,
   place,
@@ -67,6 +68,8 @@ export function StoryPreview({
   stickerAt?: Spot;
   /** Arrastar a figurinha tracejada (só para planejar: ela não vai na foto baixada). */
   onStickerMove?: (at: Spot) => void;
+  /** Tirar a figurinha da tela. */
+  onStickerRemove?: () => void;
   handle: string;
   music?: MusicPick;
   place?: PlacePick;
@@ -149,6 +152,20 @@ export function StoryPreview({
       {...dragHandlers}
     >
       <StickerGhost sticker={sticker} />
+      {onStickerRemove && (
+        <button
+          type="button"
+          className="ghost-remove"
+          aria-label="Remover a figurinha"
+          title="Remover a figurinha"
+          // tocar no × não pode começar a arrastar
+          onPointerDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          onClick={onStickerRemove}
+        >
+          <X size={15} aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 

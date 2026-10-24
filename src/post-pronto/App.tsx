@@ -533,6 +533,14 @@ export default function App() {
                   ? (at) => setFrames(frames.map((f, i) => (i === previewIndex ? { ...f, stickerAt: at } : f)))
                   : undefined
               }
+              onStickerRemove={
+                picked && !isExample
+                  ? () => {
+                      setFrames(frames.map((f, i) => (i === previewIndex ? { ...f, sticker: null, stickerAt: undefined } : f)));
+                      setToast("Figurinha removida. Dá para escolher outra no editor dos textos.");
+                    }
+                  : undefined
+              }
             />
           ) : (
             <PostPreview {...previewCommon} spec={spec} draft={isExample ? EXAMPLE_DRAFT : picked ? draft : null} />
