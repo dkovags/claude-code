@@ -326,6 +326,17 @@ async function hermetic(ctx) {
   // fontes do Google viram CSS vazio (o teste não depende de internet)
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.fulfill({ status: 200, contentType: "text/css", body: "" }));
 }
+/** Posição do elemento depois que a tela assenta (o React pode desenhar o último movimento um instante depois). */
+async function settledBox(locator) {
+  let box = await locator.boundingBox();
+  for (let i = 0; i < 20; i++) {
+    await locator.page().waitForTimeout(50);
+    const next = await locator.boundingBox();
+    if (Math.abs(next.x - box.x) < 0.5 && Math.abs(next.y - box.y) < 0.5) return next;
+    box = next;
+  }
+  return box;
+}
 async function noHorizontalScroll(page, label) {
   const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
   expect(sw <= iw, `${label}: a página rola na horizontal (${sw} > ${iw})`);
@@ -519,6 +530,24 @@ try {
   await font2.getByRole("radio", { name: "Editorial" }).click();
   await page.getByLabel("Tamanho do trecho 2").fill("0.8");
   await shot(page, "06-stories-pronto");
+
+  // a figurinha tracejada pode ser arrastada na prévia (só para planejar) e fica no lugar em cada tela
+  const ghost = page.locator(".sticker-drag.movable");
+  const before = await ghost.boundingBox();
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2 - 120, { steps: 6 });
+  await page.mouse.up();
+  const dragged = await settledBox(ghost);
+  expect(Math.abs(dragged.y - (before.y - 120)) < 2, `a figurinha deveria subir 120 px: ${before.y} → ${dragged.y}`);
+  await ghost.press("ArrowDown");
+  const nudged = await settledBox(ghost);
+  expect(nudged.y > dragged.y, "a seta para baixo desce a figurinha");
+  await page.getByRole("button", { name: "Próxima tela" }).click();
+  await page.getByRole("button", { name: "Tela anterior" }).click();
+  expect(Math.abs((await settledBox(ghost)).y - nudged.y) < 2, "a figurinha fica onde foi deixada");
+  await page.getByText("Arraste a figurinha para ver onde ela fica melhor.").waitFor();
+  expect(await page.locator(".mini-preview").isHidden(), "no computador, a prévia pequena não aparece");
   await shot(page, "06b-stories-pronto-pagina-inteira", true);
 
   // baixa as 2 telas com texto, depois sem texto, e confere que o texto foi escrito na foto
@@ -556,9 +585,16 @@ try {
 
   // imagem da página inteira, com a página rolada
   await page.mouse.wheel(0, 1500);
-  const screenName = await download(page, page.getByRole("button", { name: "Salvar imagem da tela" }), `${OUT}/downloads/tela.png`);
+  await page.getByRole("button", { name: "Salvar imagem da tela" }).click();
+  const shotDialog = page.getByRole("dialog", { name: "Imagem da tela" });
+  await shotDialog.getByRole("img", { name: "Imagem da página inteira do Post Pronto" }).waitFor();
+  await shotDialog.getByText("clique na imagem com o botão direito").waitFor();
+  await shot(page, "06d-imagem-da-tela");
+  const screenName = await download(page, shotDialog.getByRole("button", { name: "Baixar imagem" }), `${OUT}/downloads/tela.png`);
   expect(/^post-pronto-tela-\d{4}-\d{2}-\d{2}-\d{4}\.png$/.test(screenName), `nome da imagem da tela: ${screenName}`);
-  await page.getByText("Imagem da tela salva.").waitFor();
+  await page.getByText("Imagem da tela baixada.").waitFor();
+  await shotDialog.getByRole("button", { name: "Fechar" }).click();
+  expect((await shotDialog.count()) === 0, "o quadro da imagem fecha");
   const screenInfo = python(
     "import sys\nfrom PIL import Image\nim=Image.open(sys.argv[1]).convert('RGB')\n" +
       "print(im.size[0], im.size[1], len(im.getcolors(1<<24) or []))",
@@ -687,13 +723,22 @@ try {
   await m.getByRole("button", { name: "Confirmar textos" }).click();
   await m.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
   await shot(m, "12-celular-pronto");
+  // no celular, enquanto ajusta o texto, uma prévia pequena acompanha no canto
+  await m.locator('section[aria-labelledby="pp-overlay"]').scrollIntoViewIfNeeded();
+  await m.locator(".mini-preview canvas").waitFor();
+  await shot(m, "12b-celular-previa-pequena");
   await m.getByRole("button", { name: "Ouvir trecho de Happy" }).click();
   await m.getByRole("button", { name: "Pausar o trecho de Happy" }).waitFor();
   expect(phoneItunes.searches.some((p) => p.callback?.startsWith("__postProntoItunes")), "sem CORS, a busca vai por JSONP");
   await m.locator(".song-player").scrollIntoViewIfNeeded();
   await shot(m, "13-celular-trecho-da-musica");
   expect(await m.getByText("Salvar imagem da tela").isHidden(), "no celular, o botão tem o rótulo curto");
-  await download(m, m.getByRole("button", { name: "Imagem da tela" }), `${OUT}/downloads/tela-celular.png`);
+  await m.getByRole("button", { name: "Imagem da tela" }).click();
+  const phoneDialog = m.getByRole("dialog", { name: "Imagem da tela" });
+  await phoneDialog.getByText("toque e segure a imagem").waitFor();
+  await shot(m, "13b-celular-imagem-da-tela");
+  await download(m, phoneDialog.getByRole("button", { name: "Baixar imagem" }), `${OUT}/downloads/tela-celular.png`);
+  await phoneDialog.getByRole("button", { name: "Fechar" }).click();
   const phoneScreen = python("import sys\nfrom PIL import Image\nprint(Image.open(sys.argv[1]).size[0])", `${OUT}/downloads/tela-celular.png`);
   expect(Number(phoneScreen) >= 700, `no celular, a imagem sai com o dobro da largura: ${phoneScreen}`);
   await noHorizontalScroll(m, "celular, etapa final");
@@ -786,7 +831,17 @@ try {
   expect(edited.input.includes("na casa da avó em Valinhos") && !edited.input.includes("• Cinco velinhas"), "gerar de novo com o contexto editado");
   expect(edited.images === 1 && edited.cache === false && !edited.input.includes("INFORMAÇÃO NOVA"), "gerar de novo reenvia a foto");
   await a.getByRole("button", { name: "Usar e editar" }).nth(1).click();
+  // dois trechos também pela tela de escolha
+  await a.getByText("Dois trechos com fontes diferentes").click();
+  expect(await a.getByRole("checkbox", { name: "Dois trechos com fontes diferentes" }).isChecked(), "a chave liga na escolha");
+  expect((await a.getByLabel("Trecho 1", { exact: true }).inputValue()) === "5 anos", "trecho 1 na escolha");
+  expect((await a.getByLabel("Trecho 2 (outra fonte)").inputValue()) === "de Ana", "trecho 2 na escolha");
+  await a.getByText("As fontes de cada um você escolhe na etapa final").waitFor();
   await a.getByRole("button", { name: "Confirmar textos" }).click();
+  await a.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
+  expect(await a.getByRole("checkbox", { name: "Dois trechos com fontes diferentes" }).isChecked(), "a escolha vale na etapa final");
+  expect((await a.getByLabel("Trecho 2", { exact: true }).inputValue()) === "de Ana", "trecho 2 na etapa final");
+  await a.getByRole("radiogroup", { name: "Fonte do trecho 2" }).waitFor();
   await a.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
   await a.getByRole("button", { name: "Baixar a foto" }).click();
   await a.getByText("Download pronto.").waitFor();
@@ -796,7 +851,9 @@ try {
   expect(saved[0].filename === "story.jpg" && saved[0].size > 20000, `foto salva no artefato: ${JSON.stringify(saved[0])}`);
   expect(saved[1].filename === "stories.txt", "texto salvo no artefato");
   await a.getByRole("button", { name: "Salvar imagem da tela" }).click();
+  await a.getByRole("dialog", { name: "Imagem da tela" }).getByRole("button", { name: "Baixar imagem" }).click();
   await a.waitForFunction(() => window.__saved.length === 3);
+  await a.getByRole("dialog", { name: "Imagem da tela" }).getByRole("button", { name: "Fechar" }).click();
   const screen = (await a.evaluate(() => window.__saved))[2];
   expect(
     /^post-pronto-tela-.+\.png$/.test(screen.filename) && screen.type === "image/png" && screen.size > 20000,

@@ -2,14 +2,15 @@ import {
   ArrowLeft, Crop, Download, ExternalLink, FileText, Images, Lightbulb, ListOrdered, MapPin, Move, Share2,
   Sticker as StickerIcon, Type,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { bothParts, fullCaption, musicLabel, postText, stickerSummary, storiesText, withTwoParts } from "../caption";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { bothParts, fullCaption, musicLabel, postText, stickerSummary, storiesText } from "../caption";
 import { fileNames, type FinishState, INITIAL_FINISH, overlaysFor } from "../finish";
 import { mapsPoint, mapsSearch } from "../links";
 import type { Photo } from "../photos";
 import { formatTakenAt } from "../prompts";
 import {
-  DEFAULT_FRAMING, ensureOverlayFonts, exportJpeg, FORMATS, type FormatId, formatSpec, type Framing, type Overlay,
+  DEFAULT_FRAMING, ensureOverlayFonts, exportJpeg, FORMATS, type FormatId, formatSpec, type FormatSpec, type Framing,
+  type Overlay,
   OVERLAY_STYLES, type OverlayStyle,
 } from "../render";
 import type { Saver } from "../save";
@@ -18,6 +19,20 @@ import { makeZip } from "../zip";
 import { MusicSection } from "./MusicSection";
 import { CopyButton, Segmented, Toggle } from "./parts";
 import { PhotoStrip } from "./PhotoStrip";
+import { useShot } from "./shot";
+
+/**
+ * Prévia pequena, no canto da tela, enquanto a pessoa ajusta o texto e a foto no celular: lá a prévia grande fica no
+ * alto da página, longe desses controles. No computador ela fica escondida (a prévia grande está ao lado).
+ */
+function MiniPreview({ photo, spec, overlay }: { photo: Photo; spec: FormatSpec; overlay: Overlay | null }) {
+  const shot = useShot({ source: photo, spec, framing: photo.framing, overlay, width: 240 });
+  return (
+    <div className="mini-preview" aria-hidden="true" data-capture="skip">
+      <canvas ref={shot.canvas} />
+    </div>
+  );
+}
 
 function PlaceSection({
   places,
@@ -102,7 +117,8 @@ function StickersSection({ frames, hashtags }: { frames: StoryFrame[]; hashtags:
       </h3>
       <p className="hint">
         Elas geram as respostas e os votos, mas só funcionam adicionadas no próprio Instagram: no story, toque no ícone de
-        figurinhas e escolha a figurinha indicada.
+        figurinhas e escolha a figurinha indicada. Depois, arraste a figurinha com o dedo para onde quiser e use dois
+        dedos para mudar o tamanho. Na prévia, dá para arrastar a figurinha tracejada para ver onde ela fica melhor.
       </p>
       <ul className="picks stickers">
         {withSticker.map(({ i, sticker }) => (
@@ -148,6 +164,7 @@ export function FinishPanel({
   useMeta,
   saver,
   notify,
+  onTwoParts,
   onBack,
   onReset,
 }: {
@@ -168,19 +185,45 @@ export function FinishPanel({
   useMeta: boolean;
   saver: Saver | null;
   notify: (message: string) => void;
+  /** Liga ou desliga os dois trechos com fontes diferentes (divide ou junta os textos). */
+  onTwoParts: (on: boolean) => void;
   onBack: () => void;
   onReset: () => void;
 }) {
   const [saving, setSaving] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [prepared, setPrepared] = useState<File[] | null>(null);
+  const textSection = useRef<HTMLElement>(null);
+  const photoSection = useRef<HTMLElement>(null);
+  const [adjusting, setAdjusting] = useState(false);
+
+  // a prévia pequena aparece enquanto os controles do texto ou da foto estão no meio da tela
+  useEffect(() => {
+    const sections = [textSection.current, photoSection.current].filter((el): el is HTMLElement => !!el);
+    if (!sections.length || typeof IntersectionObserver === "undefined") return;
+    const inView = new Set<Element>();
+    const watcher = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) inView.add(e.target);
+          else inView.delete(e.target);
+        }
+        setAdjusting(inView.size > 0);
+      },
+      { rootMargin: "-25% 0px -25% 0px" },
+    );
+    sections.forEach((el) => watcher.observe(el));
+    return () => watcher.disconnect();
+  }, []);
   const stories = destination === "stories";
   const spec = formatSpec(stories ? "9:16" : finish.format);
   const photo = photos[Math.min(active, photos.length - 1)];
   const { overlayOn, twoParts, overlay } = finish;
+  // só os textos entram na foto: mexer na figurinha tracejada não refaz os arquivos
+  const frameTexts = frames.map((f) => `${f.text}\u0000${f.text2 ?? ""}`).join("\u0001");
   const overlays = useMemo(
     () => overlaysFor(destination, photos.length, { ...INITIAL_FINISH, overlayOn, twoParts, overlay }, frames),
-    [destination, photos.length, overlayOn, twoParts, overlay, frames],
+    [destination, photos.length, overlayOn, twoParts, overlay, frameTexts],
   );
   const names = fileNames(destination, photos.length);
   const music = result.music[finish.music];
@@ -191,11 +234,6 @@ export function FinishPanel({
   const setOverlay = (patch: Partial<Overlay>) => set({ overlay: { ...finish.overlay, ...patch } });
   const frameText = (i: number, patch: Pick<StoryFrame, "text"> | Pick<StoryFrame, "text2">) =>
     setFrames(photos.map((_, k) => ({ ...(frames[k] ?? { text: "", sticker: null }), ...(k === i ? patch : {}) })));
-  // ao ligar, divide o texto de cada tela (ou da capa) em dois; ao desligar, junta de novo
-  const setTwoParts = (on: boolean) => {
-    if (stories) setFrames(photos.map((_, k) => withTwoParts(frames[k] ?? { text: "", sticker: null }, on)));
-    set({ twoParts: on, overlay: stories ? finish.overlay : withTwoParts(finish.overlay, on) });
-  };
   const styleOptions = (Object.keys(OVERLAY_STYLES) as OverlayStyle[]).map((id) => ({
     id,
     label: (
@@ -346,18 +384,7 @@ export function FinishPanel({
         )}
       </section>
 
-      {stories && <StickersSection frames={frames.slice(0, photos.length)} hashtags={storyTags} />}
-      <MusicSection music={result.music} value={finish.music} onChange={(i) => set({ music: i })} stories={stories} />
-      <PlaceSection
-        places={result.places}
-        value={finish.place}
-        onChange={(i) => set({ place: i })}
-        photos={photos}
-        useMeta={useMeta}
-        stories={stories}
-      />
-
-      <section className="block" aria-labelledby="pp-overlay">
+      <section className="block" aria-labelledby="pp-overlay" ref={textSection}>
         <h3 id="pp-overlay">
           <Type size={17} aria-hidden="true" /> {stories ? "Texto nas fotos" : "Texto na foto"}
         </h3>
@@ -367,7 +394,7 @@ export function FinishPanel({
           label={stories ? "Escrever os textos nas fotos" : "Escrever um texto na capa"}
         />
         {finish.overlayOn && (
-          <Toggle checked={twoParts} onChange={setTwoParts} label="Dois trechos com fontes diferentes" />
+          <Toggle checked={twoParts} onChange={onTwoParts} label="Dois trechos com fontes diferentes" />
         )}
         {stories && (
           <div className="field">
@@ -531,7 +558,7 @@ export function FinishPanel({
         )}
       </section>
 
-      <section className="block" aria-labelledby="pp-photo">
+      <section className="block" aria-labelledby="pp-photo" ref={photoSection}>
         <h3 id="pp-photo">
           <Crop size={17} aria-hidden="true" /> Foto
         </h3>
@@ -602,6 +629,17 @@ export function FinishPanel({
           <p className="hint">A foto aparece inteira, e o espaço que sobra é preenchido com ela mesma, desfocada.</p>
         )}
       </section>
+
+      {stories && <StickersSection frames={frames.slice(0, photos.length)} hashtags={storyTags} />}
+      <MusicSection music={result.music} value={finish.music} onChange={(i) => set({ music: i })} stories={stories} />
+      <PlaceSection
+        places={result.places}
+        value={finish.place}
+        onChange={(i) => set({ place: i })}
+        photos={photos}
+        useMeta={useMeta}
+        stories={stories}
+      />
 
       {!stories && (
         <section className="block" aria-labelledby="pp-alt">
@@ -692,6 +730,8 @@ export function FinishPanel({
           </ol>
         )}
       </section>
+
+      {adjusting && photo && <MiniPreview photo={photo} spec={spec} overlay={overlays[active] ?? null} />}
 
       <div className="actions">
         <button type="button" className="btn ghost" onClick={onBack}>

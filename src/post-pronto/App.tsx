@@ -21,7 +21,7 @@ import { BriefPanel } from "./ui/BriefPanel";
 import { CaptionsPanel } from "./ui/CaptionsPanel";
 import { FinishPanel } from "./ui/FinishPanel";
 import { Header, type Step } from "./ui/Header";
-import { Busy, SettingsDialog } from "./ui/Overlays";
+import { Busy, CaptureDialog, SettingsDialog } from "./ui/Overlays";
 import { PostPreview } from "./ui/PostPreview";
 import { QuestionsPanel } from "./ui/QuestionsPanel";
 import type { PreviewSource } from "./ui/shot";
@@ -68,6 +68,8 @@ export default function App() {
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
+  /** A imagem da tela pronta, mostrada antes de baixar. */
+  const [screenShot, setScreenShot] = useState<{ blob: Blob; url: string } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   /** undefined enquanto conecta; null quando a página não está dentro do Claude. */
   const [claude, setClaude] = useState<AiBackend | null | undefined>(undefined);
@@ -339,28 +341,49 @@ export default function App() {
     setStep("captions");
   }
 
-  /** Salva uma imagem da página inteira, como uma captura de tela (que no celular pode estar bloqueada). */
+  /** Cria uma imagem da página inteira, como uma captura de tela (que no celular pode estar bloqueada), e mostra. */
   async function captureScreen() {
     if (!root.current || capturing) return;
-    if (!saver) {
-      setToast("Esta tela não permite baixar arquivos. Abra o Post Pronto no navegador.");
-      return;
-    }
     setCapturing(true);
     try {
-      let image: Blob;
-      try {
-        image = await captureElement(root.current);
-      } catch {
-        setToast("Não foi possível criar a imagem da tela.");
-        return;
-      }
-      if ((await saver.save(captureName(), image)) === "saved") setToast("Imagem da tela salva.");
+      const blob = await captureElement(root.current);
+      setScreenShot({ blob, url: URL.createObjectURL(blob) });
     } catch (e) {
-      setToast(e instanceof Error ? e.message : "Não foi possível salvar a imagem da tela.");
+      // o detalhe ajuda a descobrir o que falhou neste aparelho
+      const detail = e instanceof Error ? (e.name && e.name !== "Error" ? e.name : e.message) : "";
+      setToast(`Não foi possível criar a imagem da tela${detail ? ` (${detail.slice(0, 60)})` : ""}.`);
     } finally {
       setCapturing(false);
     }
+  }
+
+  function closeScreenShot() {
+    if (screenShot) URL.revokeObjectURL(screenShot.url);
+    setScreenShot(null);
+  }
+
+  async function saveScreenShot() {
+    if (!screenShot || !saver) return;
+    try {
+      if ((await saver.save(captureName(), screenShot.blob)) === "saved") setToast("Imagem da tela baixada.");
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Não foi possível baixar a imagem da tela.");
+    }
+  }
+
+  async function shareScreenShot() {
+    if (!screenShot || !saver?.share) return;
+    try {
+      await saver.share([new File([screenShot.blob], captureName(), { type: "image/png" })]);
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Não foi possível compartilhar a imagem da tela.");
+    }
+  }
+
+  /** Liga ou desliga os dois trechos com fontes diferentes: divide (ou junta) o texto de cada tela e o da capa. */
+  function setTwoParts(on: boolean) {
+    if (stories) setFrames(photos.map((_, i) => withTwoParts(frames[i] ?? { text: "", sticker: null }, on)));
+    setFinish((f) => ({ ...f, twoParts: on, overlay: withTwoParts(f.overlay, on) }));
   }
 
   async function refine(instruction: string): Promise<boolean> {
@@ -501,7 +524,16 @@ export default function App() {
       <main className={`layout step-${step} dest-${destination}`}>
         <section className="stage" aria-label={stories ? "Prévia do story" : "Prévia do post"}>
           {stories ? (
-            <StoryPreview {...previewCommon} sticker={shownFrames[previewIndex]?.sticker ?? null} />
+            <StoryPreview
+              {...previewCommon}
+              sticker={shownFrames[previewIndex]?.sticker ?? null}
+              stickerAt={shownFrames[previewIndex]?.stickerAt}
+              onStickerMove={
+                picked && !isExample
+                  ? (at) => setFrames(frames.map((f, i) => (i === previewIndex ? { ...f, stickerAt: at } : f)))
+                  : undefined
+              }
+            />
           ) : (
             <PostPreview {...previewCommon} spec={spec} draft={isExample ? EXAMPLE_DRAFT : picked ? draft : null} />
           )}
@@ -567,6 +599,7 @@ export default function App() {
               setHashtags={setStoryTags}
               storyLength={prefs.storyLength}
               twoParts={finish.twoParts}
+              onTwoParts={setTwoParts}
               onRefine={refine}
               canUndo={!!undoFrames}
               onUndo={() => {
@@ -623,6 +656,7 @@ export default function App() {
               useMeta={useMeta}
               saver={saver}
               notify={setToast}
+              onTwoParts={setTwoParts}
               onBack={() => setStep("captions")}
               onReset={reset}
             />
@@ -660,6 +694,14 @@ export default function App() {
             setSettingsOpen(false);
             setToast(s.key ? "Chave salva neste navegador." : "Chave apagada.");
           }}
+        />
+      )}
+      {screenShot && (
+        <CaptureDialog
+          url={screenShot.url}
+          onSave={saver ? saveScreenShot : undefined}
+          onShare={saver?.share ? shareScreenShot : undefined}
+          onClose={closeScreenShot}
         />
       )}
       {toast && (

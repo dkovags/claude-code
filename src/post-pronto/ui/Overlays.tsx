@@ -1,6 +1,59 @@
-import { CircleStop } from "lucide-react";
+import { CircleStop, Download, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_MODELS, type ApiModel, type ApiSettings } from "../ai";
+import { touchScreen } from "../runtime";
+
+/**
+ * A imagem da página pronta: dá para baixar e, se o download não funcionar nesta tela, salvar tocando e segurando a
+ * imagem (no computador, com o botão direito).
+ */
+export function CaptureDialog({
+  url,
+  onSave,
+  onShare,
+  onClose,
+}: {
+  url: string;
+  onSave?: () => void;
+  onShare?: () => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const press = touchScreen() ? "toque e segure a imagem" : "clique na imagem com o botão direito";
+  return (
+    <div className="overlay" data-capture="skip" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="dialog capture-dialog" role="dialog" aria-modal="true" aria-labelledby="pp-capture-title">
+        <h2 id="pp-capture-title">Imagem da tela</h2>
+        <p>
+          A página inteira numa imagem só. {onSave ? "Baixe a imagem ou, se o download não funcionar, " : "Para salvar, "}
+          {press} e escolha salvar ou compartilhar.
+        </p>
+        <div className="capture-image">
+          <img src={url} alt="Imagem da página inteira do Post Pronto" />
+        </div>
+        <div className="actions">
+          {onSave && (
+            <button type="button" className="btn primary" onClick={onSave}>
+              <Download size={16} aria-hidden="true" /> Baixar imagem
+            </button>
+          )}
+          {onShare && (
+            <button type="button" className="btn secondary" onClick={onShare}>
+              <Share2 size={16} aria-hidden="true" /> Compartilhar
+            </button>
+          )}
+          <button type="button" className="btn ghost" onClick={onClose}>
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Enquanto o Claude trabalha: o que está acontecendo, há quanto tempo e um botão para parar. */
 export function Busy({

@@ -76,6 +76,8 @@ export interface StoryFrame {
   /** Segundo trecho, escrito com outra fonte (com "Dois trechos com fontes diferentes" ligado). */
   text2?: string;
   sticker: Sticker | null;
+  /** Onde a figurinha tracejada fica na prévia (centro, em fração da tela); só para planejar, não vai na foto. */
+  stickerAt?: { x: number; y: number };
 }
 
 export interface StoryVersion {

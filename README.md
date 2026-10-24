@@ -131,11 +131,16 @@ de *stories*; o de *feed* continua disponível.
   data e o GPS gravados na foto quando existem (dá para desligar); enquadramento arrastando a foto e *zoom*, ou a foto
   inteira com fundo desfocado; *download* da foto (ou de um .zip com todas), dos textos em .txt ou de tudo junto;
   dicas e o passo a passo para publicar. O perfil, o @ e as preferências ficam guardados no aparelho.
-- **Dois trechos com fontes diferentes**: na etapa final, o texto escrito na foto pode ter dois trechos, um embaixo
-  do outro, cada um com a sua fonte e o seu tamanho. Ao ligar, a página divide o texto de cada tela (ou da capa) num
-  ponto natural, depois de uma pontuação ou num travessão, e dá para editar os dois; ao desligar, junta de novo.
-- **Imagem da tela**: o botão no alto salva uma imagem da página inteira, em qualquer etapa (também quando o celular
-  não deixa fazer captura de tela, como na aba anônima do Chrome no Android).
+- **Dois trechos com fontes diferentes**: na tela de escolha ou na etapa final, o texto escrito na foto pode ter dois
+  trechos, um embaixo do outro, cada um com a sua fonte e o seu tamanho. Ao ligar, a página divide o texto de cada
+  tela (ou da capa) num ponto natural, depois de uma pontuação ou num travessão, e dá para editar os dois; ao desligar,
+  junta de novo. As fontes ficam em **Texto nas fotos**, logo abaixo dos botões de baixar; no celular, uma prévia
+  pequena no canto acompanha os ajustes.
+- **Figurinha tracejada**: na prévia, dá para arrastar a figurinha (ou movê-la com as setas) para ver onde ela fica
+  melhor em cada tela. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona arrastando com o dedo.
+- **Imagem da tela**: o botão no alto cria uma imagem da página inteira, em qualquer etapa, e mostra antes de baixar;
+  se o download não funcionar, dá para tocar e segurar a imagem para salvar. Serve também quando o celular não deixa
+  fazer captura de tela, como na aba anônima do Chrome no Android.
 - Os textos nunca usam travessão: se o Claude escrever um, ele vira meia-risca.
 
 ### Como usar

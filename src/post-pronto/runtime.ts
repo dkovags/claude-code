@@ -25,6 +25,16 @@ export function mobileKind(ua = typeof navigator === "undefined" ? "" : navigato
   return null;
 }
 
+/** Tela de toque (celular ou tablet), pelo tipo de ponteiro principal; na dúvida, pelo nome do aparelho. */
+export function touchScreen(): boolean {
+  try {
+    if (window.matchMedia("(pointer: coarse)").matches) return true;
+  } catch {
+    // navegador sem matchMedia
+  }
+  return mobileKind() !== null;
+}
+
 /** Pede um recurso do Claude; null quando esta tela não oferece. */
 export async function getCapability<T>(name: string): Promise<T | null> {
   if (!inClaude()) return null;

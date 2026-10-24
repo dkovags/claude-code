@@ -4,7 +4,7 @@ import { bothParts, STICKER_LABELS, STORY_WORDS, stickerSummary, wordCount } fro
 import type { Photo } from "../photos";
 import { STORY_REFINE_PRESETS } from "../prompts";
 import type { Sticker, StickerKind, StoryFrame, StoryLength, Suggestions } from "../types";
-import { MarkerCircle, OptionsInput, RefineBox, TagEditor } from "./parts";
+import { MarkerCircle, OptionsInput, RefineBox, TagEditor, Toggle } from "./parts";
 import { Seen } from "./QuestionsPanel";
 import { RegenerateBox } from "./Regenerate";
 
@@ -111,6 +111,7 @@ export function StoriesPanel({
   setHashtags,
   storyLength,
   twoParts,
+  onTwoParts,
   onRefine,
   canUndo,
   onUndo,
@@ -130,8 +131,9 @@ export function StoriesPanel({
   setHashtags: (h: string[]) => void;
   /** Tamanho escolhido para os textos (decide a partir de quantas palavras o contador avisa). */
   storyLength: StoryLength;
-  /** Texto de cada tela em dois trechos, com fontes diferentes (ligado na etapa final). */
+  /** Texto de cada tela em dois trechos, com fontes diferentes. */
   twoParts: boolean;
+  onTwoParts: (on: boolean) => void;
   /** Pede um ajuste ao Claude; true se deu certo. */
   onRefine: (instruction: string) => Promise<boolean>;
   canUndo: boolean;
@@ -206,6 +208,14 @@ export function StoriesPanel({
             {chosen === i && (
               <section className="editor" ref={editor} aria-labelledby="pp-editor-title">
                 <h3 id="pp-editor-title">Ajuste os textos</h3>
+                <div className="field">
+                  <Toggle checked={twoParts} onChange={onTwoParts} label="Dois trechos com fontes diferentes" />
+                  <p className="hint">
+                    {twoParts
+                      ? "Cada tela tem agora dois trechos. As fontes de cada um você escolhe na etapa final, vendo a prévia."
+                      : "Divide o texto de cada tela em dois, para escrever cada parte com uma fonte."}
+                  </p>
+                </div>
                 {frames.map((f, j) => {
                   const words = wordCount(bothParts(f));
                   const screen = several ? ` da tela ${j + 1}` : "";

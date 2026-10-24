@@ -1622,8 +1622,7 @@ input.emoji-input {
 /* figurinhas tracejadas: mostram onde entram, mas não vão na foto baixada */
 .story-ghosts {
   position: absolute;
-  left: 0;
-  right: 0;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1636,6 +1635,29 @@ input.emoji-input {
   color: #15171c;
   background: rgba(255, 255, 255, 0.86);
   border: 1.5px dashed rgba(21, 23, 28, 0.55);
+}
+/* a figurinha tracejada: na parte livre da tela ou onde a pessoa arrastar */
+.sticker-drag {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  width: 72%;
+}
+.sticker-drag .sticker-ghost {
+  width: 100%;
+}
+.sticker-drag.movable {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+.sticker-drag.movable:active {
+  cursor: grabbing;
+}
+.sticker-drag.movable:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 16px;
 }
 .sticker-ghost {
   display: grid;
@@ -1829,6 +1851,43 @@ input.emoji-input {
 .dialog p {
   margin: 0;
   color: var(--ink-2);
+}
+
+.capture-image {
+  max-height: 55vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--sheet-2);
+}
+.capture-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* prévia pequena enquanto ajusta o texto e a foto no celular (a grande fica no alto da página) */
+.mini-preview {
+  position: fixed;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 15;
+  width: 96px;
+  overflow: hidden;
+  border: 2px solid var(--sheet);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.mini-preview canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+@media (min-width: 941px) {
+  .mini-preview {
+    display: none;
+  }
 }
 
 .toast {
