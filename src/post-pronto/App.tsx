@@ -62,6 +62,8 @@ export default function App() {
   const [finish, setFinish] = useState<FinishState>(INITIAL_FINISH);
   const [busy, setBusy] = useState<BusyState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   /** undefined enquanto conecta; null quando a página não está dentro do Claude. */
   const [claude, setClaude] = useState<AiBackend | null | undefined>(undefined);
@@ -98,35 +100,49 @@ export default function App() {
 
   const addFiles = useCallback(
     async (files: File[]) => {
-      setError(null);
+      setUploadError(null);
+      if (!files.length) return;
       const images = files.filter(isImageFile);
+      const skipped = files.length - images.length;
       if (!images.length) {
-        if (files.length) setError("Escolha arquivos de imagem: JPG, PNG ou WebP.");
+        setUploadError(
+          `${files.length === 1 ? "O arquivo escolhido não é uma imagem" : "Os arquivos escolhidos não são imagens"}. ` +
+            "Escolha fotos em JPG, PNG ou WebP.",
+        );
         return;
       }
       const room = MAX_PHOTOS - photos.length;
       if (room <= 0) {
-        setError(`O post já tem ${MAX_PHOTOS} fotos, o máximo.`);
+        setUploadError(`O post já tem ${MAX_PHOTOS} fotos, o máximo.`);
         return;
       }
       const loaded: Photo[] = [];
       const failed: string[] = [];
-      for (const f of images.slice(0, room)) {
-        try {
-          loaded.push(await loadPhoto(f));
-        } catch {
-          failed.push(f.name);
+      setLoadingPhotos(true);
+      try {
+        for (const f of images.slice(0, room)) {
+          try {
+            loaded.push(await loadPhoto(f));
+          } catch {
+            failed.push(f.name || "sem nome");
+          }
         }
+      } finally {
+        setLoadingPhotos(false);
       }
       setPhotos((ps) => [...ps, ...loaded].slice(0, MAX_PHOTOS));
+      const notes: string[] = [];
       if (failed.length) {
-        setError(
+        notes.push(
           `Não foi possível abrir ${failed.map((n) => `“${n}”`).join(", ")}. Envie em JPG, PNG ou WebP ` +
             "(fotos HEIC do iPhone não abrem em todos os navegadores).",
         );
-      } else if (images.length > room) {
-        setError(`O post pode ter até ${MAX_PHOTOS} fotos; ${images.length - room} ficaram de fora.`);
       }
+      if (images.length > room) notes.push(`O post pode ter até ${MAX_PHOTOS} fotos; ${images.length - room} ficaram de fora.`);
+      if (skipped) {
+        notes.push(skipped === 1 ? "1 arquivo não era imagem e ficou de fora." : `${skipped} arquivos não eram imagens e ficaram de fora.`);
+      }
+      if (notes.length) setUploadError(notes.join(" "));
     },
     [photos.length],
   );
@@ -354,6 +370,7 @@ export default function App() {
     setFinish((f) => ({ ...INITIAL_FINISH, format: f.format }));
     setActive(0);
     setError(null);
+    setUploadError(null);
     setStep("brief");
   }
 
@@ -471,6 +488,8 @@ export default function App() {
               prefs={prefs}
               setPrefs={setPrefs}
               onDestination={changeDestination}
+              loadingPhotos={loadingPhotos}
+              uploadError={uploadError}
               useMeta={useMeta}
               setUseMeta={setUseMeta}
               notice={notice}

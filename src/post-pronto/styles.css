@@ -631,7 +631,56 @@ input[type="radio"] {
 }
 
 /* ===== Fotos: área de envio e tira de filme ===== */
+.photo-picker {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* escondido só visualmente: o <label> abre o seletor de arquivos */
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.file-input:focus-visible + label,
+.film:has(.file-input:focus-visible) .frame.add .thumb {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+label.btn {
+  user-select: none;
+}
+.btn.is-loading {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+.upload-error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--marker-soft);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+.upload-error svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--marker);
+}
+
 .dropzone {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 10px;

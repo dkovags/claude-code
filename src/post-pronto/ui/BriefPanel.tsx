@@ -18,6 +18,8 @@ export function BriefPanel({
   prefs,
   setPrefs,
   onDestination,
+  loadingPhotos,
+  uploadError,
   useMeta,
   setUseMeta,
   notice,
@@ -33,6 +35,8 @@ export function BriefPanel({
   setPrefs: (p: Prefs) => void;
   /** Trocar entre stories e feed (descarta sugestões já feitas para o outro destino). */
   onDestination: (d: Destination) => void;
+  loadingPhotos: boolean;
+  uploadError: string | null;
   useMeta: boolean;
   setUseMeta: (v: boolean) => void;
   /** Aviso sobre o acesso ao Claude (sem chave, sem permissão...). */
@@ -69,7 +73,15 @@ export function BriefPanel({
           : "Feed: o Claude escreve a legenda com hashtags, e a foto sai no formato do feed."}
       </p>
 
-      <PhotoStrip photos={photos} destination={prefs.destination} onAdd={onAdd} onMove={onMove} onRemove={onRemove} />
+      <PhotoStrip
+        photos={photos}
+        destination={prefs.destination}
+        onAdd={onAdd}
+        onMove={onMove}
+        onRemove={onRemove}
+        loading={loadingPhotos}
+        error={uploadError}
+      />
       {(meta.dated > 0 || meta.located > 0) && (
         <Toggle
           checked={useMeta}
@@ -137,7 +149,7 @@ export function BriefPanel({
       {notice}
 
       <div className="actions">
-        <button type="submit" className="btn primary big" disabled={!photos.length}>
+        <button type="submit" className="btn primary big" disabled={!photos.length || loadingPhotos}>
           <Sparkles size={18} aria-hidden="true" /> {prefs.destination === "stories" ? "Sugerir textos" : "Sugerir legendas"}
         </button>
         {!photos.length && <span className="hint">Envie pelo menos uma foto.</span>}

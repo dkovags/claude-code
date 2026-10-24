@@ -303,11 +303,15 @@ try {
     lon: -47.0608,
   });
   const photoB = await drawPhoto(page, 4000, 3000, ["#a8d8f7", "#6b8be9", "#e9c46a"]);
-  await page.locator('input[type="file"]').setInputFiles([
+  // pelo botão, como uma pessoa faria; a 2ª foto vem sem tipo nem extensão, como em alguns celulares
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByText("Escolher fotos", { exact: true }).click()]);
+  await chooser.setFiles([
     { name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA },
-    { name: "bolo.jpg", mimeType: "image/jpeg", buffer: photoB },
+    { name: "IMG_20261024_101010", mimeType: "", buffer: photoB },
+    { name: "notas.txt", mimeType: "text/plain", buffer: Buffer.from("lembrete") },
   ]);
   await page.locator(".film .frame:not(.add)").nth(1).waitFor();
+  await page.locator(".upload-error", { hasText: "1 arquivo não era imagem e ficou de fora." }).waitFor();
   expect((await page.locator(".cover-mark").count()) === 0, "nos stories não há capa");
   await page.getByText("Usar a data e o local gravados nas fotos").waitFor();
   await page.getByLabel("O que está acontecendo").fill(CONTEXT);
@@ -509,8 +513,11 @@ try {
   await m.getByRole("heading", { name: "Post Pronto" }).waitFor();
   await shot(m, "10-celular-inicio");
   await noHorizontalScroll(m, "celular, início");
+  await m.locator('input[type="file"]').setInputFiles([{ name: "video.mp4", mimeType: "video/mp4", buffer: Buffer.from("x") }]);
+  await m.locator(".upload-error", { hasText: "O arquivo escolhido não é uma imagem" }).waitFor();
   await m.locator('input[type="file"]').setInputFiles([{ name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA }]);
   await m.locator(".film .frame:not(.add)").first().waitFor();
+  expect((await m.locator(".upload-error").count()) === 0, "o aviso some quando a foto entra");
   await m.getByLabel("O que está acontecendo").fill(CONTEXT);
   await m.getByRole("button", { name: "Sugerir textos" }).click();
   await m.getByRole("button", { name: "Pular e gerar assim mesmo" }).click();
@@ -580,7 +587,8 @@ try {
   await a.getByRole("heading", { name: "Post Pronto" }).waitFor();
   expect((await a.getByRole("button", { name: "Configurar" }).count()) === 0, "no artefato não há chave para configurar");
   expect((await a.evaluate(() => document.documentElement.lang)) === "pt-BR", "idioma da página");
-  await a.locator('input[type="file"]').setInputFiles([{ name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA }]);
+  const [artChooser] = await Promise.all([a.waitForEvent("filechooser"), a.getByText("Escolher fotos", { exact: true }).click()]);
+  await artChooser.setFiles([{ name: "1000012345", mimeType: "", buffer: photoA }]);
   await a.locator(".film .frame:not(.add)").first().waitFor();
   await a.getByLabel("O que está acontecendo").fill(CONTEXT);
   await a.getByRole("button", { name: "Sugerir textos" }).click();

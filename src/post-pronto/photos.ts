@@ -20,12 +20,21 @@ export interface Photo {
 
 let seq = 0;
 
+/** Abre a imagem pelo onload, que funciona em todo navegador (o decode() falha à toa em alguns). */
+function openImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => (img.naturalWidth > 0 ? resolve(img) : reject(new Error("imagem vazia")));
+    img.onerror = () => reject(new Error("formato não suportado"));
+    img.src = url;
+  });
+}
+
 export async function loadPhoto(file: File): Promise<Photo> {
   const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.src = url;
+  let img: HTMLImageElement;
   try {
-    await img.decode();
+    img = await openImage(url);
   } catch {
     URL.revokeObjectURL(url);
     throw new Error(file.name);
@@ -52,9 +61,14 @@ export function releasePhoto(p: Photo) {
   URL.revokeObjectURL(p.url);
 }
 
-/** Aceita imagens pelo tipo ou, quando o navegador não informa o tipo, pela extensão. */
+/**
+ * Pode ser imagem? Pelo tipo, pela extensão ou, quando o celular não informa nem uma coisa nem outra (acontece com
+ * alguns apps de galeria), na dúvida sim: quem decide é a tentativa de abrir a imagem.
+ */
 export function isImageFile(f: File): boolean {
-  return f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|avif|heic|heif)$/i.test(f.name);
+  if (f.type.startsWith("image/")) return true;
+  if (/\.(jpe?g|png|webp|gif|avif|heic|heif)$/i.test(f.name)) return true;
+  return !f.type || f.type === "application/octet-stream";
 }
 
 const aiVersions = new WeakMap<HTMLImageElement, Promise<Blob>>();
