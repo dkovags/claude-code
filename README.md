@@ -115,12 +115,17 @@ com as sugestões de música e de localização. O modo principal é o de *stori
   nela, longe das áreas cobertas pelos botões do *story*. As figurinhas, a música e a localização só funcionam
   adicionadas no próprio Instagram: a prévia mostra onde entram (tracejadas) e a etapa final lista o que adicionar em
   cada tela, com botões para copiar as perguntas e as opções.
+- **Na tela de escolha**: **Usar e editar** abre o editor dentro da opção escolhida, para mudar o texto à mão. Se
+  faltou alguma informação (ou alguma estava errada), escreva em **Acrescente ou corrija uma informação**, ou edite o
+  contexto inteiro, e gere todas as opções de novo levando isso em conta; **Só gerar outras** pede opções diferentes
+  sem mudar nada.
 - **Feed**: três legendas com gancho na primeira linha (o que aparece antes do "mais"), chamada para ação e até 5
   *hashtags*, o limite atual do Instagram; a foto em 4:5, 3:4, 1:1, 9:16 ou 1,91:1, com texto opcional na capa; botão
   para copiar a legenda e texto alternativo para acessibilidade.
 - **Nos dois modos**: objetivo (mais interação, mais alcance, divulgar ou vender, registrar um momento), tom, idioma e
-  quantidade de emojis; perguntas com respostas prontas para tocar, que dá para pular; cinco músicas com o trecho a usar
-  e *links* para ouvir no Spotify e no YouTube; três opções de localização, do lugar exato à cidade, usando também a
+  quantidade de emojis; perguntas com respostas prontas para tocar, que dá para pular; cinco músicas com o trecho a usar,
+  um botão para ouvir 30 segundos de cada uma (a prévia da Apple Music, que toca na própria página) e *links* para o
+  Spotify e o YouTube; três opções de localização, do lugar exato à cidade, usando também a
   data e o GPS gravados na foto quando existem (dá para desligar); enquadramento arrastando a foto e *zoom*, ou a foto
   inteira com fundo desfocado; *download* da foto (ou de um .zip com todas), dos textos em .txt ou de tudo junto;
   dicas e o passo a passo para publicar. O perfil, o @ e as preferências ficam guardados no aparelho.
@@ -131,8 +136,10 @@ com as sugestões de música e de localização. O modo principal é o de *stori
 - **Dentro do Claude** (o jeito mais simples): abra o artefato
   [Post Pronto](https://claude.ai/artifact/QgwA6tj19x3bCCBwy4Cywv). Ele usa a sua própria conta do Claude, sem chave
   nem configuração; na primeira vez, o Claude pede permissão para a página usar o Claude e enviar as fotos. O link é
-  privado: outras pessoas só conseguem abrir depois que você compartilhar o artefato pelo menu dele. Para gerar de
-  novo o arquivo do artefato a partir do código, rode `npm run build:artifact` (cria `dist-artifact/post-pronto.html`).
+  privado: outras pessoas só conseguem abrir depois que você compartilhar o artefato pelo menu dele. Dentro do Claude
+  a página não pode buscar nem tocar áudio de outros sites, então lá o botão de ouvir abre a música no YouTube. Para
+  gerar de novo o arquivo do artefato a partir do código, rode `npm run build:artifact` (cria
+  `dist-artifact/post-pronto.html`).
 - **Fora do Claude**: o Post Pronto é publicado junto com o Rateio no GitHub Pages, em
   `https://<usuário>.github.io/<repositório>/post-pronto/`, e roda no computador com `npm run dev`, em
   `http://localhost:5173/post-pronto/`. Nesse modo ele usa a API da Anthropic: toque em **Configurar** e informe uma
@@ -153,6 +160,7 @@ src/post-pronto/finish.ts               texto de cada foto e nomes dos arquivos 
 src/post-pronto/caption.ts              regras da legenda, figurinhas e arquivos de texto
 src/post-pronto/exif.ts                 data e GPS gravados nas fotos
 src/post-pronto/zip.ts                  .zip para baixar todas as fotos
+src/post-pronto/preview.ts              trecho de 30 segundos das músicas (busca do iTunes, sem chave)
 src/post-pronto/ui/                     telas (React): StoriesPanel e StoryPreview para os stories
 tests/post-pronto/                      testes da lógica (Vitest, rodam com npm test)
 scripts/build-post-pronto-artifact.mjs  versão em arquivo único, para publicar como artefato

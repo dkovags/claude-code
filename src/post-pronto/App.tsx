@@ -230,7 +230,11 @@ export default function App() {
     }
   }
 
-  async function suggest(kind: "first" | "answers" | "skip" | "more") {
+  /**
+   * Pede as sugestões. "more" gera outras opções; com `context`/`update`, gera de novo com o contexto editado e a
+   * informação nova (que passa a fazer parte do contexto se der certo).
+   */
+  async function suggest(kind: "first" | "answers" | "skip" | "more", change?: { context: string; update: string }) {
     setError(null);
     if (!photos.length) return;
     if (!backend) {
@@ -254,25 +258,33 @@ export default function App() {
           : [];
     const attached = photos.slice(0, backend.maxImages);
     const avoid =
-      kind === "more" && result
+      kind === "more" && result && !change
         ? stories
           ? result.stories.map((v) => v.frames.map((f) => f.text).join(" / "))
           : result.captions.map((c) => c.text)
         : [];
     const prompt = buildSuggestPrompt({
-      brief,
+      brief: change ? { ...brief, context: change.context } : brief,
       photoCount: photos.length,
       attachedCount: attached.length,
       metas: useMeta ? photos.map((p) => p.meta) : [],
       answers: answered,
       allowQuestions,
       avoid,
+      update: change?.update,
       today: todayLabel(),
     });
     const count = photos.length;
     const next = await run(
       {
-        label: kind === "first" ? "Olhando as fotos" : stories ? "Escrevendo os textos" : "Escrevendo as legendas",
+        label:
+          kind === "first"
+            ? "Olhando as fotos"
+            : change
+              ? "Gerando de novo com a informação nova"
+              : stories
+                ? "Escrevendo os textos"
+                : "Escrevendo as legendas",
         writingLabel: "Escrevendo as sugestões",
         expected: stories ? 2500 + 700 * count : 4500,
       },
@@ -296,6 +308,7 @@ export default function App() {
       },
     );
     if (!next) return;
+    if (change) setContext([change.context.trim(), change.update.trim()].filter(Boolean).join("\n"));
     setQa(answered);
     setResult(next);
     if (next.status === "questions") {
@@ -350,7 +363,8 @@ export default function App() {
   }
 
   function choose(i: number) {
-    if (!result) return;
+    // tocar de novo na escolhida não pode apagar o que já foi editado
+    if (!result || i === chosen) return;
     setChosen(i);
     if (stories) {
       setFrames(copyFrames(result.stories[i].frames));
@@ -523,6 +537,8 @@ export default function App() {
                 if (undoFrames) setFrames(undoFrames);
                 setUndoFrames(null);
               }}
+              context={context}
+              onRegenerate={(edited, update) => suggest("more", { context: edited, update })}
               onMore={() => suggest("more")}
               onConfirm={() => {
                 setActive(0);
@@ -544,6 +560,8 @@ export default function App() {
                 if (undoDraft) setDraft(undoDraft);
                 setUndoDraft(null);
               }}
+              context={context}
+              onRegenerate={(edited, update) => suggest("more", { context: edited, update })}
               onMore={() => suggest("more")}
               onConfirm={() => {
                 setActive(0);

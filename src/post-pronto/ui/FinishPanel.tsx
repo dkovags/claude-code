@@ -1,11 +1,11 @@
 import {
-  ArrowLeft, Crop, Download, ExternalLink, FileText, Images, Lightbulb, ListOrdered, MapPin, Move, Music, Share2,
+  ArrowLeft, Crop, Download, ExternalLink, FileText, Images, Lightbulb, ListOrdered, MapPin, Move, Share2,
   Sticker as StickerIcon, Type,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { fullCaption, musicLabel, postText, stickerSummary, storiesText } from "../caption";
 import { fileNames, type FinishState, INITIAL_FINISH, overlaysFor } from "../finish";
-import { mapsPoint, mapsSearch, spotifySearch, youtubeSearch } from "../links";
+import { mapsPoint, mapsSearch } from "../links";
 import type { Photo } from "../photos";
 import { formatTakenAt } from "../prompts";
 import {
@@ -13,72 +13,11 @@ import {
   OVERLAY_STYLES, type OverlayStyle,
 } from "../render";
 import type { Saver } from "../save";
-import type { Destination, Draft, MusicPick, PlacePick, StoryFrame, Suggestions } from "../types";
+import type { Destination, Draft, PlacePick, StoryFrame, Suggestions } from "../types";
 import { makeZip } from "../zip";
+import { MusicSection } from "./MusicSection";
 import { CopyButton, Segmented, Toggle } from "./parts";
 import { PhotoStrip } from "./PhotoStrip";
-
-function MusicSection({
-  music,
-  value,
-  onChange,
-  stories,
-}: {
-  music: MusicPick[];
-  value: number;
-  onChange: (i: number) => void;
-  stories: boolean;
-}) {
-  return (
-    <section className="block" aria-labelledby="pp-music">
-      <h3 id="pp-music">
-        <Music size={17} aria-hidden="true" /> Música
-      </h3>
-      {music.length ? (
-        <>
-          <p className="hint">
-            {stories
-              ? "No story, toque no ícone de figurinhas, escolha Música, busque pelo nome e escolha o trecho."
-              : "No Instagram, toque em Adicionar música e busque pelo nome."}{" "}
-            O catálogo muda conforme o país e o tipo de conta.
-          </p>
-          <ul className="picks">
-            {music.map((m, i) => (
-              <li key={i} className={value === i ? "on" : ""}>
-                <label>
-                  <input type="radio" name="pp-music" checked={value === i} onChange={() => onChange(i)} />
-                  <span>
-                    <strong>{m.title}</strong>
-                    {m.artist && ` – ${m.artist}`}
-                    {m.part && <span className="pick-part"> · {m.part}</span>}
-                  </span>
-                </label>
-                {m.why && <p className="pick-why">{m.why}</p>}
-                <p className="pick-links">
-                  <a href={spotifySearch(`${m.title} ${m.artist}`)} target="_blank" rel="noreferrer">
-                    Spotify <ExternalLink size={12} aria-hidden="true" />
-                  </a>
-                  <a href={youtubeSearch(`${m.title} ${m.artist}`)} target="_blank" rel="noreferrer">
-                    YouTube <ExternalLink size={12} aria-hidden="true" />
-                  </a>
-                  <CopyButton text={`${m.title} ${m.artist}`.trim()} label="Copiar nome" className="btn ghost small" />
-                </p>
-              </li>
-            ))}
-            <li className={value === -1 ? "on" : ""}>
-              <label>
-                <input type="radio" name="pp-music" checked={value === -1} onChange={() => onChange(-1)} />
-                <span>Sem música</span>
-              </label>
-            </li>
-          </ul>
-        </>
-      ) : (
-        <p className="hint">O Claude não sugeriu músicas desta vez.</p>
-      )}
-    </section>
-  );
-}
 
 function PlaceSection({
   places,

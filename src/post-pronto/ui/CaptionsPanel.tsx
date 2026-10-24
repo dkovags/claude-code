@@ -1,10 +1,11 @@
-import { ArrowLeft, Check, RefreshCw } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { CAPTION_LIMIT, charCount, fullCaption, MAX_HASHTAGS } from "../caption";
 import { REFINE_PRESETS } from "../prompts";
 import type { Draft, Suggestions } from "../types";
 import { MarkerCircle, RefineBox, TagEditor } from "./parts";
 import { Seen } from "./QuestionsPanel";
+import { RegenerateBox } from "./Regenerate";
 
 /** Texto da legenda com a primeira linha (o gancho que aparece no feed) em destaque. */
 function CaptionText({ text }: { text: string }) {
@@ -27,6 +28,8 @@ export function CaptionsPanel({
   onRefine,
   canUndo,
   onUndo,
+  context,
+  onRegenerate,
   onMore,
   onConfirm,
   onBack,
@@ -40,6 +43,9 @@ export function CaptionsPanel({
   onRefine: (instruction: string) => Promise<boolean>;
   canUndo: boolean;
   onUndo: () => void;
+  /** Contexto que o Claude recebeu, para editar e gerar de novo. */
+  context: string;
+  onRegenerate: (context: string, update: string) => void;
   onMore: () => void;
   onConfirm: () => void;
   onBack: () => void;
@@ -84,51 +90,54 @@ export function CaptionsPanel({
                   <Check size={16} aria-hidden="true" /> Escolhida
                 </>
               ) : (
-                "Usar esta"
+                "Usar e editar"
               )}
             </button>
+            {chosen === i && (
+              <section className="editor" ref={editor} aria-labelledby="pp-editor-title">
+                <h3 id="pp-editor-title">Ajuste a legenda escolhida</h3>
+                <div className="field">
+                  <label className="label" htmlFor="pp-draft">
+                    Texto
+                  </label>
+                  <textarea
+                    id="pp-draft"
+                    rows={9}
+                    value={draft.text}
+                    onChange={(e) => setDraft({ ...draft, text: e.target.value })}
+                  />
+                  <p className={`counter${count > CAPTION_LIMIT ? " over" : ""}`}>
+                    {count.toLocaleString("pt-BR")} de {CAPTION_LIMIT.toLocaleString("pt-BR")} caracteres, com as
+                    hashtags
+                  </p>
+                </div>
+
+                <div className="field">
+                  <span className="label">
+                    Hashtags ({draft.hashtags.length} de {MAX_HASHTAGS})
+                  </span>
+                  <TagEditor
+                    tags={draft.hashtags}
+                    max={MAX_HASHTAGS}
+                    onChange={(hashtags) => setDraft({ ...draft, hashtags })}
+                  />
+                  <p className="hint">O Instagram aceita até {MAX_HASHTAGS} hashtags por post.</p>
+                </div>
+
+                <RefineBox
+                  presets={REFINE_PRESETS}
+                  onRefine={onRefine}
+                  canUndo={canUndo}
+                  onUndo={onUndo}
+                  placeholder="Ou peça do seu jeito. Ex.: cite a vó Lúcia"
+                />
+              </section>
+            )}
           </li>
         ))}
       </ol>
-      <button type="button" className="btn ghost" onClick={onMore}>
-        <RefreshCw size={16} aria-hidden="true" /> Gerar outras opções
-      </button>
 
-      {chosen !== null && (
-        <section className="editor" ref={editor} aria-labelledby="pp-editor-title">
-          <h3 id="pp-editor-title">Ajuste a legenda escolhida</h3>
-          <div className="field">
-            <label className="label" htmlFor="pp-draft">
-              Texto
-            </label>
-            <textarea
-              id="pp-draft"
-              rows={9}
-              value={draft.text}
-              onChange={(e) => setDraft({ ...draft, text: e.target.value })}
-            />
-            <p className={`counter${count > CAPTION_LIMIT ? " over" : ""}`}>
-              {count.toLocaleString("pt-BR")} de {CAPTION_LIMIT.toLocaleString("pt-BR")} caracteres, com as hashtags
-            </p>
-          </div>
-
-          <div className="field">
-            <span className="label">
-              Hashtags ({draft.hashtags.length} de {MAX_HASHTAGS})
-            </span>
-            <TagEditor tags={draft.hashtags} max={MAX_HASHTAGS} onChange={(hashtags) => setDraft({ ...draft, hashtags })} />
-            <p className="hint">O Instagram aceita até {MAX_HASHTAGS} hashtags por post.</p>
-          </div>
-
-          <RefineBox
-            presets={REFINE_PRESETS}
-            onRefine={onRefine}
-            canUndo={canUndo}
-            onUndo={onUndo}
-            placeholder="Ou peça do seu jeito. Ex.: cite a vó Lúcia"
-          />
-        </section>
-      )}
+      <RegenerateBox context={context} what="legendas" onRegenerate={onRegenerate} onMore={onMore} />
 
       <div className="actions">
         <button

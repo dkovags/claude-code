@@ -160,6 +160,61 @@ async function mockApi(ctx) {
   return calls;
 }
 
+// ===== Busca de trechos de música (iTunes) simulada =====
+const HAPPY_RESULTS = [
+  { trackName: "Happy", artistName: "Outro Artista", previewUrl: "https://audio.teste/errada.wav" },
+  {
+    trackName: 'Happy (From "Despicable Me 2")',
+    artistName: "Pharrell Williams",
+    previewUrl: "https://audio.teste/happy.wav",
+    artworkUrl100: "https://audio.teste/capa.svg",
+    trackViewUrl: "https://music.apple.com/br/album/happy/1",
+  },
+];
+/** Silêncio em WAV (8 kHz, 8 bits, mono). */
+function silentWav(seconds) {
+  const n = 8000 * seconds;
+  const b = Buffer.alloc(44 + n, 128);
+  b.write("RIFF", 0);
+  b.writeUInt32LE(36 + n, 4);
+  b.write("WAVEfmt ", 8);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(8000, 24);
+  b.writeUInt32LE(8000, 28);
+  b.writeUInt16LE(1, 32);
+  b.writeUInt16LE(8, 34);
+  b.write("data", 36);
+  b.writeUInt32LE(n, 40);
+  return b;
+}
+const WAV = silentWav(10);
+const COVER = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#f4c542"/></svg>';
+
+/** Simula a busca do iTunes (com ou sem CORS; sem, a página cai no JSONP) e os arquivos do trecho. */
+async function mockItunes(ctx, { cors = true } = {}) {
+  const log = { searches: [], files: [] };
+  await ctx.route("https://itunes.apple.com/search**", (route) => {
+    const params = Object.fromEntries(new globalThis.URL(route.request().url()).searchParams);
+    log.searches.push(params);
+    const results = params.term.startsWith("Happy") ? HAPPY_RESULTS : [];
+    const body = JSON.stringify({ resultCount: results.length, results });
+    if (params.callback) return route.fulfill({ status: 200, contentType: "text/javascript", body: `\n\n\n${params.callback}(${body});` });
+    // sem o cabeçalho, o Playwright liberaria o CORS sozinho; outra origem faz o navegador recusar a leitura
+    const allow = cors ? "*" : "https://music.apple.com";
+    return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": allow }, body });
+  });
+  await ctx.route("https://audio.teste/**", (route) => {
+    const url = route.request().url();
+    log.files.push(url);
+    return url.endsWith(".svg")
+      ? route.fulfill({ status: 200, contentType: "image/svg+xml", body: COVER })
+      : route.fulfill({ status: 200, contentType: "audio/wav", body: WAV });
+  });
+  return log;
+}
+
 // ===== Fotos de teste =====
 /** Bloco EXIF (big-endian, como o do iPhone) com data e GPS. */
 function exifSegment({ date, lat, lon }) {
@@ -252,9 +307,13 @@ const shot = async (page, name, fullPage = false) => {
   await page.waitForTimeout(150);
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage });
 };
-function watch(page) {
+/** Junta os erros da página; `expected` deixa passar os que o teste provoca de propósito. */
+function watch(page, expected) {
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
-  page.on("console", (m) => m.type() === "error" && errors.push(`console: ${m.text()}`));
+  page.on("console", (m) => {
+    if (m.type() !== "error" || (expected && (expected.test(m.text()) || expected.test(m.location()?.url ?? "")))) return;
+    errors.push(`console: ${m.text()}`);
+  });
 }
 async function hermetic(ctx) {
   // fontes do Google viram CSS vazio (o teste não depende de internet)
@@ -285,6 +344,7 @@ try {
   await hermetic(ctx);
   await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: `http://localhost:${PORT}` });
   const apiCalls = await mockApi(ctx);
+  const itunes = await mockItunes(ctx);
 
   const page = (current = await ctx.newPage());
   watch(page);
@@ -355,10 +415,25 @@ try {
   expect(versionsText.includes("Quiz: Quantos anos a Ana fez? (5 (certa) / 4 / 6)"), "quiz com a resposta certa");
   await shot(page, "04-stories-versoes", true);
 
-  // escolhe a 1ª, vê o texto na prévia e a enquete tracejada na tela 2
-  await page.getByRole("button", { name: "Usar esta" }).first().click();
+  // gera de novo com uma informação nova, na própria tela de escolha
+  const regenerate = page.getByRole("button", { name: "Gerar de novo com essa informação" });
+  expect(await regenerate.isDisabled(), "sem informação nova, gerar de novo fica desligado");
+  await page.getByLabel("Acrescente ou corrija uma informação").fill("A festa foi surpresa, organizada pela tia Rosa.");
+  await regenerate.click();
+  await page.waitForFunction(() => document.querySelector("#pp-update")?.value === "");
+  const regen = apiCalls[2];
+  expect(regen.prompt.includes("INFORMAÇÃO NOVA\n") && regen.prompt.includes("organizada pela tia Rosa"), "o pedido leva a informação nova");
+  expect(regen.prompt.includes(CONTEXT) && regen.prompt.includes("Resposta: Ana, 5 anos"), "e mantém o contexto e as respostas");
+  expect(regen.body.messages[0].content.filter((c) => c.type === "image").length === 2, "gerar de novo reenvia as fotos");
+  await page.getByText("Ver e editar o contexto que o Claude recebeu").click();
+  const sentContext = await page.getByLabel("Contexto que o Claude recebeu").inputValue();
+  expect(sentContext === `${CONTEXT}\nA festa foi surpresa, organizada pela tia Rosa.`, `a informação nova entra no contexto: ${sentContext}`);
+
+  // escolhe a 1ª: o editor abre dentro dela; vê o texto na prévia e a enquete tracejada na tela 2
+  await page.getByRole("button", { name: "Usar e editar" }).first().click();
   const tela1 = page.getByLabel("Texto da tela 1");
   await tela1.waitFor();
+  expect((await page.locator(".option.chosen .editor").count()) === 1, "o editor abre dentro da versão escolhida");
   expect((await tela1.inputValue()) === "Cinco velinhas – e um dinossauro de chantilly", "texto da tela 1");
   await page.getByRole("button", { name: "Próxima tela" }).click();
   await page.locator(".sticker-ghost", { hasText: "Melhor tema de festa?" }).waitFor();
@@ -367,8 +442,8 @@ try {
   // ajuste do Claude e desfazer
   await page.getByRole("button", { name: "Mais curtos" }).click();
   await page.waitForFunction(() => document.querySelector("#pp-frame-0")?.value === "Cinco velinhas!");
-  expect(apiCalls[2].prompt.includes("Reescreva os textos dos stories") && apiCalls[2].prompt.includes('"tipo": "enquete"'), "ajuste");
-  expect(apiCalls[2].body.messages[0].content.every((c) => c.type === "text"), "o ajuste não precisa reenviar fotos");
+  expect(apiCalls[3].prompt.includes("Reescreva os textos dos stories") && apiCalls[3].prompt.includes('"tipo": "enquete"'), "ajuste");
+  expect(apiCalls[3].body.messages[0].content.every((c) => c.type === "text"), "o ajuste não precisa reenviar fotos");
   await page.getByRole("button", { name: "Desfazer o último ajuste" }).click();
   expect((await tela1.inputValue()) === "Cinco velinhas – e um dinossauro de chantilly", "desfazer deveria voltar o texto");
 
@@ -379,6 +454,10 @@ try {
   await page.getByLabel("Adicionar hashtag").fill("vovó");
   await page.getByLabel("Adicionar hashtag").press("Enter");
   await page.locator(".tag", { hasText: "#vovó" }).waitFor();
+  // texto editado à mão continua lá mesmo tocando de novo na versão escolhida
+  await page.getByLabel("Texto da tela 2").fill("Qual tema você escolheria para a sua festa?");
+  await page.getByRole("button", { name: "Escolhida" }).click();
+  expect((await page.getByLabel("Texto da tela 2").inputValue()) === "Qual tema você escolheria para a sua festa?", "tocar na escolhida apagou a edição");
   await shot(page, "05-stories-ajustes", true);
 
   // etapa final
@@ -390,6 +469,24 @@ try {
   expect(stickersText.includes("#festadinossauro #5anos #vovó"), "hashtags da figurinha");
   await page.getByRole("radio", { name: /Happy/ }).check();
   await page.locator(".story-music", { hasText: "Happy · Pharrell Williams" }).waitFor();
+
+  // ouve o trecho da música sugerida, pausa e continua
+  await page.getByRole("button", { name: "Ouvir trecho de Happy" }).click();
+  await page.getByRole("button", { name: "Pausar o trecho de Happy" }).waitFor();
+  await page.waitForFunction(() => Number(document.querySelector(".song-track progress")?.value) > 0.3, null, { timeout: 8000 });
+  expect(itunes.searches[0].term === "Happy Pharrell Williams" && itunes.searches[0].country === "BR", "busca do trecho");
+  expect(itunes.files.includes("https://audio.teste/happy.wav") && !itunes.files.some((f) => f.includes("errada")), "tocou o trecho do artista certo");
+  const player = page.locator(".song-player");
+  expect((await player.getByRole("link", { name: /Prévia da Apple Music/ }).getAttribute("href")) === "https://music.apple.com/br/album/happy/1", "link da prévia");
+  await shot(page, "06a-stories-trecho-da-musica");
+  await page.getByRole("button", { name: "Pausar o trecho de Happy" }).click();
+  await page.getByRole("button", { name: "Continuar o trecho de Happy" }).waitFor();
+  // música sem trecho na Apple: avisa e oferece o YouTube, e o trecho anterior sai de cena
+  await page.getByRole("button", { name: "Ouvir trecho de Aquarela" }).click();
+  const noPreview = page.locator(".song-note", { hasText: "Não achei um trecho desta música" });
+  await noPreview.waitFor();
+  expect((await noPreview.getByRole("link").getAttribute("href")).endsWith("search_query=Aquarela%20Toquinho"), "YouTube da música sem trecho");
+  expect((await player.count()) === 0, "só um trecho por vez");
   await page.locator(".place-ghost", { hasText: "CAMPINAS, SÃO PAULO" }).waitFor();
   expect((await page.locator(".how").innerText()).includes("Na tela 2, toque no ícone de figurinhas e adicione Enquete"), "passo a passo");
   await page.getByRole("radio", { name: "Moderno" }).click();
@@ -447,7 +544,7 @@ try {
   expect(!optionsText.includes("—") && optionsText.includes("festa – e fez"), "o travessão deveria virar meia-risca");
   await shot(page, "07-feed-legendas", true);
 
-  await page.getByRole("button", { name: "Usar esta" }).first().click();
+  await page.getByRole("button", { name: "Usar e editar" }).first().click();
   const draft = page.getByLabel("Texto", { exact: true });
   await draft.waitFor();
   const original = await draft.inputValue();
@@ -507,8 +604,10 @@ try {
   await hermetic(phone);
   await phone.addInitScript(() => localStorage.setItem("post-pronto:api-key", "sk-ant-teste-123"));
   await mockApi(phone);
+  // busca sem CORS: a leitura direta falha (erro esperado no console) e a página usa o JSONP
+  const phoneItunes = await mockItunes(phone, { cors: false });
   const m = (current = await phone.newPage());
-  watch(m);
+  watch(m, /itunes\.apple\.com/);
   await m.goto(URL);
   await m.getByRole("heading", { name: "Post Pronto" }).waitFor();
   await shot(m, "10-celular-inicio");
@@ -524,10 +623,15 @@ try {
   await m.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
   expect((await m.locator(".option").first().locator(".story-frame").count()) === 1, "com 1 foto, cada versão tem 1 tela");
   await shot(m, "11-celular-versoes");
-  await m.getByRole("button", { name: "Usar esta" }).nth(2).click();
+  await m.getByRole("button", { name: "Usar e editar" }).nth(2).click();
   await m.getByRole("button", { name: "Confirmar textos" }).click();
   await m.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
   await shot(m, "12-celular-pronto");
+  await m.getByRole("button", { name: "Ouvir trecho de Happy" }).click();
+  await m.getByRole("button", { name: "Pausar o trecho de Happy" }).waitFor();
+  expect(phoneItunes.searches.some((p) => p.callback?.startsWith("__postProntoItunes")), "sem CORS, a busca vai por JSONP");
+  await m.locator(".song-player").scrollIntoViewIfNeeded();
+  await shot(m, "13-celular-trecho-da-musica");
   await noHorizontalScroll(m, "celular, etapa final");
   await phone.close();
 
@@ -597,12 +701,23 @@ try {
   const calls = await a.evaluate(() => window.__calls);
   expect(calls.length === 2 && calls[0].images === 1 && calls[0].types[0] === "image/jpeg", "fotos para o Claude no artefato");
   expect(calls[0].tier === "default" && calls[1].input.includes("Não faça perguntas."), "pedido do artefato");
-  await a.getByRole("button", { name: "Usar esta" }).nth(1).click();
-  await a.getByRole("button", { name: "Gerar outras opções" }).click();
+  await a.getByRole("button", { name: "Usar e editar" }).nth(1).click();
+  await a.getByRole("button", { name: "Só gerar outras versões" }).click();
+  await a.waitForFunction(() => window.__calls.length === 3);
   await a.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
   const more = (await a.evaluate(() => window.__calls))[2];
   expect(more.cache === false && more.input.includes("• Cinco velinhas"), "gerar outras opções deveria pedir respostas novas");
-  await a.getByRole("button", { name: "Usar esta" }).nth(1).click();
+  // edita o contexto que o Claude recebeu e gera de novo
+  await a.getByText("Ver e editar o contexto que o Claude recebeu").click();
+  const contextBox = a.getByLabel("Contexto que o Claude recebeu");
+  expect((await contextBox.inputValue()) === CONTEXT, "o contexto aparece para editar");
+  await contextBox.fill(CONTEXT.replace("Campinas", "Valinhos"));
+  await a.getByRole("button", { name: "Gerar de novo com essa informação" }).click();
+  await a.waitForFunction(() => window.__calls.length === 4);
+  const edited = (await a.evaluate(() => window.__calls))[3];
+  expect(edited.input.includes("na casa da avó em Valinhos") && !edited.input.includes("• Cinco velinhas"), "gerar de novo com o contexto editado");
+  expect(edited.images === 1 && edited.cache === false && !edited.input.includes("INFORMAÇÃO NOVA"), "gerar de novo reenvia a foto");
+  await a.getByRole("button", { name: "Usar e editar" }).nth(1).click();
   await a.getByRole("button", { name: "Confirmar textos" }).click();
   await a.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
   await a.getByRole("button", { name: "Baixar a foto" }).click();
@@ -613,6 +728,12 @@ try {
   expect(saved[0].filename === "story.jpg" && saved[0].size > 20000, `foto salva no artefato: ${JSON.stringify(saved[0])}`);
   expect(saved[1].filename === "stories.txt", "texto salvo no artefato");
   await shot(a, "20-artefato-stories-pronto");
+  // dentro do Claude a página não toca áudio de outros sites: a música abre no YouTube
+  const youtube = a.getByRole("link", { name: "Ouvir no YouTube: Happy" });
+  expect((await youtube.getAttribute("href")) === "https://www.youtube.com/results?search_query=Happy%20Pharrell%20Williams", "YouTube no artefato");
+  await a.getByText("Dentro do Claude, a página não consegue tocar áudio de outros sites").waitFor();
+  expect((await a.getByRole("button", { name: /Ouvir trecho/ }).count()) === 0, "no artefato não há player");
+  await a.locator('section[aria-labelledby="pp-music"]').screenshot({ path: `${OUT}/20b-artefato-musica.png` });
   expect((await a.locator(".open-browser").count()) === 0, "no computador, o aviso de abrir no navegador não aparece");
   await art.close();
 

@@ -68,6 +68,16 @@ describe("buildSuggestPrompt", () => {
     expect(p).toContain("Resposta: Festa surpresa");
   });
 
+  it("gera de novo com a informação que a pessoa acrescentou depois de ver as sugestões", () => {
+    const p = buildSuggestPrompt({ ...base, update: "  A festa foi surpresa, organizada pela tia Rosa.  " });
+    expect(p).toContain("INFORMAÇÃO NOVA");
+    expect(p).toContain("com prioridade sobre o resto do contexto");
+    expect(p).toContain("\nA festa foi surpresa, organizada pela tia Rosa.");
+    expect(p).toContain("Aniversário de 5 anos da Ana");
+    expect(buildSuggestPrompt({ ...base, update: "  " })).not.toContain("INFORMAÇÃO NOVA");
+    expect(buildSuggestPrompt(base)).not.toContain("INFORMAÇÃO NOVA");
+  });
+
   it("avisa quando só parte das fotos foi anexada e pede opções novas", () => {
     const p = buildSuggestPrompt({ ...feed, photoCount: 12, attachedCount: 10, avoid: ["Primeira linha antiga\nresto"] });
     expect(p).toContain("Só as 10 primeiras estão anexadas");

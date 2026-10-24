@@ -154,6 +154,8 @@ export interface SuggestRequest {
   allowQuestions: boolean;
   /** Sugestões já feitas (uma linha cada), para pedir opções diferentes. */
   avoid: string[];
+  /** Informação que a pessoa acrescentou ou corrigiu depois de ver as sugestões. */
+  update?: string;
   /** Data de hoje, como em todayLabel(). */
   today: string;
 }
@@ -309,6 +311,15 @@ export function buildSuggestPrompt(r: SuggestRequest): string {
   if (r.answers.length) {
     L.push("", "RESPOSTAS DA PESSOA ÀS SUAS PERGUNTAS");
     for (const a of r.answers) L.push(`- Pergunta: ${a.question}`, `  Resposta: ${a.answer}`);
+  }
+  if (r.update?.trim()) {
+    L.push(
+      "",
+      "INFORMAÇÃO NOVA",
+      "A pessoa viu as sugestões anteriores e acrescentou ou corrigiu isto. Leve em conta com prioridade sobre o resto do " +
+        "contexto e escreva sugestões novas a partir disso:",
+      r.update.trim(),
+    );
   }
 
   L.push("", "PERGUNTAS");

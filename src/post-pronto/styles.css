@@ -971,6 +971,32 @@ label.btn {
 .editor h3 {
   font-size: var(--text-lg);
 }
+/* o editor abre dentro da opção escolhida, na largura toda */
+.option > .editor {
+  justify-self: stretch;
+}
+
+/* Gerar de novo com uma informação nova (ou com o contexto editado) */
+.regen {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px dashed var(--ink-3);
+  border-radius: 14px;
+  background: var(--sheet-2);
+}
+.regen h3 {
+  font-size: var(--text-lg);
+}
+.context-editor summary {
+  width: fit-content;
+  color: var(--link);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.context-editor textarea {
+  margin-top: 8px;
+}
 
 .counter {
   margin: 0;
@@ -1092,6 +1118,75 @@ label.btn {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+}
+
+/* Trecho da música */
+.song-button {
+  min-width: 128px;
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+.song-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 0 28px;
+  min-width: 0;
+}
+.song-art {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--sheet-2);
+}
+.song-track {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.song-track progress {
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.song-track progress::-webkit-progress-bar {
+  background: var(--line);
+}
+.song-track progress::-webkit-progress-value {
+  background: var(--marker);
+}
+.song-track progress::-moz-progress-bar {
+  background: var(--marker);
+}
+.song-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.song-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.song-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.song-note {
+  margin: 0 0 0 28px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
 }
 
 .exif-note {

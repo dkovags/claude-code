@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, RefreshCw } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { STICKER_LABELS, STORY_WORDS_MAX, stickerSummary, wordCount } from "../caption";
 import type { Photo } from "../photos";
@@ -6,6 +6,7 @@ import { STORY_REFINE_PRESETS } from "../prompts";
 import type { Sticker, StickerKind, StoryFrame, Suggestions } from "../types";
 import { MarkerCircle, OptionsInput, RefineBox, TagEditor } from "./parts";
 import { Seen } from "./QuestionsPanel";
+import { RegenerateBox } from "./Regenerate";
 
 const STICKER_PLACEHOLDERS: Record<StickerKind, string> = {
   poll: "Pergunta da enquete",
@@ -18,7 +19,15 @@ const STICKER_PLACEHOLDERS: Record<StickerKind, string> = {
 };
 
 /** Figurinha de uma tela: tipo, texto e, conforme o tipo, as opções ou o emoji. */
-function StickerEditor({ id, sticker, onChange }: { id: string; sticker: Sticker | null; onChange: (s: Sticker | null) => void }) {
+function StickerEditor({
+  id,
+  sticker,
+  onChange,
+}: {
+  id: string;
+  sticker: Sticker | null;
+  onChange: (s: Sticker | null) => void;
+}) {
   const choose = (kind: StickerKind | "") => {
     if (!kind) return onChange(null);
     const options =
@@ -37,7 +46,11 @@ function StickerEditor({ id, sticker, onChange }: { id: string; sticker: Sticker
         Figurinha (você adiciona no Instagram)
       </label>
       <div className="sticker-fields">
-        <select id={`${id}-kind`} value={sticker?.kind ?? ""} onChange={(e) => choose(e.target.value as StickerKind | "")}>
+        <select
+          id={`${id}-kind`}
+          value={sticker?.kind ?? ""}
+          onChange={(e) => choose(e.target.value as StickerKind | "")}
+        >
           <option value="">Sem figurinha</option>
           {(Object.keys(STICKER_LABELS) as StickerKind[]).map((k) => (
             <option key={k} value={k}>
@@ -57,7 +70,9 @@ function StickerEditor({ id, sticker, onChange }: { id: string; sticker: Sticker
       {sticker && (sticker.kind === "poll" || sticker.kind === "quiz") && (
         <div className="field">
           <label className="label" htmlFor={`${id}-options`}>
-            {sticker.kind === "quiz" ? "Opções, separadas por barra (a primeira é a certa)" : "Opções, separadas por barra"}
+            {sticker.kind === "quiz"
+              ? "Opções, separadas por barra (a primeira é a certa)"
+              : "Opções, separadas por barra"}
           </label>
           <OptionsInput
             id={`${id}-options`}
@@ -97,6 +112,8 @@ export function StoriesPanel({
   onRefine,
   canUndo,
   onUndo,
+  context,
+  onRegenerate,
   onMore,
   onConfirm,
   onBack,
@@ -113,6 +130,9 @@ export function StoriesPanel({
   onRefine: (instruction: string) => Promise<boolean>;
   canUndo: boolean;
   onUndo: () => void;
+  /** Contexto que o Claude recebeu, para editar e gerar de novo. */
+  context: string;
+  onRegenerate: (context: string, update: string) => void;
   onMore: () => void;
   onConfirm: () => void;
   onBack: () => void;
@@ -173,60 +193,62 @@ export function StoriesPanel({
                   <Check size={16} aria-hidden="true" /> Escolhida
                 </>
               ) : (
-                "Usar esta"
+                "Usar e editar"
               )}
             </button>
+            {chosen === i && (
+              <section className="editor" ref={editor} aria-labelledby="pp-editor-title">
+                <h3 id="pp-editor-title">Ajuste os textos</h3>
+                {frames.map((f, j) => {
+                  const words = wordCount(f.text);
+                  return (
+                    <div className="frame-editor" key={j}>
+                      {photos[j] && <img className="story-thumb" src={photos[j].url} alt={`Foto ${j + 1}`} />}
+                      <div className="frame-editor-body">
+                        <div className="field">
+                          <label className="label" htmlFor={`pp-frame-${j}`}>
+                            {several ? `Texto da tela ${j + 1}` : "Texto na foto"}
+                          </label>
+                          <textarea
+                            id={`pp-frame-${j}`}
+                            rows={2}
+                            value={f.text}
+                            onChange={(e) => update(j, { text: e.target.value })}
+                          />
+                          <p className={`counter${words > STORY_WORDS_MAX ? " over" : ""}`}>
+                            {words} {words === 1 ? "palavra" : "palavras"}
+                            {words > STORY_WORDS_MAX && " · longo para ler num relance"}
+                          </p>
+                        </div>
+                        <StickerEditor
+                          id={`pp-sticker-${j}`}
+                          sticker={f.sticker}
+                          onChange={(sticker) => update(j, { sticker })}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="field">
+                  <span className="label">Hashtags para a figurinha de hashtag (opcional)</span>
+                  <TagEditor tags={hashtags} max={3} onChange={setHashtags} />
+                </div>
+
+                <RefineBox
+                  presets={STORY_REFINE_PRESETS}
+                  onRefine={onRefine}
+                  canUndo={canUndo}
+                  onUndo={onUndo}
+                  placeholder="Ou peça do seu jeito. Ex.: cite a vó Lúcia na última tela"
+                />
+              </section>
+            )}
           </li>
         ))}
       </ol>
-      <button type="button" className="btn ghost" onClick={onMore}>
-        <RefreshCw size={16} aria-hidden="true" /> Gerar outras opções
-      </button>
 
-      {chosen !== null && (
-        <section className="editor" ref={editor} aria-labelledby="pp-editor-title">
-          <h3 id="pp-editor-title">Ajuste os textos</h3>
-          {frames.map((f, j) => {
-            const words = wordCount(f.text);
-            return (
-              <div className="frame-editor" key={j}>
-                {photos[j] && <img className="story-thumb" src={photos[j].url} alt={`Foto ${j + 1}`} />}
-                <div className="frame-editor-body">
-                  <div className="field">
-                    <label className="label" htmlFor={`pp-frame-${j}`}>
-                      {several ? `Texto da tela ${j + 1}` : "Texto na foto"}
-                    </label>
-                    <textarea
-                      id={`pp-frame-${j}`}
-                      rows={2}
-                      value={f.text}
-                      onChange={(e) => update(j, { text: e.target.value })}
-                    />
-                    <p className={`counter${words > STORY_WORDS_MAX ? " over" : ""}`}>
-                      {words} {words === 1 ? "palavra" : "palavras"}
-                      {words > STORY_WORDS_MAX && " · longo para ler num relance"}
-                    </p>
-                  </div>
-                  <StickerEditor id={`pp-sticker-${j}`} sticker={f.sticker} onChange={(sticker) => update(j, { sticker })} />
-                </div>
-              </div>
-            );
-          })}
-
-          <div className="field">
-            <span className="label">Hashtags para a figurinha de hashtag (opcional)</span>
-            <TagEditor tags={hashtags} max={3} onChange={setHashtags} />
-          </div>
-
-          <RefineBox
-            presets={STORY_REFINE_PRESETS}
-            onRefine={onRefine}
-            canUndo={canUndo}
-            onUndo={onUndo}
-            placeholder="Ou peça do seu jeito. Ex.: cite a vó Lúcia na última tela"
-          />
-        </section>
-      )}
+      <RegenerateBox context={context} what="versões" onRegenerate={onRegenerate} onMore={onMore} />
 
       <div className="actions">
         <button
