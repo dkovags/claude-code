@@ -6,6 +6,8 @@ export type Goal = "comments" | "shares" | "sales" | "memory";
 export type Tone = "auto" | "fun" | "inspiring" | "emotional" | "elegant" | "professional" | "bold";
 export type Language = "pt" | "en" | "es" | "pt-en";
 export type EmojiLevel = "none" | "few" | "many";
+/** Tamanho do texto escrito em cada tela dos stories. */
+export type StoryLength = "short" | "long";
 
 /** O briefing do post: contexto livre e preferências. */
 export interface Brief {
@@ -16,6 +18,7 @@ export interface Brief {
   tone: Tone;
   language: Language;
   emojis: EmojiLevel;
+  storyLength: StoryLength;
 }
 
 /** Dados gravados na foto (EXIF), quando existem. */

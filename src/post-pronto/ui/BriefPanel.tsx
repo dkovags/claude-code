@@ -1,10 +1,12 @@
 import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import {
-  cleanHandle, DESTINATION_LABELS, EMOJI_LABELS, GOAL_LABELS, LANGUAGE_LABELS, type Prefs, TONE_LABELS,
+  cleanHandle, DESTINATION_LABELS, EMOJI_LABELS, GOAL_LABELS, LANGUAGE_LABELS, type Prefs, STORY_LENGTH_LABELS,
+  TONE_LABELS,
 } from "../brief";
+import { STORY_WORDS } from "../caption";
 import { metaSummary, type Photo } from "../photos";
-import type { Destination, EmojiLevel } from "../types";
+import type { Destination, EmojiLevel, StoryLength } from "../types";
 import { Chips, Segmented, Toggle } from "./parts";
 import { PhotoStrip } from "./PhotoStrip";
 
@@ -148,6 +150,24 @@ export function BriefPanel({
         value={prefs.emojis}
         onChange={(v) => update("emojis", v)}
       />
+      {prefs.destination === "stories" && (
+        <div className="field">
+          <Segmented<StoryLength>
+            label="Tamanho do texto nas fotos"
+            options={(Object.keys(STORY_LENGTH_LABELS) as StoryLength[]).map((id) => ({
+              id,
+              label: STORY_LENGTH_LABELS[id],
+            }))}
+            value={prefs.storyLength}
+            onChange={(v) => update("storyLength", v)}
+          />
+          <p className="hint">
+            {prefs.storyLength === "long"
+              ? `Até ${STORY_WORDS.long.max} palavras por tela, para contar mais. Quem assiste pode segurar a tela para ler; quanto mais texto, menor a letra.`
+              : `Até ${STORY_WORDS.short.max} palavras por tela, para ler num relance: cada tela fica uns 5 segundos.`}
+          </p>
+        </div>
+      )}
       <p className="hint">O perfil, o @ e as preferências ficam guardados neste aparelho para os próximos posts.</p>
 
       {notice}

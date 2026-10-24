@@ -1,4 +1,4 @@
-import type { Brief, Destination, EmojiLevel, Goal, Language, Tone } from "./types";
+import type { Brief, Destination, EmojiLevel, Goal, Language, StoryLength, Tone } from "./types";
 
 export const DESTINATION_LABELS: Record<Destination, string> = {
   stories: "Stories",
@@ -35,6 +35,11 @@ export const EMOJI_LABELS: Record<EmojiLevel, string> = {
   many: "À vontade",
 };
 
+export const STORY_LENGTH_LABELS: Record<StoryLength, string> = {
+  short: "Curto",
+  long: "Mais longo",
+};
+
 export const DEFAULT_BRIEF: Brief = {
   destination: "stories",
   context: "",
@@ -43,6 +48,7 @@ export const DEFAULT_BRIEF: Brief = {
   tone: "auto",
   language: "pt",
   emojis: "few",
+  storyLength: "short",
 };
 
 const PREFS_KEY = "post-pronto:prefs";
@@ -56,6 +62,7 @@ export interface Prefs {
   tone: Tone;
   language: Language;
   emojis: EmojiLevel;
+  storyLength: StoryLength;
 }
 
 /** O valor salvo, se for uma das opções; senão, o padrão. */
@@ -73,6 +80,7 @@ export function loadPrefs(): Prefs {
     tone: d.tone,
     language: d.language,
     emojis: d.emojis,
+    storyLength: d.storyLength,
   };
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "null");
@@ -85,6 +93,7 @@ export function loadPrefs(): Prefs {
       tone: option(saved.tone, TONE_LABELS, base.tone),
       language: option(saved.language, LANGUAGE_LABELS, base.language),
       emojis: option(saved.emojis, EMOJI_LABELS, base.emojis),
+      storyLength: option(saved.storyLength, STORY_LENGTH_LABELS, base.storyLength),
     };
   } catch {
     return base;

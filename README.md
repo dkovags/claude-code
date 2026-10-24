@@ -112,8 +112,9 @@ de *stories*; o de *feed* continua disponível.
   sequência, com um texto curto para escrever em cada foto (a primeira tela prende a atenção, a última chama para a
   ação) e a figurinha interativa que combina com cada tela: enquete, caixa de perguntas, *quiz*, *slider* de emoji,
   contagem regressiva, *link* ou "Adicione o seu". Dá para editar o texto e a figurinha de cada tela à mão ou pedir
-  ajustes ao Claude (mais curtos, mais divertidos, mais figurinhas...). A foto sai em 1080 × 1920 com o texto escrito
-  nela, longe das áreas cobertas pelos botões do *story*. As figurinhas, a música e a localização só funcionam
+  ajustes ao Claude (mais curtos, mais divertidos, mais figurinhas...). Em **Tamanho do texto nas fotos**, o texto de
+  cada tela pode ser curto (até 12 palavras, para ler num relance) ou mais longo (até 30, para contar mais). A foto sai
+  em 1080 × 1920 com o texto escrito nela, longe das áreas cobertas pelos botões do *story*. As figurinhas, a música e a localização só funcionam
   adicionadas no próprio Instagram: a prévia mostra onde entram (tracejadas) e a etapa final lista o que adicionar em
   cada tela, com botões para copiar as perguntas e as opções.
 - **Na tela de escolha**: **Usar e editar** abre o editor dentro da opção escolhida, para mudar o texto à mão.

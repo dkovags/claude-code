@@ -206,6 +206,7 @@ export default function App() {
     tone: prefs.tone,
     language: prefs.language,
     emojis: prefs.emojis,
+    storyLength: prefs.storyLength,
   };
 
   /** Roda um pedido ao Claude mostrando o progresso; devolve undefined se deu erro ou foi cancelado. */
@@ -560,6 +561,7 @@ export default function App() {
               setFrames={setFrames}
               hashtags={storyTags}
               setHashtags={setStoryTags}
+              storyLength={prefs.storyLength}
               onRefine={refine}
               canUndo={!!undoFrames}
               onUndo={() => {

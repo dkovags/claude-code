@@ -1,9 +1,9 @@
 // Instruções enviadas ao Claude e leitura das respostas.
 // O Claude recebe só o texto montado aqui (mais as fotos): cada chamada é independente.
-import { MAX_HASHTAGS } from "./caption";
+import { MAX_HASHTAGS, STORY_WORDS } from "./caption";
 import type {
   Answer, Brief, CaptionOption, Destination, Draft, Goal, MusicPick, PhotoMeta, PlacePick, Question, Sticker,
-  StickerKind, StoryFrame, StoryVersion, Suggestions, Tone,
+  StickerKind, StoryFrame, StoryLength, StoryVersion, Suggestions, Tone,
 } from "./types";
 
 const GOAL_PROMPT: Record<Destination, Record<Goal, string>> = {
@@ -217,6 +217,15 @@ function feedBody(L: string[], r: SuggestRequest) {
   );
 }
 
+/** O tamanho pedido para o texto de cada tela, conforme a escolha da pessoa. */
+function storyWordsRule(length: StoryLength): string {
+  const w = STORY_WORDS[length];
+  return length === "long"
+    ? `mais longo, para contar mais: de ${w.from} a ${w.to} palavras, no máximo ${w.max}, em frases curtas e fáceis de ` +
+        "ler sobre a foto (quem assiste pode segurar a tela para ler com calma)"
+    : `curto, para ler num relance: de ${w.from} a ${w.to} palavras, no máximo ${w.max}`;
+}
+
 function storiesBody(L: string[], r: SuggestRequest) {
   const n = r.photoCount;
   const screens = n === 1 ? "exatamente 1 tela" : `exatamente ${n} telas, uma para cada foto, na mesma ordem`;
@@ -229,7 +238,7 @@ function storiesBody(L: string[], r: SuggestRequest) {
     "Nos stories não há legenda: o texto vai escrito sobre a foto, que ocupa a tela inteira (9:16), e quem assiste fica " +
       "uns 5 segundos em cada tela. Escreva 3 versões com abordagens diferentes entre si (por exemplo: narrativa, direta " +
       `e marcante, interativa) e dê a cada uma um nome curto em "estilo". Cada versão tem ${screens}, em "telas". Em cada tela:`,
-    '- "texto": o que vai escrito sobre a foto. Curto, para ler num relance: de 3 a 8 palavras, no máximo 12. ' +
+    `- "texto": o que vai escrito sobre a foto, ${storyWordsRule(r.brief.storyLength)}. ` +
       (n > 1
         ? "A primeira tela prende a atenção e a última chama para a ação (responder, votar, mandar mensagem, tocar no link)."
         : "Prenda a atenção e, se fizer sentido, chame para a ação (responder, votar, mandar mensagem, tocar no link)."),
@@ -416,7 +425,7 @@ export function buildStoryRefinePrompt(r: StoryRefineRequest): string {
     "",
     "REGRAS",
     `- Devolva exatamente ${n} ${n === 1 ? "tela" : "telas"}, na mesma ordem.`,
-    "- Textos curtos, para ler num relance: de 3 a 8 palavras, no máximo 12.",
+    `- Em cada tela, texto ${storyWordsRule(r.brief.storyLength)}. Mude o tamanho só se o pedido for para isso.`,
     "- Mantenha as figurinhas, a menos que o pedido seja para mudá-las. Tipos: " +
       `${Object.values(STICKER_TYPES).join(", ")} ou "nenhuma" (com "texto" vazio e "opcoes" como []).`,
     "- Não coloque hashtags nem menções no texto.",

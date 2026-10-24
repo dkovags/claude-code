@@ -1,9 +1,9 @@
 import { ArrowLeft, Check } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { STICKER_LABELS, STORY_WORDS_MAX, stickerSummary, wordCount } from "../caption";
+import { STICKER_LABELS, STORY_WORDS, stickerSummary, wordCount } from "../caption";
 import type { Photo } from "../photos";
 import { STORY_REFINE_PRESETS } from "../prompts";
-import type { Sticker, StickerKind, StoryFrame, Suggestions } from "../types";
+import type { Sticker, StickerKind, StoryFrame, StoryLength, Suggestions } from "../types";
 import { MarkerCircle, OptionsInput, RefineBox, TagEditor } from "./parts";
 import { Seen } from "./QuestionsPanel";
 import { RegenerateBox } from "./Regenerate";
@@ -109,6 +109,7 @@ export function StoriesPanel({
   setFrames,
   hashtags,
   setHashtags,
+  storyLength,
   onRefine,
   canUndo,
   onUndo,
@@ -126,6 +127,8 @@ export function StoriesPanel({
   setFrames: (f: StoryFrame[]) => void;
   hashtags: string[];
   setHashtags: (h: string[]) => void;
+  /** Tamanho escolhido para os textos (decide a partir de quantas palavras o contador avisa). */
+  storyLength: StoryLength;
   /** Pede um ajuste ao Claude; true se deu certo. */
   onRefine: (instruction: string) => Promise<boolean>;
   canUndo: boolean;
@@ -139,6 +142,7 @@ export function StoriesPanel({
 }) {
   const editor = useRef<HTMLElement>(null);
   const several = photos.length > 1;
+  const maxWords = STORY_WORDS[storyLength].max;
   const update = (j: number, patch: Partial<StoryFrame>) =>
     setFrames(frames.map((f, k) => (k === j ? { ...f, ...patch } : f)));
 
@@ -215,9 +219,10 @@ export function StoriesPanel({
                             value={f.text}
                             onChange={(e) => update(j, { text: e.target.value })}
                           />
-                          <p className={`counter${words > STORY_WORDS_MAX ? " over" : ""}`}>
+                          <p className={`counter${words > maxWords ? " over" : ""}`}>
                             {words} {words === 1 ? "palavra" : "palavras"}
-                            {words > STORY_WORDS_MAX && " · longo para ler num relance"}
+                            {words > maxWords &&
+                              (storyLength === "long" ? " · a letra fica pequena na foto" : " · longo para ler num relance")}
                           </p>
                         </div>
                         <StickerEditor

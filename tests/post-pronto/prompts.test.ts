@@ -33,6 +33,14 @@ describe("buildSuggestPrompt", () => {
     for (const field of STORIES_SCHEMA.required) expect(p).toContain(`"${field}"`);
   });
 
+  it("o tamanho do texto de cada tela segue a escolha: curto (padrão) ou mais longo", () => {
+    expect(buildSuggestPrompt(base)).toContain("curto, para ler num relance: de 3 a 8 palavras, no máximo 12.");
+    const long = buildSuggestPrompt({ ...base, brief: { ...base.brief, storyLength: "long" } });
+    expect(long).toContain("mais longo, para contar mais: de 12 a 25 palavras, no máximo 30");
+    expect(long).toContain("quem assiste pode segurar a tela para ler com calma");
+    expect(long).not.toContain("no máximo 12");
+  });
+
   it("com uma foto só, pede exatamente 1 tela", () => {
     const p = buildSuggestPrompt({ ...base, photoCount: 1, attachedCount: 1, metas: [] });
     expect(p).toContain("exatamente 1 tela, em");
@@ -115,6 +123,15 @@ describe("pedidos de ajuste", () => {
     expect(p).toContain('"tipo": "nenhuma"');
     expect(p).toContain("Devolva exatamente 2 telas, na mesma ordem.");
     expect(p).toContain("PEDIDO\nMais curtos");
+    expect(p).toContain("Em cada tela, texto curto, para ler num relance: de 3 a 8 palavras, no máximo 12.");
+    expect(p).toContain("Mude o tamanho só se o pedido for para isso.");
+    const long = buildStoryRefinePrompt({
+      brief: { ...DEFAULT_BRIEF, storyLength: "long" },
+      analysis: "",
+      frames: [{ text: "Cinco anos!", sticker: null }],
+      instruction: "Mais emotivos",
+    });
+    expect(long).toContain("Em cada tela, texto mais longo, para contar mais: de 12 a 25 palavras, no máximo 30");
   });
 });
 

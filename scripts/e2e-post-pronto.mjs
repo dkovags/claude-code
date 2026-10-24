@@ -385,7 +385,12 @@ try {
   await page.getByLabel("Sobre o perfil").fill("Perfil pessoal, para amigos e família");
   await page.getByLabel("Seu @, para a prévia").fill("@Familia.Souza");
   expect((await page.getByLabel("Seu @, para a prévia").inputValue()) === "familia.souza", "o @ deveria ser limpo");
-  await shot(page, "02-stories-fotos-e-contexto");
+  // textos mais longos nas fotos
+  const lengthChoice = page.getByRole("radiogroup", { name: "Tamanho do texto nas fotos" });
+  expect((await lengthChoice.getByRole("radio", { name: "Curto" }).getAttribute("aria-checked")) === "true", "curto é o padrão");
+  await lengthChoice.getByRole("radio", { name: "Mais longo" }).click();
+  await page.getByText("Até 30 palavras por tela, para contar mais.").waitFor();
+  await shot(page, "02-stories-fotos-e-contexto", true);
 
   // sem chave, o botão abre a configuração
   await page.getByRole("button", { name: "Sugerir textos" }).click();
@@ -408,6 +413,7 @@ try {
   expect(first.body.messages[0].content.filter((c) => c.type === "image").length === 2, "deveria enviar as 2 fotos");
   expect(first.prompt.includes(CONTEXT) && first.prompt.includes("TEXTOS DOS STORIES"), "pedido de stories sem o contexto");
   expect(first.prompt.includes("exatamente 2 telas"), "deveria pedir uma tela por foto");
+  expect(first.prompt.includes("de 12 a 25 palavras, no máximo 30") && !first.prompt.includes("no máximo 12"), "textos mais longos");
   expect(first.prompt.includes("Foto 1: tirada em 12/03/2026, 15h20; coordenadas GPS -22.90560, -47.06080"), "o EXIF não foi");
   await shot(page, "03-perguntas");
 
@@ -459,6 +465,14 @@ try {
   await page.getByLabel("Adicionar hashtag").fill("vovó");
   await page.getByLabel("Adicionar hashtag").press("Enter");
   await page.locator(".tag", { hasText: "#vovó" }).waitFor();
+  // com textos mais longos, o contador só avisa depois de 30 palavras
+  const tela2 = page.getByLabel("Texto da tela 2");
+  const counter2 = page.locator(".frame-editor").nth(1).locator(".counter");
+  const longText = "Foi uma tarde inesquecível com bolo de chantilly, dinossauros por todo lado, balões verdes e muita gente querida cantando parabéns juntos";
+  await tela2.fill(longText);
+  expect((await counter2.innerText()) === "21 palavras" && !(await counter2.getAttribute("class")).includes("over"), "21 palavras cabem");
+  await tela2.fill(`${longText} e depois todo mundo foi brincar no quintal até escurecer`);
+  expect((await counter2.innerText()).includes("31 palavras · a letra fica pequena na foto"), "passou de 30 palavras");
   // texto editado à mão continua lá mesmo tocando de novo na versão escolhida
   await page.getByLabel("Texto da tela 2").fill("Qual tema você escolheria para a sua festa?");
   await page.getByRole("button", { name: "Escolhida" }).click();
@@ -544,6 +558,7 @@ try {
   await page.getByRole("button", { name: "Apagar e começar outro" }).click();
   await page.getByRole("heading", { name: "Fotos e contexto" }).waitFor();
   await page.getByRole("radio", { name: "Feed" }).click();
+  expect((await page.getByRole("radiogroup", { name: "Tamanho do texto nas fotos" }).count()) === 0, "no feed não há tamanho do texto");
   await page.locator('input[type="file"]').setInputFiles([
     { name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA },
     { name: "bolo.jpg", mimeType: "image/jpeg", buffer: photoB },

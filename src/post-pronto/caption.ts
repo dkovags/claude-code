@@ -1,5 +1,5 @@
 // Regras do Instagram para a legenda e o texto que vai para a área de transferência e para o arquivo.
-import type { Draft, MusicPick, PlacePick, Sticker, StickerKind, StoryFrame } from "./types";
+import type { Draft, MusicPick, PlacePick, Sticker, StickerKind, StoryFrame, StoryLength } from "./types";
 
 /** Limite de caracteres da legenda. */
 export const CAPTION_LIMIT = 2200;
@@ -56,8 +56,13 @@ export function postText(p: PostSummary): string {
 
 // ===== Stories =====
 
-/** Nos stories o texto vai na foto: curto o bastante para ler num relance. */
-export const STORY_WORDS_MAX = 12;
+/** Palavras do texto de cada tela: de `from` a `to`, no máximo `max`. */
+export const STORY_WORDS: Record<StoryLength, { from: number; to: number; max: number }> = {
+  // curto o bastante para ler num relance: cada tela fica uns 5 segundos
+  short: { from: 3, to: 8, max: 12 },
+  // para contar mais; quem assiste pode segurar a tela para ler, e a letra diminui para caber
+  long: { from: 12, to: 25, max: 30 },
+};
 
 export function wordCount(s: string): number {
   return s.trim() ? s.trim().split(/\s+/).length : 0;
