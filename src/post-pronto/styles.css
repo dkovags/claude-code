@@ -1260,6 +1260,315 @@ input[type="radio"] {
   color: var(--ink-3);
 }
 
+/* ===== Stories: versões, telas e figurinhas ===== */
+.destination-hint {
+  margin-top: -8px;
+}
+
+.story-frames {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.story-frame {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.story-thumb {
+  flex: none;
+  width: 52px;
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--table);
+}
+.story-frame-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.story-text {
+  margin: 0;
+  font: 700 var(--text-md) / 1.3 var(--font-display);
+  overflow-wrap: anywhere;
+}
+.sticker-chip {
+  justify-self: start;
+  margin: 4px 0 0;
+  padding: 3px 10px;
+  border: 1px dashed var(--ink-3);
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.frame-editor {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.frame-editor .story-thumb {
+  width: 64px;
+}
+.frame-editor-body {
+  flex: 1;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.sticker-editor {
+  display: grid;
+  gap: 8px;
+}
+.sticker-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sticker-fields select {
+  flex: 0 1 210px;
+}
+.sticker-fields input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+input.emoji-input {
+  width: 5em;
+}
+
+.picks.stickers .pick-main {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+.picks.stickers .pick-links {
+  margin-left: 0;
+}
+
+/* ===== Prévia de story ===== */
+.story {
+  --maxh: min(70vh, 700px);
+  position: relative;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  width: min(100%, calc(var(--maxh) * 9 / 16), 380px);
+  margin: 0;
+}
+.story .example-tag {
+  top: 64px;
+}
+
+.story-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #0b0b0d;
+  box-shadow: var(--shadow);
+  color: #fff;
+}
+.story-screen canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.story-screen.editing canvas {
+  cursor: grab;
+  touch-action: none;
+}
+.story-screen.editing canvas:active {
+  cursor: grabbing;
+}
+
+.story-top {
+  position: absolute;
+  inset: 0 0 auto;
+  padding: 8px 10px 24px;
+  background: linear-gradient(rgba(0, 0, 0, 0.38), transparent);
+  pointer-events: none;
+}
+.story-bars {
+  display: flex;
+  gap: 3px;
+}
+.story-bars i {
+  flex: 1;
+  height: 2.5px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.38);
+}
+.story-bars i.done,
+.story-bars i.on {
+  background: #fff;
+}
+.story-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.story-head .avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+  box-shadow: 0 0 0 1.5px #fff;
+}
+.story-who {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.story-time {
+  opacity: 0.75;
+}
+.story-music {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* figurinhas tracejadas: mostram onde entram, mas não vão na foto baixada */
+.story-ghosts {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.story-ghost {
+  flex: none;
+  color: #15171c;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1.5px dashed rgba(21, 23, 28, 0.55);
+}
+.sticker-ghost {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  width: 72%;
+  padding: 9px 12px 11px;
+  border-radius: 14px;
+  text-align: center;
+  font-size: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.ghost-kind {
+  font: 500 9.5px / 1 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b717d;
+}
+.ghost-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 700 13px / 1.25 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.ghost-options {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+.ghost-options span {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(21, 23, 28, 0.06);
+  border: 1px solid rgba(21, 23, 28, 0.18);
+  font-weight: 600;
+}
+.ghost-slider {
+  position: relative;
+  width: 86%;
+  height: 22px;
+}
+.ghost-slider i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 10px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f0b25b, #e0578a);
+}
+.ghost-slider b {
+  position: absolute;
+  left: 30%;
+  top: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+.ghost-field {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(21, 23, 28, 0.06);
+  color: #6b717d;
+}
+.place-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 82%;
+  padding: 5px 11px;
+  border-radius: 8px;
+  font: 700 11px / 1.2 var(--font-body);
+  letter-spacing: 0.02em;
+  color: #8a3ab9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.story-reply {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+.story-reply span {
+  flex: 1;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  font-size: 12px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.story-note {
+  max-width: 40ch;
+  margin: 0;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
 /* ===== Esperando o Claude ===== */
 .busy {
   position: absolute;
@@ -1395,6 +1704,13 @@ input[type="radio"] {
   }
   .layout.step-finish .feed {
     --maxh: 46vh;
+  }
+  .story {
+    --maxh: 62vh;
+  }
+  .layout.step-finish .story,
+  .layout.step-captions .story {
+    --maxh: 50vh;
   }
 }
 

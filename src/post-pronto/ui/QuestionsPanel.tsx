@@ -13,6 +13,7 @@ export function Seen({ text }: { text: string }) {
 
 export function QuestionsPanel({
   result,
+  submitLabel,
   answers,
   setAnswers,
   onSubmit,
@@ -20,6 +21,8 @@ export function QuestionsPanel({
   onBack,
 }: {
   result: Suggestions;
+  /** "Gerar textos" nos stories, "Gerar legendas" no feed. */
+  submitLabel: string;
   answers: string[];
   setAnswers: (a: string[]) => void;
   onSubmit: () => void;
@@ -70,7 +73,7 @@ export function QuestionsPanel({
 
       <div className="actions">
         <button type="submit" className="btn primary big">
-          <Sparkles size={18} aria-hidden="true" /> Gerar legendas
+          <Sparkles size={18} aria-hidden="true" /> {submitLabel}
         </button>
         <button type="button" className="btn secondary" onClick={onSkip}>
           Pular e gerar assim mesmo

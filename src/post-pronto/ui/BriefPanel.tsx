@@ -1,8 +1,10 @@
 import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
-import { cleanHandle, EMOJI_LABELS, GOAL_LABELS, LANGUAGE_LABELS, type Prefs, TONE_LABELS } from "../brief";
+import {
+  cleanHandle, DESTINATION_LABELS, EMOJI_LABELS, GOAL_LABELS, LANGUAGE_LABELS, type Prefs, TONE_LABELS,
+} from "../brief";
 import { metaSummary, type Photo } from "../photos";
-import type { EmojiLevel } from "../types";
+import type { Destination, EmojiLevel } from "../types";
 import { Chips, Segmented, Toggle } from "./parts";
 import { PhotoStrip } from "./PhotoStrip";
 
@@ -15,6 +17,7 @@ export function BriefPanel({
   setContext,
   prefs,
   setPrefs,
+  onDestination,
   useMeta,
   setUseMeta,
   notice,
@@ -28,6 +31,8 @@ export function BriefPanel({
   setContext: (s: string) => void;
   prefs: Prefs;
   setPrefs: (p: Prefs) => void;
+  /** Trocar entre stories e feed (descarta sugestões já feitas para o outro destino). */
+  onDestination: (d: Destination) => void;
   useMeta: boolean;
   setUseMeta: (v: boolean) => void;
   /** Aviso sobre o acesso ao Claude (sem chave, sem permissão...). */
@@ -49,10 +54,22 @@ export function BriefPanel({
     >
       <h2>Fotos e contexto</h2>
       <p className="lead">
-        Envie as fotos e conte o que está acontecendo. Quanto mais detalhes, mais a legenda soa como você.
+        Envie as fotos e conte o que está acontecendo. Quanto mais detalhes, mais o texto soa como você.
       </p>
 
-      <PhotoStrip photos={photos} onAdd={onAdd} onMove={onMove} onRemove={onRemove} />
+      <Segmented<Destination>
+        label="Onde vai postar"
+        options={(Object.keys(DESTINATION_LABELS) as Destination[]).map((id) => ({ id, label: DESTINATION_LABELS[id] }))}
+        value={prefs.destination}
+        onChange={onDestination}
+      />
+      <p className="hint destination-hint">
+        {prefs.destination === "stories"
+          ? "Stories: o texto vai escrito na foto, em tela cheia (9:16), e o Claude sugere figurinhas de enquete, perguntas, música e localização."
+          : "Feed: o Claude escreve a legenda com hashtags, e a foto sai no formato do feed."}
+      </p>
+
+      <PhotoStrip photos={photos} destination={prefs.destination} onAdd={onAdd} onMove={onMove} onRemove={onRemove} />
       {(meta.dated > 0 || meta.located > 0) && (
         <Toggle
           checked={useMeta}
@@ -121,7 +138,7 @@ export function BriefPanel({
 
       <div className="actions">
         <button type="submit" className="btn primary big" disabled={!photos.length}>
-          <Sparkles size={18} aria-hidden="true" /> Sugerir legendas
+          <Sparkles size={18} aria-hidden="true" /> {prefs.destination === "stories" ? "Sugerir textos" : "Sugerir legendas"}
         </button>
         {!photos.length && <span className="hint">Envie pelo menos uma foto.</span>}
       </div>

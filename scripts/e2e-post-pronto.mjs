@@ -1,6 +1,6 @@
 // Teste de ponta a ponta do Post Pronto, com as respostas do Claude simuladas.
 // Uso: npm run test:e2e-post  (gera screenshots/post-pronto/ e falha se algo der errado)
-// Cobre as duas formas de uso: a página publicada (API com chave própria) e o artefato do claude.ai.
+// Cobre stories e feed, a página publicada (API com chave própria), o celular e o artefato do claude.ai.
 import { chromium } from "playwright";
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -20,16 +20,68 @@ await new Promise((resolve, reject) => {
 const URL = `http://localhost:${PORT}/post-pronto/`;
 
 // ===== Respostas simuladas do Claude =====
+const MUSIC = [
+  { titulo: "Aquarela", artista: "Toquinho", trecho: "refrão", por_que: "Clássico infantil brasileiro, afetivo." },
+  { titulo: "Happy", artista: "Pharrell Williams", trecho: "refrão", por_que: "Alegre e conhecida." },
+];
+const PLACES = [
+  { nome: "Campinas, São Paulo", tipo: "bairro ou cidade", por_que: "Informado no contexto e no GPS da foto." },
+  { nome: "Casa da Vó", tipo: "ampla", por_que: "Criativa, combina com o texto." },
+];
+const NONE = { tipo: "nenhuma", texto: "", opcoes: [] };
 const QUESTIONS = {
   status: "perguntas",
   analise: "Uma menina sopra as velas de um bolo com dinossauros, cercada de balões verdes.",
   perguntas: [{ pergunta: "Como a aniversariante se chama e quantos anos fez?", opcoes: ["Ana, 5 anos", "Prefiro não citar o nome"] }],
   legendas: [],
+  versoes: [],
+  hashtags: [],
   texto_imagem: [],
   texto_alternativo: "",
   musicas: [],
   localizacoes: [],
   dicas: [],
+};
+const STORY_SUGGESTIONS = {
+  status: "sugestoes",
+  analise: "Festa de 5 anos com tema de dinossauros na casa da avó.",
+  perguntas: [],
+  versoes: [
+    {
+      estilo: "Narrativa",
+      telas: [
+        { texto: "Cinco velinhas — e um dinossauro de chantilly", figurinha: NONE },
+        { texto: "Qual tema você escolheria?", figurinha: { tipo: "enquete", texto: "Melhor tema de festa?", opcoes: ["Dinossauro", "Princesa"] } },
+      ],
+      por_que: "Conta a festa e termina com uma enquete fácil de votar.",
+    },
+    {
+      estilo: "Direta",
+      telas: [
+        { texto: "5 anos de Ana", figurinha: NONE },
+        { texto: "Obrigada, família!", figurinha: { tipo: "caixa de perguntas", texto: "Deixe um recado para a Ana", opcoes: [] } },
+      ],
+      por_que: "Curta e afetiva, convida a mandar recados.",
+    },
+    {
+      estilo: "Interativa",
+      telas: [
+        { texto: "Adivinha quantos anos?", figurinha: { tipo: "quiz", texto: "Quantos anos a Ana fez?", opcoes: ["5", "4", "6"] } },
+        { texto: "Festa na casa da vó", figurinha: { tipo: "slider", texto: "Quanto você ama festa de criança?", opcoes: ["🎂"] } },
+      ],
+      por_que: "Quiz e slider geram toques e respostas.",
+    },
+  ],
+  hashtags: ["#festadinossauro", "#5anos"],
+  musicas: MUSIC,
+  localizacoes: PLACES,
+  dicas: ["Poste a sequência de uma vez.", "Responda às mensagens da caixa de perguntas."],
+};
+const STORY_REFINE = {
+  telas: [
+    { texto: "Cinco velinhas!", figurinha: NONE },
+    { texto: "Qual tema?", figurinha: { tipo: "enquete", texto: "Melhor tema de festa?", opcoes: ["Dinossauro", "Princesa"] } },
+  ],
 };
 const SUGGESTIONS = {
   status: "sugestoes",
@@ -58,22 +110,24 @@ const SUGGESTIONS = {
   ],
   texto_imagem: ["5 anos de Ana", "Rawr!", "Festa dos dinossauros"],
   texto_alternativo: "Menina de vestido amarelo sopra as velas de um bolo decorado com dinossauros, cercada de balões verdes.",
-  musicas: [
-    { titulo: "Aquarela", artista: "Toquinho", trecho: "refrão", por_que: "Clássico infantil brasileiro, afetivo." },
-    { titulo: "Happy", artista: "Pharrell Williams", trecho: "refrão", por_que: "Alegre e conhecida." },
-  ],
-  localizacoes: [
-    { nome: "Campinas, São Paulo", tipo: "bairro ou cidade", por_que: "Informado no contexto e no GPS da foto." },
-    { nome: "Casa da Vó", tipo: "ampla", por_que: "Criativa, combina com a legenda." },
-  ],
+  musicas: MUSIC,
+  localizacoes: PLACES,
   dicas: ["Use a foto das velas como capa.", "Responda aos comentários na primeira hora."],
 };
 const REFINE = {
   texto: "Cinco velinhas e um dinossauro de chantilly 🦖\n\nQual foi o tema do seu aniversário de criança?",
   hashtags: ["#aniversarioinfantil", "#festadinossauro"],
 };
-const pick = (prompt) =>
-  prompt.includes("Reescreva a legenda") ? REFINE : prompt.includes("Antes de escrever") ? QUESTIONS : SUGGESTIONS;
+const pick = (p) =>
+  p.includes("Reescreva os textos dos stories")
+    ? STORY_REFINE
+    : p.includes("Reescreva a legenda")
+      ? REFINE
+      : p.includes("Antes de escrever")
+        ? QUESTIONS
+        : p.includes("TEXTOS DOS STORIES")
+          ? STORY_SUGGESTIONS
+          : SUGGESTIONS;
 
 /** Resposta da API em streaming (server-sent events), como a Anthropic envia. */
 function sse(text) {
@@ -89,6 +143,21 @@ function sse(text) {
   out += ev("message_delta", { delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 900 } });
   out += ev("message_stop", {});
   return out;
+}
+
+/** Simula a API da Anthropic no contexto; devolve a lista de pedidos recebidos. */
+async function mockApi(ctx) {
+  const calls = [];
+  await ctx.route("https://api.anthropic.com/**", async (route) => {
+    const req = route.request();
+    const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "POST, OPTIONS" };
+    if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+    const body = JSON.parse(req.postData());
+    const prompt = body.messages[0].content.find((c) => c.type === "text").text;
+    calls.push({ headers: req.headers(), body, prompt });
+    await route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/event-stream" }, body: sse(JSON.stringify(pick(prompt))) });
+  });
+  return calls;
 }
 
 // ===== Fotos de teste =====
@@ -195,35 +264,37 @@ async function noHorizontalScroll(page, label) {
   const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
   expect(sw <= iw, `${label}: a página rola na horizontal (${sw} > ${iw})`);
 }
-function pythonCheck(code, ...args) {
+function python(code, ...args) {
   return execFileSync("python3", ["-I", "-c", code, ...args], { encoding: "utf8" }).trim();
+}
+const ZIP_SIZES =
+  "import sys,zipfile,io\nfrom PIL import Image\nz=zipfile.ZipFile(sys.argv[1])\n" +
+  "print(';'.join(n+'='+'x'.join(map(str,Image.open(io.BytesIO(z.read(n))).size)) for n in z.namelist() if n.endswith('.jpg')))";
+async function download(page, button, path) {
+  const [d] = await Promise.all([page.waitForEvent("download"), button.click()]);
+  await d.saveAs(path);
+  return d.suggestedFilename();
 }
 
 const CONTEXT = "Aniversário de 5 anos da Ana, na casa da avó em Campinas. A festa teve tema de dinossauros.";
+let current = null; // página em teste, para a captura de tela quando algo falha
 
 try {
-  // ============ 1. Página publicada (GitHub Pages), usando a API com chave própria ============
+  // ============ 1. Stories na página publicada (GitHub Pages), usando a API com chave própria ============
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "pt-BR", reducedMotion: "reduce", acceptDownloads: true });
   await hermetic(ctx);
   await ctx.grantPermissions(["clipboard-read", "clipboard-write"], { origin: `http://localhost:${PORT}` });
-  const apiCalls = [];
-  await ctx.route("https://api.anthropic.com/**", async (route) => {
-    const req = route.request();
-    const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "POST, OPTIONS" };
-    if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
-    const body = JSON.parse(req.postData());
-    apiCalls.push({ headers: req.headers(), body });
-    const prompt = body.messages[0].content.find((c) => c.type === "text").text;
-    await route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/event-stream" }, body: sse(JSON.stringify(pick(prompt))) });
-  });
+  const apiCalls = await mockApi(ctx);
 
-  const page = await ctx.newPage();
+  const page = (current = await ctx.newPage());
   watch(page);
   await page.goto(URL);
   await page.getByRole("heading", { name: "Post Pronto" }).waitFor();
   await page.getByText("Exemplo", { exact: true }).waitFor();
-  expect(await page.getByRole("button", { name: "Sugerir legendas" }).isDisabled(), "botão deveria esperar as fotos");
-  await shot(page, "01-inicio-exemplo");
+  expect((await page.getByRole("radio", { name: "Stories" }).getAttribute("aria-checked")) === "true", "stories deveria ser o padrão");
+  await page.locator(".sticker-ghost", { hasText: "Pôr do sol ou nascer do sol?" }).waitFor();
+  expect(await page.getByRole("button", { name: "Sugerir textos" }).isDisabled(), "botão deveria esperar as fotos");
+  await shot(page, "01-inicio-stories");
 
   // fotos: a primeira com data e GPS de Campinas
   const photoA = withExif(await drawPhoto(page, 3024, 4032, ["#f7d9a8", "#e98d6b", "#5aa469"]), {
@@ -237,23 +308,23 @@ try {
     { name: "bolo.jpg", mimeType: "image/jpeg", buffer: photoB },
   ]);
   await page.locator(".film .frame:not(.add)").nth(1).waitFor();
+  expect((await page.locator(".cover-mark").count()) === 0, "nos stories não há capa");
   await page.getByText("Usar a data e o local gravados nas fotos").waitFor();
   await page.getByLabel("O que está acontecendo").fill(CONTEXT);
   await page.getByLabel("Sobre o perfil").fill("Perfil pessoal, para amigos e família");
   await page.getByLabel("Seu @, para a prévia").fill("@Familia.Souza");
   expect((await page.getByLabel("Seu @, para a prévia").inputValue()) === "familia.souza", "o @ deveria ser limpo");
-  await shot(page, "02-fotos-e-contexto");
+  await shot(page, "02-stories-fotos-e-contexto");
 
   // sem chave, o botão abre a configuração
-  await page.getByRole("button", { name: "Sugerir legendas" }).click();
+  await page.getByRole("button", { name: "Sugerir textos" }).click();
   await page.getByRole("dialog", { name: "Acesso ao Claude" }).waitFor();
-  await shot(page, "03-chave-da-api");
   await page.getByLabel("Chave da API").fill("sk-ant-teste-123");
   await page.getByRole("button", { name: "Salvar" }).click();
   await page.getByText("Chave salva neste navegador.").waitFor();
 
   // 1º pedido: o Claude pergunta
-  await page.getByRole("button", { name: "Sugerir legendas" }).click();
+  await page.getByRole("button", { name: "Sugerir textos" }).click();
   await page.getByRole("heading", { name: "Só mais um pouco de contexto" }).waitFor();
   const first = apiCalls[0];
   expect(first.headers["x-api-key"] === "sk-ant-teste-123", "a chave deveria ir no x-api-key");
@@ -261,110 +332,165 @@ try {
   expect((first.headers["anthropic-beta"] || "").includes("server-side-fallback-2026-07-01"), "faltou o beta de fallback");
   expect(first.body.model === "claude-opus-5-5" && first.body.fallbacks === "default", "modelo ou fallback errado");
   expect(first.body.output_config?.format?.type === "json_schema" && first.body.output_config.effort === "medium", "faltou o formato JSON");
+  expect(first.body.output_config.format.schema.required.includes("versoes"), "o formato deveria ser o dos stories");
   expect(first.body.stream === true, "deveria usar streaming");
-  const content = first.body.messages[0].content;
-  expect(content.filter((c) => c.type === "image").length === 2, "deveria enviar as 2 fotos");
-  const prompt1 = content.find((c) => c.type === "text").text;
-  expect(prompt1.includes(CONTEXT), "o contexto não foi para o Claude");
-  expect(prompt1.includes("Foto 1: tirada em 12/03/2026, 15h20; coordenadas GPS -22.90560, -47.06080"), "o EXIF não foi para o Claude");
-  expect(prompt1.includes("Antes de escrever"), "a primeira rodada deveria permitir perguntas");
-  await shot(page, "04-perguntas");
+  expect(first.body.messages[0].content.filter((c) => c.type === "image").length === 2, "deveria enviar as 2 fotos");
+  expect(first.prompt.includes(CONTEXT) && first.prompt.includes("TEXTOS DOS STORIES"), "pedido de stories sem o contexto");
+  expect(first.prompt.includes("exatamente 2 telas"), "deveria pedir uma tela por foto");
+  expect(first.prompt.includes("Foto 1: tirada em 12/03/2026, 15h20; coordenadas GPS -22.90560, -47.06080"), "o EXIF não foi");
+  await shot(page, "03-perguntas");
 
-  // responde e gera
+  // responde e gera as versões
+  await page.getByRole("button", { name: "Ana, 5 anos" }).click();
+  await page.getByRole("button", { name: "Gerar textos" }).click();
+  await page.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
+  expect(apiCalls[1].prompt.includes("Resposta: Ana, 5 anos") && apiCalls[1].prompt.includes("Não faça perguntas."), "respostas");
+  const versionsText = await page.locator(".options").innerText();
+  expect(!versionsText.includes("—") && versionsText.includes("Cinco velinhas – e um dinossauro"), "o travessão deveria virar meia-risca");
+  expect(versionsText.includes("Enquete: Melhor tema de festa? (Dinossauro / Princesa)"), "figurinha da versão");
+  expect(versionsText.includes("Quiz: Quantos anos a Ana fez? (5 (certa) / 4 / 6)"), "quiz com a resposta certa");
+  await shot(page, "04-stories-versoes", true);
+
+  // escolhe a 1ª, vê o texto na prévia e a enquete tracejada na tela 2
+  await page.getByRole("button", { name: "Usar esta" }).first().click();
+  const tela1 = page.getByLabel("Texto da tela 1");
+  await tela1.waitFor();
+  expect((await tela1.inputValue()) === "Cinco velinhas – e um dinossauro de chantilly", "texto da tela 1");
+  await page.getByRole("button", { name: "Próxima tela" }).click();
+  await page.locator(".sticker-ghost", { hasText: "Melhor tema de festa?" }).waitFor();
+  await page.getByRole("button", { name: "Tela anterior" }).click();
+
+  // ajuste do Claude e desfazer
+  await page.getByRole("button", { name: "Mais curtos" }).click();
+  await page.waitForFunction(() => document.querySelector("#pp-frame-0")?.value === "Cinco velinhas!");
+  expect(apiCalls[2].prompt.includes("Reescreva os textos dos stories") && apiCalls[2].prompt.includes('"tipo": "enquete"'), "ajuste");
+  expect(apiCalls[2].body.messages[0].content.every((c) => c.type === "text"), "o ajuste não precisa reenviar fotos");
+  await page.getByRole("button", { name: "Desfazer o último ajuste" }).click();
+  expect((await tela1.inputValue()) === "Cinco velinhas – e um dinossauro de chantilly", "desfazer deveria voltar o texto");
+
+  // figurinha à mão na tela 1 e hashtag
+  await page.getByLabel("Figurinha (você adiciona no Instagram)").first().selectOption("question");
+  await page.getByLabel("Texto da figurinha (Caixa de perguntas)").fill("Mande um recado para a Ana");
+  await page.locator(".sticker-ghost", { hasText: "Mande um recado para a Ana" }).waitFor();
+  await page.getByLabel("Adicionar hashtag").fill("vovó");
+  await page.getByLabel("Adicionar hashtag").press("Enter");
+  await page.locator(".tag", { hasText: "#vovó" }).waitFor();
+  await shot(page, "05-stories-ajustes", true);
+
+  // etapa final
+  await page.getByRole("button", { name: "Confirmar textos" }).click();
+  await page.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
+  const stickersText = await page.locator(".picks.stickers").innerText();
+  expect(stickersText.includes("Caixa de perguntas: Mande um recado para a Ana"), "figurinha da tela 1 na lista");
+  expect(stickersText.includes("Enquete: Melhor tema de festa? (Dinossauro / Princesa)"), "figurinha da tela 2 na lista");
+  expect(stickersText.includes("#festadinossauro #5anos #vovó"), "hashtags da figurinha");
+  await page.getByRole("radio", { name: /Happy/ }).check();
+  await page.locator(".story-music", { hasText: "Happy · Pharrell Williams" }).waitFor();
+  await page.locator(".place-ghost", { hasText: "CAMPINAS, SÃO PAULO" }).waitFor();
+  expect((await page.locator(".how").innerText()).includes("Na tela 2, toque no ícone de figurinhas e adicione Enquete"), "passo a passo");
+  await page.getByRole("radio", { name: "Moderno" }).click();
+  await page.getByText("Faixa atrás do texto").click();
+  await shot(page, "06-stories-pronto");
+  await shot(page, "06b-stories-pronto-pagina-inteira", true);
+
+  // baixa as 2 telas com texto, depois sem texto, e confere que o texto foi escrito na foto
+  const zipButton = page.getByRole("button", { name: "Baixar as 2 telas (.zip)" });
+  expect((await download(page, zipButton, `${OUT}/downloads/stories.zip`)) === "stories.zip", "nome do zip dos stories");
+  const sizes = python(ZIP_SIZES, `${OUT}/downloads/stories.zip`);
+  expect(sizes === "story-1.jpg=1080x1920;story-2.jpg=1080x1920", `telas no zip: ${sizes}`);
+  await page.getByText("Escrever os textos nas fotos").click();
+  await page.getByText("Sem o texto na foto, escreva no story com o botão Aa.").waitFor();
+  await download(page, page.getByRole("button", { name: "Baixar as 2 telas (.zip)" }), `${OUT}/downloads/stories-sem-texto.zip`);
+  const diff = python(
+    "import sys,zipfile,io\nfrom PIL import Image, ImageChops\n" +
+      "a,b=[Image.open(io.BytesIO(zipfile.ZipFile(p).read('story-1.jpg'))).convert('L') for p in sys.argv[1:3]]\n" +
+      "box=ImageChops.difference(a,b).point(lambda v: 255 if v>40 else 0).getbbox()\nprint(box)",
+    `${OUT}/downloads/stories.zip`,
+    `${OUT}/downloads/stories-sem-texto.zip`,
+  );
+  const box = diff === "None" ? null : diff.replace(/[()\s]/g, "").split(",").map(Number);
+  expect(box && box[1] > 1920 * 0.1 && box[3] < 1920 * 0.5, `o texto deveria estar na parte de cima da tela 1: ${diff}`);
+  await page.getByText("Escrever os textos nas fotos").click();
+
+  await download(page, page.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }), `${OUT}/downloads/stories.txt`);
+  const storiesTxt = readFileSync(`${OUT}/downloads/stories.txt`, "utf8");
+  expect(storiesTxt.startsWith("STORIES\nTela 1: Cinco velinhas – e um dinossauro de chantilly\n  Figurinha – Caixa de perguntas: Mande um recado para a Ana"), `txt: ${storiesTxt}`);
+  expect(storiesTxt.includes("MÚSICA\nHappy – Pharrell Williams (refrão)") && storiesTxt.includes("HASHTAGS\n#festadinossauro #5anos #vovó"), `txt: ${storiesTxt}`);
+  await download(page, page.getByRole("button", { name: "Baixar tudo junto (.zip)" }), `${OUT}/downloads/stories-completo.zip`);
+  const all = python("import sys,zipfile\nprint(','.join(zipfile.ZipFile(sys.argv[1]).namelist()))", `${OUT}/downloads/stories-completo.zip`);
+  expect(all === "story-1.jpg,story-2.jpg,stories.txt", `zip completo: ${all}`);
+  await noHorizontalScroll(page, "desktop, stories");
+
+  // ============ 2. Feed, na mesma página ============
+  await page.getByRole("button", { name: "Começar outro post" }).click();
+  await page.getByRole("button", { name: "Apagar e começar outro" }).click();
+  await page.getByRole("heading", { name: "Fotos e contexto" }).waitFor();
+  await page.getByRole("radio", { name: "Feed" }).click();
+  await page.locator('input[type="file"]').setInputFiles([
+    { name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA },
+    { name: "bolo.jpg", mimeType: "image/jpeg", buffer: photoB },
+  ]);
+  await page.locator(".film .frame:not(.add)").nth(1).waitFor();
+  expect((await page.locator(".cover-mark").count()) === 1, "no feed, a primeira foto é a capa");
+  await page.getByLabel("O que está acontecendo").fill(CONTEXT);
+  await page.getByRole("button", { name: "Sugerir legendas" }).click();
   await page.getByRole("button", { name: "Ana, 5 anos" }).click();
   await page.getByRole("button", { name: "Gerar legendas" }).click();
   await page.getByRole("heading", { name: "Escolha a legenda" }).waitFor();
-  const prompt2 = apiCalls[1].body.messages[0].content.find((c) => c.type === "text").text;
-  expect(prompt2.includes("Resposta: Ana, 5 anos") && prompt2.includes("Não faça perguntas."), "as respostas não foram");
+  const feedCall = apiCalls[apiCalls.length - 1];
+  expect(feedCall.body.output_config.format.schema.required.includes("legendas") && feedCall.prompt.includes("LEGENDAS"), "pedido do feed");
   const optionsText = await page.locator(".options").innerText();
   expect(!optionsText.includes("—") && optionsText.includes("festa – e fez"), "o travessão deveria virar meia-risca");
-  await shot(page, "05-legendas", true);
+  await shot(page, "07-feed-legendas", true);
 
-  // escolhe, pede ajuste, desfaz, acrescenta hashtag
   await page.getByRole("button", { name: "Usar esta" }).first().click();
   const draft = page.getByLabel("Texto", { exact: true });
   await draft.waitFor();
   const original = await draft.inputValue();
   await page.getByRole("button", { name: "Mais curta" }).click();
-  await page.waitForFunction(() => document.querySelector("#pp-draft")?.value.startsWith("Cinco velinhas") && !document.querySelector("#pp-draft").value.includes("chantilly 🦖\n\nA Ana"));
-  expect(apiCalls[2].body.messages[0].content.every((c) => c.type === "text"), "o ajuste não precisa reenviar fotos");
+  await page.waitForFunction(() => !document.querySelector("#pp-draft")?.value.includes("chantilly 🦖\n\nA Ana"));
   await page.getByRole("button", { name: "Desfazer o último ajuste" }).click();
   expect((await draft.inputValue()) === original, "desfazer deveria voltar a legenda");
-  const tagInput = page.getByLabel("Adicionar hashtag");
-  await tagInput.fill("vovó lúcia");
-  await tagInput.press("Enter");
+  await page.getByLabel("Adicionar hashtag").fill("vovó lúcia");
+  await page.getByLabel("Adicionar hashtag").press("Enter");
   await page.locator(".tag", { hasText: "#vovólúcia" }).waitFor();
-  await shot(page, "06-ajustes", true);
 
-  // confirma e chega à etapa final
   await page.getByRole("button", { name: "Confirmar legenda" }).click();
   await page.getByRole("heading", { name: "Pronto para postar" }).waitFor();
   await page.getByText("Foto 1, tirada em 12/03/2026, 15h20, tem localização gravada").waitFor();
-  await page.getByRole("radio", { name: /Happy/ }).check();
-  await page.locator(".feed-sub", { hasText: "Pharrell Williams · Happy" }).waitFor();
-  await page.locator(".feed-sub", { hasText: "Campinas, São Paulo" }).waitFor();
-
-  // texto na capa, estilo, posição, zoom e enquadramento arrastando
   await page.getByText("Escrever um texto na capa").click();
   expect((await page.getByLabel("Texto", { exact: true }).inputValue()) === "5 anos de Ana", "deveria sugerir o texto da capa");
   await page.getByRole("radio", { name: "Impacto" }).click();
-  await page.getByRole("radio", { name: "Em cima" }).click();
-  await page.getByText("Faixa atrás do texto").click();
   const zoom = page.getByLabel("Zoom");
   await zoom.focus();
   for (let i = 0; i < 30; i++) await zoom.press("ArrowRight");
   const canvas = page.locator(".shot canvas");
-  const box = await canvas.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const cbox = await canvas.boundingBox();
+  await page.mouse.move(cbox.x + cbox.width / 2, cbox.y + cbox.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 - 80, box.y + box.height / 2 + 30, { steps: 6 });
+  await page.mouse.move(cbox.x + cbox.width / 2 - 80, cbox.y + cbox.height / 2 + 30, { steps: 6 });
   await page.mouse.up();
-  await shot(page, "07-pronto-para-postar");
-  await shot(page, "07b-pronto-pagina-inteira", true);
+  await shot(page, "08-feed-pronto");
 
-  // baixa as fotos (zip), confere tamanho 1080×1350 e o texto
-  await page.getByRole("button", { name: "Baixar as 2 fotos (.zip)" }).waitFor();
-  let [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Baixar as 2 fotos (.zip)" }).click()]);
-  expect(download.suggestedFilename() === "post-pronto-fotos.zip", "nome do zip das fotos");
-  await download.saveAs(`${OUT}/downloads/fotos.zip`);
-  const zipInfo = pythonCheck(
-    "import sys,zipfile,io\nfrom PIL import Image\nz=zipfile.ZipFile(sys.argv[1])\nprint(';'.join(n+'='+'x'.join(map(str,Image.open(io.BytesIO(z.read(n))).size)) for n in z.namelist()))",
-    `${OUT}/downloads/fotos.zip`,
+  expect(
+    (await download(page, page.getByRole("button", { name: "Baixar as 2 fotos (.zip)" }), `${OUT}/downloads/fotos.zip`)) ===
+      "post-pronto-fotos.zip",
+    "nome do zip das fotos",
   );
-  expect(zipInfo === "post-pronto-1.jpg=1080x1350;post-pronto-2.jpg=1080x1350", `fotos no zip: ${zipInfo}`);
-
+  const feedSizes = python(ZIP_SIZES, `${OUT}/downloads/fotos.zip`);
+  expect(feedSizes === "post-pronto-1.jpg=1080x1350;post-pronto-2.jpg=1080x1350", `fotos no zip: ${feedSizes}`);
   await page.getByRole("button", { name: "Copiar legenda" }).click();
   await page.getByText("Legenda copiada.").waitFor();
   const clip = await page.evaluate(() => navigator.clipboard.readText());
   expect(clip.startsWith("Cinco velinhas") && clip.endsWith("#aniversarioinfantil #festadinossauro #5anos #vovólúcia"), `legenda copiada: ${clip}`);
   expect(!clip.includes("—"), "a legenda copiada não pode ter travessão");
-
-  [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /Baixar legenda, música e local/ }).click()]);
-  await download.saveAs(`${OUT}/downloads/legenda.txt`);
+  await download(page, page.getByRole("button", { name: /Baixar legenda, música e local/ }), `${OUT}/downloads/legenda.txt`);
   const txt = readFileSync(`${OUT}/downloads/legenda.txt`, "utf8");
-  expect(txt.includes("MÚSICA\nHappy – Pharrell Williams (refrão)") && txt.includes("LOCALIZAÇÃO\nCampinas, São Paulo"), `txt: ${txt}`);
-  expect(txt.includes("TEXTO ALTERNATIVO\nMenina de vestido amarelo"), "txt sem texto alternativo");
-
-  [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Baixar tudo junto (.zip)" }).click()]);
-  await download.saveAs(`${OUT}/downloads/tudo.zip`);
-  const all = pythonCheck("import sys,zipfile\nprint(','.join(zipfile.ZipFile(sys.argv[1]).namelist()))", `${OUT}/downloads/tudo.zip`);
-  expect(all === "post-pronto-1.jpg,post-pronto-2.jpg,legenda.txt", `zip completo: ${all}`);
-
-  // Stories 9:16
-  await page.getByRole("radio", { name: "9:16" }).click();
-  await page.waitForTimeout(500);
-  [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Baixar as 2 fotos (.zip)" }).click()]);
-  await download.saveAs(`${OUT}/downloads/stories.zip`);
-  const storySize = pythonCheck(
-    "import sys,zipfile,io\nfrom PIL import Image\nz=zipfile.ZipFile(sys.argv[1])\nprint('x'.join(map(str,Image.open(io.BytesIO(z.read('post-pronto-1.jpg'))).size)))",
-    `${OUT}/downloads/stories.zip`,
-  );
-  expect(storySize === "1080x1920", `stories: ${storySize}`);
-  await shot(page, "08-stories");
-  await noHorizontalScroll(page, "desktop");
+  expect(txt.includes("LOCALIZAÇÃO\nCampinas, São Paulo") && txt.includes("TEXTO ALTERNATIVO\nMenina de vestido amarelo"), `txt: ${txt}`);
+  await noHorizontalScroll(page, "desktop, feed");
   await ctx.close();
 
-  // ============ 2. Celular, tema escuro ============
+  // ============ 3. Celular, tema escuro (stories) ============
   const phone = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
@@ -376,14 +502,8 @@ try {
   });
   await hermetic(phone);
   await phone.addInitScript(() => localStorage.setItem("post-pronto:api-key", "sk-ant-teste-123"));
-  await phone.route("https://api.anthropic.com/**", async (route) => {
-    const req = route.request();
-    const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "POST, OPTIONS" };
-    if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
-    const prompt = JSON.parse(req.postData()).messages[0].content.find((c) => c.type === "text").text;
-    await route.fulfill({ status: 200, headers: { ...cors, "content-type": "text/event-stream" }, body: sse(JSON.stringify(pick(prompt))) });
-  });
-  const m = await phone.newPage();
+  await mockApi(phone);
+  const m = (current = await phone.newPage());
   watch(m);
   await m.goto(URL);
   await m.getByRole("heading", { name: "Post Pronto" }).waitFor();
@@ -392,18 +512,19 @@ try {
   await m.locator('input[type="file"]').setInputFiles([{ name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA }]);
   await m.locator(".film .frame:not(.add)").first().waitFor();
   await m.getByLabel("O que está acontecendo").fill(CONTEXT);
-  await m.getByRole("button", { name: "Sugerir legendas" }).click();
+  await m.getByRole("button", { name: "Sugerir textos" }).click();
   await m.getByRole("button", { name: "Pular e gerar assim mesmo" }).click();
-  await m.getByRole("heading", { name: "Escolha a legenda" }).waitFor();
-  await shot(m, "11-celular-legendas");
+  await m.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
+  expect((await m.locator(".option").first().locator(".story-frame").count()) === 1, "com 1 foto, cada versão tem 1 tela");
+  await shot(m, "11-celular-versoes");
   await m.getByRole("button", { name: "Usar esta" }).nth(2).click();
-  await m.getByRole("button", { name: "Confirmar legenda" }).click();
-  await m.getByRole("heading", { name: "Pronto para postar" }).waitFor();
+  await m.getByRole("button", { name: "Confirmar textos" }).click();
+  await m.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
   await shot(m, "12-celular-pronto");
   await noHorizontalScroll(m, "celular, etapa final");
   await phone.close();
 
-  // ============ 3. Artefato do claude.ai (conta de quem abre a página) ============
+  // ============ 4. Artefato do claude.ai (conta de quem abre a página) ============
   const art = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "pt-BR", reducedMotion: "reduce" });
   await hermetic(art);
   const artifactHtml = readFileSync("dist-artifact/post-pronto.html", "utf8");
@@ -414,8 +535,17 @@ try {
     "</body></html>";
   await art.route("https://artefato.teste/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: skeleton }));
   await art.addInitScript(
-    ({ QUESTIONS, SUGGESTIONS, REFINE }) => {
-      const pick = (p) => (p.includes("Reescreva a legenda") ? REFINE : p.includes("Antes de escrever") ? QUESTIONS : SUGGESTIONS);
+    ({ QUESTIONS, SUGGESTIONS, REFINE, STORY_SUGGESTIONS, STORY_REFINE }) => {
+      const pick = (p) =>
+        p.includes("Reescreva os textos dos stories")
+          ? STORY_REFINE
+          : p.includes("Reescreva a legenda")
+            ? REFINE
+            : p.includes("Antes de escrever")
+              ? QUESTIONS
+              : p.includes("TEXTOS DOS STORIES")
+                ? STORY_SUGGESTIONS
+                : SUGGESTIONS;
       const calls = (window.__calls = []);
       const saved = (window.__saved = []);
       const sample = async () => {
@@ -442,9 +572,9 @@ try {
       };
       window.claude = { use: async (name) => (name === "sample" ? sample : name === "downloads" ? downloads : null) };
     },
-    { QUESTIONS, SUGGESTIONS, REFINE },
+    { QUESTIONS, SUGGESTIONS, REFINE, STORY_SUGGESTIONS, STORY_REFINE },
   );
-  const a = await art.newPage();
+  const a = (current = await art.newPage());
   watch(a);
   await a.goto("https://artefato.teste/");
   await a.getByRole("heading", { name: "Post Pronto" }).waitFor();
@@ -453,32 +583,35 @@ try {
   await a.locator('input[type="file"]').setInputFiles([{ name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA }]);
   await a.locator(".film .frame:not(.add)").first().waitFor();
   await a.getByLabel("O que está acontecendo").fill(CONTEXT);
-  await a.getByRole("button", { name: "Sugerir legendas" }).click();
+  await a.getByRole("button", { name: "Sugerir textos" }).click();
   await a.getByRole("button", { name: "Pular e gerar assim mesmo" }).click();
-  await a.getByRole("heading", { name: "Escolha a legenda" }).waitFor();
+  await a.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
   const calls = await a.evaluate(() => window.__calls);
   expect(calls.length === 2 && calls[0].images === 1 && calls[0].types[0] === "image/jpeg", "fotos para o Claude no artefato");
   expect(calls[0].tier === "default" && calls[1].input.includes("Não faça perguntas."), "pedido do artefato");
   await a.getByRole("button", { name: "Usar esta" }).nth(1).click();
   await a.getByRole("button", { name: "Gerar outras opções" }).click();
-  await a.getByRole("heading", { name: "Escolha a legenda" }).waitFor();
+  await a.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
   const more = (await a.evaluate(() => window.__calls))[2];
   expect(more.cache === false && more.input.includes("• Cinco velinhas"), "gerar outras opções deveria pedir respostas novas");
   await a.getByRole("button", { name: "Usar esta" }).nth(1).click();
-  await a.getByRole("button", { name: "Confirmar legenda" }).click();
-  await a.getByRole("heading", { name: "Pronto para postar" }).waitFor();
+  await a.getByRole("button", { name: "Confirmar textos" }).click();
+  await a.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
   await a.getByRole("button", { name: "Baixar a foto" }).click();
   await a.getByText("Download pronto.").waitFor();
-  await a.getByRole("button", { name: /Baixar legenda, música e local/ }).click();
+  await a.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }).click();
   await a.waitForFunction(() => window.__saved.length === 2);
   const saved = await a.evaluate(() => window.__saved);
-  expect(saved[0].filename === "post-pronto.jpg" && saved[0].size > 20000, `foto salva no artefato: ${JSON.stringify(saved[0])}`);
-  expect(saved[1].filename === "legenda.txt", "texto salvo no artefato");
-  await shot(a, "20-artefato-pronto");
+  expect(saved[0].filename === "story.jpg" && saved[0].size > 20000, `foto salva no artefato: ${JSON.stringify(saved[0])}`);
+  expect(saved[1].filename === "stories.txt", "texto salvo no artefato");
+  await shot(a, "20-artefato-stories-pronto");
   await art.close();
 
   if (errors.length) fail(`Erros no console:\n${errors.join("\n")}`);
-  console.log(`OK: fluxo completo na página publicada, no celular e no artefato. Capturas em ${OUT}/`);
+  console.log(`OK: stories e feed na página publicada, no celular e no artefato. Capturas em ${OUT}/`);
+} catch (e) {
+  await current?.screenshot({ path: `${OUT}/falha.png`, fullPage: true }).catch(() => {});
+  throw e;
 } finally {
   await browser.close();
   try {

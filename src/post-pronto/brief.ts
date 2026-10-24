@@ -1,8 +1,13 @@
-import type { Brief, EmojiLevel, Goal, Language, Tone } from "./types";
+import type { Brief, Destination, EmojiLevel, Goal, Language, Tone } from "./types";
+
+export const DESTINATION_LABELS: Record<Destination, string> = {
+  stories: "Stories",
+  feed: "Feed",
+};
 
 export const GOAL_LABELS: Record<Goal, string> = {
-  comments: "Mais comentários",
-  shares: "Salvamentos e compartilhamentos",
+  comments: "Mais interação",
+  shares: "Mais alcance",
   sales: "Divulgar ou vender",
   memory: "Registrar um momento",
 };
@@ -31,6 +36,7 @@ export const EMOJI_LABELS: Record<EmojiLevel, string> = {
 };
 
 export const DEFAULT_BRIEF: Brief = {
+  destination: "stories",
   context: "",
   profile: "",
   goal: "comments",
@@ -43,6 +49,7 @@ const PREFS_KEY = "post-pronto:prefs";
 
 /** Preferências que valem para os próximos posts (o contexto de cada post não é guardado). */
 export interface Prefs {
+  destination: Destination;
   profile: string;
   handle: string;
   goal: Goal;
@@ -57,11 +64,21 @@ function option<K extends string>(value: unknown, labels: Record<K, string>, fal
 }
 
 export function loadPrefs(): Prefs {
-  const base: Prefs = { ...DEFAULT_BRIEF, handle: "" };
+  const d = DEFAULT_BRIEF;
+  const base: Prefs = {
+    destination: d.destination,
+    profile: d.profile,
+    handle: "",
+    goal: d.goal,
+    tone: d.tone,
+    language: d.language,
+    emojis: d.emojis,
+  };
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "null");
     if (!saved || typeof saved !== "object") return base;
     return {
+      destination: option(saved.destination, DESTINATION_LABELS, base.destination),
       profile: typeof saved.profile === "string" ? saved.profile : base.profile,
       handle: typeof saved.handle === "string" ? saved.handle : base.handle,
       goal: option(saved.goal, GOAL_LABELS, base.goal),

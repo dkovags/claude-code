@@ -1,17 +1,9 @@
 import { Bookmark, ChevronLeft, ChevronRight, Ellipsis, Heart, MessageCircle, Music, Send } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { feedExcerpt, fullCaption } from "../caption";
-import { drawPost, ensureOverlayFont, type FormatSpec, type Framing, type Overlay, pan } from "../render";
+import type { FormatSpec, Framing, Overlay } from "../render";
 import type { Draft, MusicPick, PlacePick } from "../types";
-
-export interface PreviewSource {
-  img: CanvasImageSource;
-  width: number;
-  height: number;
-}
-
-/** Largura da prévia em pixels do canvas (nítida em telas de alta densidade). */
-const PREVIEW_W = 720;
+import { type PreviewSource, useShot } from "./shot";
 
 /** Legenda com as hashtags destacadas, como no app. */
 function CaptionBody({ text }: { text: string }) {
@@ -63,67 +55,14 @@ export function PostPreview({
   count: number;
   onIndex: (i: number) => void;
 }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const drag = useRef<{ x: number; y: number; start: Framing } | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [fontsReady, setFontsReady] = useState(0);
-  const W = PREVIEW_W;
-  const H = Math.round((PREVIEW_W * spec.h) / spec.w);
+  const shot = useShot({ source, spec, framing, overlay, width: 720, onFraming: editable ? onFraming : undefined });
   const name = handle || "seu_perfil";
   const caption = draft ? fullCaption(draft) : "";
   const excerpt = feedExcerpt(caption);
-  const canPan = !!editable && framing.mode === "fill" && !!onFraming;
+  const canPan = shot.canPan;
 
   useEffect(() => setExpanded(false), [caption]);
-
-  useEffect(() => {
-    if (!overlay) return;
-    let alive = true;
-    ensureOverlayFont(overlay.style).then(() => alive && setFontsReady((n) => n + 1));
-    return () => {
-      alive = false;
-    };
-  }, [overlay?.style]);
-
-  useEffect(() => {
-    const c = canvas.current;
-    if (!c) return;
-    c.width = W;
-    c.height = H;
-    drawPost(c.getContext("2d")!, source.img, source.width, source.height, W, H, framing, overlay);
-  }, [source, W, H, framing, overlay, fontsReady]);
-
-  const move = (dx: number, dy: number, start = framing) =>
-    onFraming?.(pan(start, dx, dy, source.width, source.height, spec.w, spec.h));
-
-  const onPointerDown = (e: PointerEvent<HTMLCanvasElement>) => {
-    if (!canPan) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { x: e.clientX, y: e.clientY, start: framing };
-  };
-  const onPointerMove = (e: PointerEvent<HTMLCanvasElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    move((e.clientX - d.x) / rect.width, (e.clientY - d.y) / rect.height, d.start);
-  };
-  const endDrag = () => {
-    drag.current = null;
-  };
-  const onKeyDown = (e: KeyboardEvent<HTMLCanvasElement>) => {
-    if (!canPan) return;
-    const step = e.shiftKey ? 0.1 : 0.03;
-    // as setas movem a foto, como se ela fosse arrastada naquela direção
-    const keys: Record<string, [number, number]> = {
-      ArrowLeft: [-step, 0],
-      ArrowRight: [step, 0],
-      ArrowUp: [0, -step],
-      ArrowDown: [0, step],
-    };
-    if (!keys[e.key]) return;
-    e.preventDefault();
-    move(...keys[e.key]);
-  };
 
   return (
     <figure className="feed" style={{ "--ratio": spec.w / spec.h } as CSSProperties}>
@@ -146,19 +85,15 @@ export function PostPreview({
 
       <div className={`shot${canPan ? " editing" : ""}`}>
         <canvas
-          ref={canvas}
+          ref={shot.canvas}
           role="img"
           aria-label={
             example
               ? "Exemplo: pôr do sol no mar, com duas pessoas sentadas na pedra"
               : `Prévia da foto ${index + 1} no formato ${spec.label}${canPan ? ". Arraste para enquadrar" : ""}`
           }
-          tabIndex={canPan ? 0 : -1}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          onKeyDown={onKeyDown}
+          tabIndex={shot.tabIndex}
+          {...shot.handlers}
         />
         {canPan && (
           <>

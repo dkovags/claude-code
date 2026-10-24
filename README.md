@@ -3,8 +3,8 @@
 Aplicativo para dividir despesas com amigos, praticamente idêntico ao Splitwise, em português.
 Funciona no navegador do computador e do celular, pode ser instalado como aplicativo (PWA) e funciona sem internet.
 
-Este repositório também traz o **Post Pronto**, que transforma fotos em publicações para o Instagram, com legenda,
-música e localização (veja [Post Pronto](#post-pronto-publicações-para-o-instagram), no fim).
+Este repositório também traz o **Post Pronto**, que transforma fotos em *stories* e publicações para o Instagram, com
+texto, figurinhas, música e localização (veja [Post Pronto](#post-pronto-stories-e-publicações-para-o-instagram), no fim).
 
 ## O que ele faz
 
@@ -101,30 +101,30 @@ centavos que sobram vão para as primeiras pessoas da lista, e a soma das partes
 
 Para trocar o nome do aplicativo, edite `src/config.ts`, `index.html` e `public/manifest.webmanifest`.
 
-## Post Pronto: publicações para o Instagram
+## Post Pronto: stories e publicações para o Instagram
 
-Você envia as fotos (uma só ou um carrossel de até 10) e conta o contexto; o Claude olha as imagens, pergunta o que
-faltar (só quando falta algo essencial) e sugere três legendas. Depois que você escolhe e confirma, o Post Pronto
-entrega a foto pronta no formato do Instagram, a legenda para copiar e as sugestões de música e de localização.
+Você envia as fotos e conta o contexto; o Claude olha as imagens, pergunta o que faltar (só quando falta algo
+essencial) e sugere os textos. Depois que você escolhe e confirma, o Post Pronto entrega as fotos prontas para baixar,
+com as sugestões de música e de localização. O modo principal é o de *stories*; o de *feed* continua disponível.
 
-- **Fotos e contexto**: arraste, escolha ou cole (Ctrl+V) as fotos, conte o que está acontecendo e escolha o objetivo
-  (comentários, salvamentos e compartilhamentos, divulgar ou vender, registrar um momento), o tom, o idioma e a
-  quantidade de emojis. O perfil, o @ e as preferências ficam guardados no aparelho.
-- **Perguntas, se precisar**: quando falta algo que muda a legenda (a ocasião, quem são as pessoas, o que está à
-  venda), o Claude faz até três perguntas com respostas prontas para tocar. Dá para pular.
-- **Três legendas** com abordagens diferentes, gancho na primeira linha (o que aparece no *feed* antes do "mais"),
-  chamada para ação e até 5 *hashtags*, o limite atual do Instagram. Cada opção explica por que tende a engajar. A
-  escolhida pode ser editada à mão ou ajustada pelo Claude com um toque (mais curta, mais emotiva, sem emojis...) ou com
-  um pedido livre, e o ajuste pode ser desfeito.
-- **Pronto para postar**: a foto em 4:5, 3:4, 1:1, 9:16 (*Stories* e *Reels*) ou 1,91:1, com enquadramento escolhido
-  arrastando a foto e *zoom*, ou a foto inteira com fundo desfocado; texto opcional na capa, em quatro estilos;
-  *download* da foto (ou de um .zip com o carrossel), da legenda em .txt ou de tudo junto; botão para copiar a legenda; e
-  uma prévia de como o *post* aparece no *feed*.
-- **Música e localização**: cinco músicas com o trecho a usar e *links* para ouvir no Spotify e no YouTube; três
-  opções de lugar, do mais específico ao mais amplo, usando também a data e o GPS gravados na foto, quando existem
-  (dá para desligar), com *link* para conferir no mapa.
-- **Texto alternativo** para acessibilidade, dicas para o *post* render mais e o passo a passo para publicar.
-- As legendas nunca usam travessão: se o Claude escrever um, ele vira meia-risca.
+- **Stories** (o padrão): uma tela 9:16 para cada foto, até 10 em sequência. O Claude sugere três versões da
+  sequência, com um texto curto para escrever em cada foto (a primeira tela prende a atenção, a última chama para a
+  ação) e a figurinha interativa que combina com cada tela: enquete, caixa de perguntas, *quiz*, *slider* de emoji,
+  contagem regressiva, *link* ou "Adicione o seu". Dá para editar o texto e a figurinha de cada tela à mão ou pedir
+  ajustes ao Claude (mais curtos, mais divertidos, mais figurinhas...). A foto sai em 1080 × 1920 com o texto escrito
+  nela, longe das áreas cobertas pelos botões do *story*. As figurinhas, a música e a localização só funcionam
+  adicionadas no próprio Instagram: a prévia mostra onde entram (tracejadas) e a etapa final lista o que adicionar em
+  cada tela, com botões para copiar as perguntas e as opções.
+- **Feed**: três legendas com gancho na primeira linha (o que aparece antes do "mais"), chamada para ação e até 5
+  *hashtags*, o limite atual do Instagram; a foto em 4:5, 3:4, 1:1, 9:16 ou 1,91:1, com texto opcional na capa; botão
+  para copiar a legenda e texto alternativo para acessibilidade.
+- **Nos dois modos**: objetivo (mais interação, mais alcance, divulgar ou vender, registrar um momento), tom, idioma e
+  quantidade de emojis; perguntas com respostas prontas para tocar, que dá para pular; cinco músicas com o trecho a usar
+  e *links* para ouvir no Spotify e no YouTube; três opções de localização, do lugar exato à cidade, usando também a
+  data e o GPS gravados na foto quando existem (dá para desligar); enquadramento arrastando a foto e *zoom*, ou a foto
+  inteira com fundo desfocado; *download* da foto (ou de um .zip com todas), dos textos em .txt ou de tudo junto;
+  dicas e o passo a passo para publicar. O perfil, o @ e as preferências ficam guardados no aparelho.
+- Os textos nunca usam travessão: se o Claude escrever um, ele vira meia-risca.
 
 ### Como usar
 
@@ -149,9 +149,11 @@ post-pronto/index.html                  a página (entra no build junto com o Ra
 src/post-pronto/prompts.ts              instruções para o Claude e leitura das respostas
 src/post-pronto/ai.ts                   conexão: conta do Claude (artefato) ou API com chave própria
 src/post-pronto/render.ts               formatos do Instagram, enquadramento e texto na foto
+src/post-pronto/finish.ts               texto de cada foto e nomes dos arquivos na etapa final
+src/post-pronto/caption.ts              regras da legenda, figurinhas e arquivos de texto
 src/post-pronto/exif.ts                 data e GPS gravados nas fotos
-src/post-pronto/zip.ts                  .zip para baixar o carrossel
-src/post-pronto/ui/                     telas (React)
+src/post-pronto/zip.ts                  .zip para baixar todas as fotos
+src/post-pronto/ui/                     telas (React): StoriesPanel e StoryPreview para os stories
 tests/post-pronto/                      testes da lógica (Vitest, rodam com npm test)
 scripts/build-post-pronto-artifact.mjs  versão em arquivo único, para publicar como artefato
 scripts/e2e-post-pronto.mjs             teste de ponta a ponta com as respostas do Claude simuladas

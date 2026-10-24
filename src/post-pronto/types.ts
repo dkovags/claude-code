@@ -1,5 +1,7 @@
 // Tipos do Post Pronto: o que a pessoa informa e o que o Claude devolve.
 
+/** Onde o post vai: stories (texto escrito na foto, figurinhas) ou feed (legenda). */
+export type Destination = "stories" | "feed";
 export type Goal = "comments" | "shares" | "sales" | "memory";
 export type Tone = "auto" | "fun" | "inspiring" | "emotional" | "elegant" | "professional" | "bold";
 export type Language = "pt" | "en" | "es" | "pt-en";
@@ -7,6 +9,7 @@ export type EmojiLevel = "none" | "few" | "many";
 
 /** O briefing do post: contexto livre e preferências. */
 export interface Brief {
+  destination: Destination;
   context: string;
   profile: string;
   goal: Goal;
@@ -53,12 +56,40 @@ export interface PlacePick {
   why: string;
 }
 
+/** Figurinhas interativas dos stories (a pessoa adiciona no Instagram; não vão na foto). */
+export type StickerKind = "poll" | "question" | "quiz" | "slider" | "countdown" | "link" | "add-yours";
+
+export interface Sticker {
+  kind: StickerKind;
+  /** A pergunta, o título ou a chamada. */
+  text: string;
+  /** Opções da enquete ou do quiz (no quiz, a primeira é a correta); no slider, o emoji. */
+  options: string[];
+}
+
+/** Uma tela de story: uma foto, com o texto escrito nela e talvez uma figurinha. */
+export interface StoryFrame {
+  text: string;
+  sticker: Sticker | null;
+}
+
+export interface StoryVersion {
+  style: string;
+  frames: StoryFrame[];
+  why: string;
+}
+
 /** Resposta do Claude: ou perguntas de contexto, ou as sugestões completas. */
 export interface Suggestions {
   status: "questions" | "suggestions";
   analysis: string;
   questions: Question[];
+  /** Feed: opções de legenda. */
   captions: CaptionOption[];
+  /** Stories: versões da sequência, com uma tela por foto. */
+  stories: StoryVersion[];
+  /** Stories: hashtags para a figurinha de hashtag. */
+  hashtags: string[];
   overlays: string[];
   altText: string;
   music: MusicPick[];

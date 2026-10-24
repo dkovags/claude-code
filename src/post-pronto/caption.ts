@@ -1,5 +1,5 @@
 // Regras do Instagram para a legenda e o texto que vai para a área de transferência e para o arquivo.
-import type { Draft, MusicPick, PlacePick } from "./types";
+import type { Draft, MusicPick, PlacePick, Sticker, StickerKind, StoryFrame } from "./types";
 
 /** Limite de caracteres da legenda. */
 export const CAPTION_LIMIT = 2200;
@@ -51,5 +51,56 @@ export function postText(p: PostSummary): string {
   if (p.music) parts.push("", "MÚSICA", musicLabel(p.music) + (p.music.part ? ` (${p.music.part})` : ""));
   if (p.place) parts.push("", "LOCALIZAÇÃO", p.place.name);
   if (p.altText.trim()) parts.push("", "TEXTO ALTERNATIVO", p.altText.trim());
+  return parts.join("\n") + "\n";
+}
+
+// ===== Stories =====
+
+/** Nos stories o texto vai na foto: curto o bastante para ler num relance. */
+export const STORY_WORDS_MAX = 12;
+
+export function wordCount(s: string): number {
+  return s.trim() ? s.trim().split(/\s+/).length : 0;
+}
+
+/** Nomes das figurinhas como aparecem no Instagram. */
+export const STICKER_LABELS: Record<StickerKind, string> = {
+  poll: "Enquete",
+  question: "Caixa de perguntas",
+  quiz: "Quiz",
+  slider: "Slider de emoji",
+  countdown: "Contagem regressiva",
+  link: "Link",
+  "add-yours": "Adicione o seu",
+};
+
+/** "Enquete: Qual o melhor tema? (Dinossauro / Princesa)". No quiz, marca a resposta certa. */
+export function stickerSummary(s: Sticker): string {
+  const options =
+    s.kind === "quiz"
+      ? s.options.map((o, i) => (i === 0 ? `${o} (certa)` : o))
+      : s.kind === "poll" || s.kind === "slider"
+        ? s.options
+        : [];
+  return `${STICKER_LABELS[s.kind]}: ${s.text}${options.length ? ` (${options.join(" / ")})` : ""}`;
+}
+
+export interface StoriesSummary {
+  frames: StoryFrame[];
+  hashtags: string[];
+  music?: MusicPick;
+  place?: PlacePick;
+}
+
+/** Conteúdo do arquivo de texto que acompanha os stories. */
+export function storiesText(p: StoriesSummary): string {
+  const parts: string[] = ["STORIES"];
+  p.frames.forEach((f, i) => {
+    parts.push(`Tela ${i + 1}: ${f.text.trim() || "(sem texto)"}`);
+    if (f.sticker) parts.push(`  Figurinha – ${stickerSummary(f.sticker)}`);
+  });
+  if (p.music) parts.push("", "MÚSICA", musicLabel(p.music) + (p.music.part ? ` (${p.music.part})` : ""));
+  if (p.place) parts.push("", "LOCALIZAÇÃO", p.place.name);
+  if (p.hashtags.length) parts.push("", "HASHTAGS", p.hashtags.join(" "));
   return parts.join("\n") + "\n";
 }

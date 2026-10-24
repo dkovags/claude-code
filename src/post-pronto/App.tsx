@@ -4,23 +4,27 @@ import {
   AiError, type AiBackend, apiBackend, type ApiSettings, connectClaude, loadApiSettings, saveApiSettings,
 } from "./ai";
 import { loadPrefs, type Prefs, savePrefs } from "./brief";
-import { EXAMPLE_DRAFT, EXAMPLE_MUSIC, EXAMPLE_PLACE, exampleScene } from "./example";
+import { EXAMPLE_DRAFT, EXAMPLE_MUSIC, EXAMPLE_PLACE, EXAMPLE_STORY, exampleScene } from "./example";
+import { type FinishState, INITIAL_FINISH, overlaysFor } from "./finish";
 import { isImageFile, loadPhoto, MAX_PHOTOS, type Photo, photoForAi, releasePhoto } from "./photos";
 import {
-  BadAnswerError, buildRefinePrompt, buildSuggestPrompt, normalizeRefine, normalizeSuggestions, REFINE_SCHEMA,
-  SUGGEST_SCHEMA, todayLabel,
+  BadAnswerError, buildRefinePrompt, buildStoryRefinePrompt, buildSuggestPrompt, normalizeRefine, normalizeStoryRefine,
+  normalizeSuggestions, REFINE_SCHEMA, STORY_REFINE_SCHEMA, suggestSchema, todayLabel,
 } from "./prompts";
-import { DEFAULT_OVERLAY, formatSpec, type Framing } from "./render";
+import { DEFAULT_FRAMING, formatSpec, type Framing } from "./render";
 import { inClaude } from "./runtime";
 import { connectSaver, type Saver } from "./save";
-import type { Answer, Brief, Draft, Suggestions } from "./types";
+import type { Answer, Brief, Destination, Draft, StoryFrame, Suggestions } from "./types";
 import { BriefPanel } from "./ui/BriefPanel";
 import { CaptionsPanel } from "./ui/CaptionsPanel";
-import { FinishPanel, type FinishState } from "./ui/FinishPanel";
+import { FinishPanel } from "./ui/FinishPanel";
 import { Header, type Step } from "./ui/Header";
 import { Busy, SettingsDialog } from "./ui/Overlays";
-import { PostPreview, type PreviewSource } from "./ui/PostPreview";
+import { PostPreview } from "./ui/PostPreview";
 import { QuestionsPanel } from "./ui/QuestionsPanel";
+import type { PreviewSource } from "./ui/shot";
+import { StoriesPanel } from "./ui/StoriesPanel";
+import { StoryPreview } from "./ui/StoryPreview";
 
 interface BusyState {
   label: string;
@@ -33,16 +37,9 @@ interface BusyState {
 
 type TaskOptions = { signal: AbortSignal; onProgress: (chars: number) => void };
 
-const INITIAL_FINISH: FinishState = {
-  format: "4:5",
-  overlayOn: false,
-  overlay: DEFAULT_OVERLAY,
-  music: 0,
-  place: 0,
-  altText: "",
-};
-
 const EMPTY_DRAFT: Draft = { text: "", hashtags: [] };
+const copyFrames = (frames: StoryFrame[]) =>
+  frames.map((f) => ({ text: f.text, sticker: f.sticker && { ...f.sticker, options: [...f.sticker.options] } }));
 
 export default function App() {
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
@@ -55,8 +52,13 @@ export default function App() {
   const [answers, setAnswers] = useState<string[]>([]);
   const [qa, setQa] = useState<Answer[]>([]);
   const [chosen, setChosen] = useState<number | null>(null);
+  /** Feed: a legenda escolhida. */
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  const [undo, setUndo] = useState<Draft | null>(null);
+  const [undoDraft, setUndoDraft] = useState<Draft | null>(null);
+  /** Stories: texto e figurinha de cada tela, e as hashtags da figurinha de hashtag. */
+  const [frames, setFrames] = useState<StoryFrame[]>([]);
+  const [undoFrames, setUndoFrames] = useState<StoryFrame[] | null>(null);
+  const [storyTags, setStoryTags] = useState<string[]>([]);
   const [finish, setFinish] = useState<FinishState>(INITIAL_FINISH);
   const [busy, setBusy] = useState<BusyState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +69,8 @@ export default function App() {
   const [api, setApi] = useState<ApiSettings>(loadApiSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const insideClaude = inClaude();
+  const destination = prefs.destination;
+  const stories = destination === "stories";
   const example = useMemo(exampleScene, []);
   const viaApi = useMemo(() => (!insideClaude && api.key ? apiBackend(api) : null), [insideClaude, api]);
   const backend = claude ?? viaApi;
@@ -156,7 +160,27 @@ export default function App() {
   const setFraming = (i: number, framing: Framing) =>
     setPhotos((ps) => ps.map((p, j) => (j === i ? { ...p, framing } : p)));
 
+  function clearSuggestions() {
+    setResult(null);
+    setAnswers([]);
+    setQa([]);
+    setChosen(null);
+    setDraft(EMPTY_DRAFT);
+    setUndoDraft(null);
+    setFrames([]);
+    setUndoFrames(null);
+    setStoryTags([]);
+  }
+
+  /** Stories ou feed: as sugestões de um não servem para o outro. */
+  function changeDestination(d: Destination) {
+    if (d === destination) return;
+    setPrefs({ ...prefs, destination: d });
+    if (result) clearSuggestions();
+  }
+
   const brief: Brief = {
+    destination,
     context,
     profile: prefs.profile,
     goal: prefs.goal,
@@ -213,6 +237,12 @@ export default function App() {
           ? qa
           : [];
     const attached = photos.slice(0, backend.maxImages);
+    const avoid =
+      kind === "more" && result
+        ? stories
+          ? result.stories.map((v) => v.frames.map((f) => f.text).join(" / "))
+          : result.captions.map((c) => c.text)
+        : [];
     const prompt = buildSuggestPrompt({
       brief,
       photoCount: photos.length,
@@ -220,21 +250,30 @@ export default function App() {
       metas: useMeta ? photos.map((p) => p.meta) : [],
       answers: answered,
       allowQuestions,
-      avoid: kind === "more" && result ? result.captions.map((c) => c.text) : [],
+      avoid,
       today: todayLabel(),
     });
+    const count = photos.length;
     const next = await run(
       {
-        label: kind === "first" ? "Olhando as fotos" : "Escrevendo as legendas",
+        label: kind === "first" ? "Olhando as fotos" : stories ? "Escrevendo os textos" : "Escrevendo as legendas",
         writingLabel: "Escrevendo as sugestões",
-        expected: 4500,
+        expected: stories ? 2500 + 700 * count : 4500,
       },
       async ({ signal, onProgress }) => {
         const images = await Promise.all(attached.map(photoForAi));
-        const raw = await backend.ask(prompt, { images, signal, onProgress, schema: SUGGEST_SCHEMA, fresh: kind === "more" });
-        const s = normalizeSuggestions(raw);
+        const raw = await backend.ask(prompt, {
+          images,
+          signal,
+          onProgress,
+          schema: suggestSchema(destination),
+          fresh: kind === "more",
+        });
+        const s = normalizeSuggestions(raw, { destination, frames: count });
         if (s.status === "questions" && !allowQuestions) {
-          if (!s.captions.length) throw new BadAnswerError("A resposta veio sem legendas. Tente de novo.");
+          if (!s.captions.length && !s.stories.length) {
+            throw new BadAnswerError("A resposta veio sem sugestões. Tente de novo.");
+          }
           return { ...s, status: "suggestions" as const };
         }
         return s;
@@ -249,10 +288,14 @@ export default function App() {
       return;
     }
     setChosen(null);
-    setUndo(null);
+    setUndoDraft(null);
+    setUndoFrames(null);
+    setStoryTags(next.hashtags);
     setFinish((f) => ({
       ...f,
-      overlay: { ...f.overlay, text: next.overlays[0] ?? "" },
+      // nos stories o texto vai na foto; no feed, o texto na capa é opcional
+      overlayOn: stories ? true : f.overlayOn,
+      overlay: { ...f.overlay, text: next.overlays[0] ?? "", position: stories ? "top" : f.overlay.position },
       music: next.music.length ? 0 : -1,
       place: next.places.length ? 0 : -1,
       altText: next.altText,
@@ -262,6 +305,22 @@ export default function App() {
 
   async function refine(instruction: string): Promise<boolean> {
     if (!backend || !result || !instruction.trim()) return false;
+    if (stories) {
+      const current = photos.map((_, i) => frames[i] ?? { text: "", sticker: null });
+      const prompt = buildStoryRefinePrompt({ brief, analysis: result.analysis, frames: current, instruction });
+      const next = await run(
+        { label: "Ajustando os textos", writingLabel: "Reescrevendo", expected: 300 + 250 * current.length },
+        async ({ signal, onProgress }) =>
+          normalizeStoryRefine(
+            await backend.ask(prompt, { signal, onProgress, schema: STORY_REFINE_SCHEMA, fresh: true }),
+            current.length,
+          ),
+      );
+      if (!next) return false;
+      setUndoFrames(current);
+      setFrames(next);
+      return true;
+    }
     const prompt = buildRefinePrompt({ brief, analysis: result.analysis, draft, instruction });
     const next = await run(
       { label: "Ajustando a legenda", writingLabel: "Reescrevendo", expected: 900 },
@@ -269,29 +328,29 @@ export default function App() {
         normalizeRefine(await backend.ask(prompt, { signal, onProgress, schema: REFINE_SCHEMA, fresh: true })),
     );
     if (!next) return false;
-    setUndo(draft);
+    setUndoDraft(draft);
     setDraft(next);
     return true;
   }
 
   function choose(i: number) {
     if (!result) return;
-    const c = result.captions[i];
     setChosen(i);
-    setDraft({ text: c.text, hashtags: c.hashtags });
-    setUndo(null);
+    if (stories) {
+      setFrames(copyFrames(result.stories[i].frames));
+      setUndoFrames(null);
+    } else {
+      const c = result.captions[i];
+      setDraft({ text: c.text, hashtags: c.hashtags });
+      setUndoDraft(null);
+    }
   }
 
   function reset() {
     photos.forEach(releasePhoto);
     setPhotos([]);
     setContext("");
-    setResult(null);
-    setAnswers([]);
-    setQa([]);
-    setChosen(null);
-    setDraft(EMPTY_DRAFT);
-    setUndo(null);
+    clearSuggestions();
     setFinish((f) => ({ ...INITIAL_FINISH, format: f.format }));
     setActive(0);
     setError(null);
@@ -305,7 +364,7 @@ export default function App() {
     finish: result?.status === "suggestions" && chosen !== null && photos.length > 0,
   };
 
-  const spec = formatSpec(finish.format);
+  const spec = formatSpec(stories ? "9:16" : finish.format);
   const previewIndex = Math.min(active, Math.max(0, photos.length - 1));
   const previewPhoto: Photo | undefined = photos[previewIndex];
   const source: PreviewSource = useMemo(
@@ -313,9 +372,16 @@ export default function App() {
     [previewPhoto, example],
   );
   const isExample = !previewPhoto;
-  const showDraft = step === "captions" || step === "finish" ? chosen !== null : false;
-  const overlay =
-    step === "finish" && previewIndex === 0 && finish.overlayOn && finish.overlay.text.trim() ? finish.overlay : null;
+  const picked = (step === "captions" || step === "finish") && chosen !== null;
+  const atFinish = step === "finish";
+  const shownFrames = isExample ? [EXAMPLE_STORY] : picked ? frames : [];
+  const overlay = stories
+    ? overlaysFor("stories", Math.max(1, photos.length), isExample ? { ...finish, overlayOn: true } : finish, shownFrames)[
+        previewIndex
+      ]
+    : atFinish
+      ? overlaysFor("feed", photos.length, finish, [])[previewIndex]
+      : null;
 
   let notice = null;
   if (claude && claude.maxImages < 1) {
@@ -328,8 +394,8 @@ export default function App() {
   } else if (insideClaude && claude === null) {
     notice = (
       <p className="notice">
-        Esta tela não dá acesso ao Claude. Abra o Post Pronto no claude.ai ou no app do Claude atualizado para gerar as
-        legendas.
+        Esta tela não dá acesso ao Claude. Abra o Post Pronto no claude.ai ou no app do Claude atualizado para gerar os
+        textos.
       </p>
     );
   } else if (!insideClaude && !api.key) {
@@ -343,35 +409,42 @@ export default function App() {
     );
   }
 
+  const previewCommon = {
+    source,
+    framing: previewPhoto?.framing ?? DEFAULT_FRAMING,
+    overlay,
+    handle: prefs.handle,
+    music: isExample ? EXAMPLE_MUSIC : atFinish ? result?.music[finish.music] : undefined,
+    place: isExample ? EXAMPLE_PLACE : atFinish ? result?.places[finish.place] : undefined,
+    example: isExample,
+    editable: atFinish,
+    onFraming: (f: Framing) => setFraming(previewIndex, f),
+    index: previewIndex,
+    count: photos.length,
+    onIndex: setActive,
+  };
+
   return (
     <div className="pp">
       <Header
+        destination={destination}
         step={step}
         reachable={reachable}
         onStep={setStep}
         onSettings={insideClaude ? undefined : () => setSettingsOpen(true)}
       />
-      <main className={`layout step-${step}`}>
-        <section className="stage" aria-label="Prévia do post">
-          <PostPreview
-            source={source}
-            spec={spec}
-            framing={previewPhoto?.framing ?? { mode: "fill", zoom: 1, x: 0, y: 0 }}
-            overlay={overlay}
-            draft={isExample ? EXAMPLE_DRAFT : showDraft ? draft : null}
-            handle={prefs.handle}
-            music={isExample ? EXAMPLE_MUSIC : step === "finish" ? result?.music[finish.music] : undefined}
-            place={isExample ? EXAMPLE_PLACE : step === "finish" ? result?.places[finish.place] : undefined}
-            example={isExample}
-            editable={step === "finish"}
-            onFraming={(f) => setFraming(previewIndex, f)}
-            index={previewIndex}
-            count={photos.length}
-            onIndex={setActive}
-          />
+      <main className={`layout step-${step} dest-${destination}`}>
+        <section className="stage" aria-label={stories ? "Prévia do story" : "Prévia do post"}>
+          {stories ? (
+            <StoryPreview {...previewCommon} sticker={shownFrames[previewIndex]?.sticker ?? null} />
+          ) : (
+            <PostPreview {...previewCommon} spec={spec} draft={isExample ? EXAMPLE_DRAFT : picked ? draft : null} />
+          )}
           {isExample && (
             <p className="stage-note">
-              Assim fica o resultado: a foto no formato do feed, a legenda com o gancho na primeira linha, a música e o local.
+              {stories
+                ? "Assim fica o resultado: a foto em tela cheia com o texto escrito nela e, tracejadas, as figurinhas que você adiciona no Instagram."
+                : "Assim fica o resultado: a foto no formato do feed, a legenda com o gancho na primeira linha, a música e o local."}
             </p>
           )}
         </section>
@@ -397,6 +470,7 @@ export default function App() {
               setContext={setContext}
               prefs={prefs}
               setPrefs={setPrefs}
+              onDestination={changeDestination}
               useMeta={useMeta}
               setUseMeta={setUseMeta}
               notice={notice}
@@ -406,6 +480,7 @@ export default function App() {
           {step === "questions" && result && (
             <QuestionsPanel
               result={result}
+              submitLabel={stories ? "Gerar textos" : "Gerar legendas"}
               answers={answers}
               setAnswers={setAnswers}
               onSubmit={() => suggest("answers")}
@@ -413,7 +488,31 @@ export default function App() {
               onBack={() => setStep("brief")}
             />
           )}
-          {step === "captions" && result && (
+          {step === "captions" && result && stories && (
+            <StoriesPanel
+              result={result}
+              photos={photos}
+              chosen={chosen}
+              onChoose={choose}
+              frames={frames}
+              setFrames={setFrames}
+              hashtags={storyTags}
+              setHashtags={setStoryTags}
+              onRefine={refine}
+              canUndo={!!undoFrames}
+              onUndo={() => {
+                if (undoFrames) setFrames(undoFrames);
+                setUndoFrames(null);
+              }}
+              onMore={() => suggest("more")}
+              onConfirm={() => {
+                setActive(0);
+                setStep("finish");
+              }}
+              onBack={() => setStep(qa.length ? "questions" : "brief")}
+            />
+          )}
+          {step === "captions" && result && !stories && (
             <CaptionsPanel
               result={result}
               chosen={chosen}
@@ -421,10 +520,10 @@ export default function App() {
               draft={draft}
               setDraft={setDraft}
               onRefine={refine}
-              canUndo={!!undo}
+              canUndo={!!undoDraft}
               onUndo={() => {
-                if (undo) setDraft(undo);
-                setUndo(null);
+                if (undoDraft) setDraft(undoDraft);
+                setUndoDraft(null);
               }}
               onMore={() => suggest("more")}
               onConfirm={() => {
@@ -436,6 +535,7 @@ export default function App() {
           )}
           {step === "finish" && result && photos.length > 0 && (
             <FinishPanel
+              destination={destination}
               photos={photos}
               active={previewIndex}
               setActive={setActive}
@@ -444,6 +544,9 @@ export default function App() {
               setFraming={setFraming}
               result={result}
               draft={draft}
+              frames={frames}
+              setFrames={setFrames}
+              storyTags={storyTags}
               useMeta={useMeta}
               saver={saver}
               notify={setToast}
@@ -470,7 +573,7 @@ export default function App() {
           {insideClaude
             ? "As fotos vão para o Claude, na sua conta, só para gerar as sugestões."
             : "As fotos vão direto para a API da Anthropic, só para gerar as sugestões."}{" "}
-          Revise a legenda antes de postar: confira nomes, datas e lugares.
+          Revise os textos antes de postar: confira nomes, datas e lugares.
         </p>
       </footer>
 

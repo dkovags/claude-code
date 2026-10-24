@@ -1,9 +1,9 @@
-import { ArrowLeft, Check, RefreshCw, Undo2, WandSparkles, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Check, RefreshCw } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { CAPTION_LIMIT, charCount, fullCaption, MAX_HASHTAGS } from "../caption";
-import { cleanHashtags, REFINE_PRESETS } from "../prompts";
+import { REFINE_PRESETS } from "../prompts";
 import type { Draft, Suggestions } from "../types";
-import { MarkerCircle } from "./parts";
+import { MarkerCircle, RefineBox, TagEditor } from "./parts";
 import { Seen } from "./QuestionsPanel";
 
 /** Texto da legenda com a primeira linha (o gancho que aparece no feed) em destaque. */
@@ -17,6 +17,7 @@ function CaptionText({ text }: { text: string }) {
   );
 }
 
+/** Feed: escolher e ajustar a legenda. */
 export function CaptionsPanel({
   result,
   chosen,
@@ -43,23 +44,12 @@ export function CaptionsPanel({
   onConfirm: () => void;
   onBack: () => void;
 }) {
-  const [custom, setCustom] = useState("");
-  const [tag, setTag] = useState("");
   const editor = useRef<HTMLElement>(null);
   const count = charCount(fullCaption(draft));
 
   useEffect(() => {
     if (chosen !== null) editor.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [chosen]);
-
-  const addTag = () => {
-    if (!tag.trim()) return;
-    setDraft({ ...draft, hashtags: cleanHashtags([...draft.hashtags, tag]) });
-    setTag("");
-  };
-  const askCustom = async () => {
-    if (custom.trim() && (await onRefine(custom))) setCustom("");
-  };
 
   return (
     <div className="panel-body">
@@ -126,71 +116,17 @@ export function CaptionsPanel({
             <span className="label">
               Hashtags ({draft.hashtags.length} de {MAX_HASHTAGS})
             </span>
-            <div className="tag-editor">
-              {draft.hashtags.map((t) => (
-                <span className="tag" key={t}>
-                  {t}
-                  <button
-                    type="button"
-                    aria-label={`Tirar ${t}`}
-                    onClick={() => setDraft({ ...draft, hashtags: draft.hashtags.filter((x) => x !== t) })}
-                  >
-                    <X size={13} aria-hidden="true" />
-                  </button>
-                </span>
-              ))}
-              {draft.hashtags.length < MAX_HASHTAGS && (
-                <input
-                  value={tag}
-                  onChange={(e) => setTag(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === "," || e.key === " ") {
-                      e.preventDefault();
-                      addTag();
-                    }
-                  }}
-                  onBlur={addTag}
-                  placeholder="#nova"
-                  aria-label="Adicionar hashtag"
-                  autoCapitalize="none"
-                />
-              )}
-            </div>
+            <TagEditor tags={draft.hashtags} max={MAX_HASHTAGS} onChange={(hashtags) => setDraft({ ...draft, hashtags })} />
             <p className="hint">O Instagram aceita até {MAX_HASHTAGS} hashtags por post.</p>
           </div>
 
-          <div className="field">
-            <span className="label">Pedir um ajuste ao Claude</span>
-            <div className="chips">
-              {REFINE_PRESETS.map((p) => (
-                <button key={p.label} type="button" className="chip" onClick={() => onRefine(p.instruction)}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <div className="inline-form">
-              <input
-                value={custom}
-                onChange={(e) => setCustom(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    askCustom();
-                  }
-                }}
-                placeholder="Ou peça do seu jeito. Ex.: cite a vó Lúcia"
-                aria-label="Pedido de ajuste"
-              />
-              <button type="button" className="btn secondary" disabled={!custom.trim()} onClick={askCustom}>
-                <WandSparkles size={16} aria-hidden="true" /> Ajustar
-              </button>
-            </div>
-            {canUndo && (
-              <button type="button" className="btn ghost small" onClick={onUndo}>
-                <Undo2 size={15} aria-hidden="true" /> Desfazer o último ajuste
-              </button>
-            )}
-          </div>
+          <RefineBox
+            presets={REFINE_PRESETS}
+            onRefine={onRefine}
+            canUndo={canUndo}
+            onUndo={onUndo}
+            placeholder="Ou peça do seu jeito. Ex.: cite a vó Lúcia"
+          />
         </section>
       )}
 

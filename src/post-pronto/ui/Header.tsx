@@ -1,11 +1,12 @@
 import { KeyRound } from "lucide-react";
+import type { Destination } from "../types";
 
 export type Step = "brief" | "questions" | "captions" | "finish";
 
 const STEPS: { id: Step; label: string }[] = [
   { id: "brief", label: "Fotos e contexto" },
   { id: "questions", label: "Perguntas" },
-  { id: "captions", label: "Legenda" },
+  { id: "captions", label: "Textos" },
   { id: "finish", label: "Pronto para postar" },
 ];
 
@@ -20,11 +21,13 @@ export function Logo() {
 }
 
 export function Header({
+  destination,
   step,
   reachable,
   onStep,
   onSettings,
 }: {
+  destination: Destination;
   step: Step;
   reachable: Record<Step, boolean>;
   onStep: (s: Step) => void;
@@ -37,7 +40,11 @@ export function Header({
         <Logo />
         <div>
           <h1>Post Pronto</h1>
-          <p className="tagline">Das suas fotos para o Instagram, com legenda, música e localização</p>
+          <p className="tagline">
+            {destination === "stories"
+              ? "Das suas fotos para os stories, com texto, figurinhas, música e localização"
+              : "Das suas fotos para o feed, com legenda, música e localização"}
+          </p>
         </div>
         {onSettings && (
           <button type="button" className="btn ghost settings" onClick={onSettings}>
@@ -58,7 +65,7 @@ export function Header({
               >
                 <span className="num">{i + 1}</span>
                 <span className="step-label">
-                  {s.label}
+                  {s.id === "captions" && destination === "feed" ? "Legenda" : s.label}
                   {s.id === "questions" && !reachable.questions && <small> (se precisar)</small>}
                 </span>
               </button>

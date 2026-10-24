@@ -1,5 +1,10 @@
 // Post de exemplo, mostrado antes de a pessoa enviar as próprias fotos.
-import type { Draft, MusicPick, PlacePick } from "./types";
+import type { Draft, MusicPick, PlacePick, StoryFrame } from "./types";
+
+export const EXAMPLE_STORY: StoryFrame = {
+  text: "Fim de tarde que pede pausa",
+  sticker: { kind: "poll", text: "Pôr do sol ou nascer do sol?", options: ["Pôr do sol", "Nascer do sol"] },
+};
 
 export const EXAMPLE_DRAFT: Draft = {
   text:
