@@ -1,9 +1,9 @@
-import { RefreshCw, Shuffle } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 /**
- * Na tela de escolha: acrescentar ou corrigir uma informação (ou editar o contexto inteiro) e gerar todas as opções
- * de novo levando isso em conta. Também dá para só pedir outras opções, sem mudar nada.
+ * Na tela de escolha: gerar todas as opções de novo. Acrescentar ou corrigir uma informação (ou editar o contexto
+ * inteiro) é opcional; sem nada novo, o Claude só traz opções diferentes.
  */
 export function RegenerateBox({
   context,
@@ -29,10 +29,10 @@ export function RegenerateBox({
 
   return (
     <section className="regen" aria-labelledby="pp-regen-title">
-      <h3 id="pp-regen-title">Faltou alguma coisa? Gere de novo</h3>
+      <h3 id="pp-regen-title">Quer outras {what}?</h3>
       <div className="field">
         <label className="label" htmlFor="pp-update">
-          Acrescente ou corrija uma informação
+          Acrescente ou corrija uma informação (opcional)
         </label>
         <textarea
           id="pp-update"
@@ -41,6 +41,7 @@ export function RegenerateBox({
           onChange={(e) => setUpdate(e.target.value)}
           placeholder="Ex.: a festa foi surpresa; quem fez o bolo foi a tia Rosa; quero divulgar a loja da minha irmã"
         />
+        <p className="hint">Em branco, o Claude escreve {what} diferentes com o mesmo contexto.</p>
       </div>
       <details className="context-editor">
         <summary>Ver e editar o contexto que o Claude recebeu</summary>
@@ -49,19 +50,16 @@ export function RegenerateBox({
           rows={4}
           value={edited}
           onChange={(e) => setEdited(e.target.value)}
+          placeholder="Nenhum contexto informado"
         />
       </details>
       <div className="actions">
         <button
           type="button"
-          className="btn primary"
-          disabled={!changed}
-          onClick={() => onRegenerate(edited, update.trim())}
+          className="btn secondary"
+          onClick={() => (changed ? onRegenerate(edited, update.trim()) : onMore())}
         >
-          <RefreshCw size={16} aria-hidden="true" /> Gerar de novo com essa informação
-        </button>
-        <button type="button" className="btn ghost" onClick={onMore}>
-          <Shuffle size={16} aria-hidden="true" /> Só gerar outras {what}
+          <RefreshCw size={16} aria-hidden="true" /> Gerar de novo
         </button>
       </div>
     </section>

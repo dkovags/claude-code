@@ -416,10 +416,8 @@ try {
   await shot(page, "04-stories-versoes", true);
 
   // gera de novo com uma informação nova, na própria tela de escolha
-  const regenerate = page.getByRole("button", { name: "Gerar de novo com essa informação" });
-  expect(await regenerate.isDisabled(), "sem informação nova, gerar de novo fica desligado");
-  await page.getByLabel("Acrescente ou corrija uma informação").fill("A festa foi surpresa, organizada pela tia Rosa.");
-  await regenerate.click();
+  await page.getByLabel("Acrescente ou corrija uma informação (opcional)").fill("A festa foi surpresa, organizada pela tia Rosa.");
+  await page.getByRole("button", { name: "Gerar de novo" }).click();
   await page.waitForFunction(() => document.querySelector("#pp-update")?.value === "");
   const regen = apiCalls[2];
   expect(regen.prompt.includes("INFORMAÇÃO NOVA\n") && regen.prompt.includes("organizada pela tia Rosa"), "o pedido leva a informação nova");
@@ -603,7 +601,7 @@ try {
   });
   await hermetic(phone);
   await phone.addInitScript(() => localStorage.setItem("post-pronto:api-key", "sk-ant-teste-123"));
-  await mockApi(phone);
+  const phoneCalls = await mockApi(phone);
   // busca sem CORS: a leitura direta falha (erro esperado no console) e a página usa o JSONP
   const phoneItunes = await mockItunes(phone, { cors: false });
   const m = (current = await phone.newPage());
@@ -617,10 +615,13 @@ try {
   await m.locator('input[type="file"]').setInputFiles([{ name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA }]);
   await m.locator(".film .frame:not(.add)").first().waitFor();
   expect((await m.locator(".upload-error").count()) === 0, "o aviso some quando a foto entra");
-  await m.getByLabel("O que está acontecendo").fill(CONTEXT);
+  // só a foto, sem contar nada: o texto complementar é opcional
+  await m.getByText("Só as fotos são obrigatórias.").waitFor();
+  expect((await m.getByLabel("O que está acontecendo (opcional)").inputValue()) === "", "o contexto começa vazio");
   await m.getByRole("button", { name: "Sugerir textos" }).click();
   await m.getByRole("button", { name: "Pular e gerar assim mesmo" }).click();
   await m.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
+  expect(phoneCalls[0].prompt.includes("- O que está acontecendo: (não informado)"), "sem contexto, o pedido diz que não foi informado");
   expect((await m.locator(".option").first().locator(".story-frame").count()) === 1, "com 1 foto, cada versão tem 1 tela");
   await shot(m, "11-celular-versoes");
   await m.getByRole("button", { name: "Usar e editar" }).nth(2).click();
@@ -702,7 +703,8 @@ try {
   expect(calls.length === 2 && calls[0].images === 1 && calls[0].types[0] === "image/jpeg", "fotos para o Claude no artefato");
   expect(calls[0].tier === "default" && calls[1].input.includes("Não faça perguntas."), "pedido do artefato");
   await a.getByRole("button", { name: "Usar e editar" }).nth(1).click();
-  await a.getByRole("button", { name: "Só gerar outras versões" }).click();
+  // gerar de novo sem escrever nada: opções diferentes com o mesmo contexto
+  await a.getByRole("button", { name: "Gerar de novo" }).click();
   await a.waitForFunction(() => window.__calls.length === 3);
   await a.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
   const more = (await a.evaluate(() => window.__calls))[2];
@@ -712,7 +714,7 @@ try {
   const contextBox = a.getByLabel("Contexto que o Claude recebeu");
   expect((await contextBox.inputValue()) === CONTEXT, "o contexto aparece para editar");
   await contextBox.fill(CONTEXT.replace("Campinas", "Valinhos"));
-  await a.getByRole("button", { name: "Gerar de novo com essa informação" }).click();
+  await a.getByRole("button", { name: "Gerar de novo" }).click();
   await a.waitForFunction(() => window.__calls.length === 4);
   const edited = (await a.evaluate(() => window.__calls))[3];
   expect(edited.input.includes("na casa da avó em Valinhos") && !edited.input.includes("• Cinco velinhas"), "gerar de novo com o contexto editado");

@@ -58,7 +58,8 @@ export function BriefPanel({
     >
       <h2>Fotos e contexto</h2>
       <p className="lead">
-        Envie as fotos e conte o que está acontecendo. Quanto mais detalhes, mais o texto soa como você.
+        Envie as fotos e, se quiser, conte o que está acontecendo: quanto mais detalhes, mais o texto soa como você. Só
+        as fotos são obrigatórias.
       </p>
 
       <Segmented<Destination>
@@ -96,7 +97,7 @@ export function BriefPanel({
 
       <div className="field">
         <label className="label" htmlFor="pp-context">
-          O que está acontecendo
+          O que está acontecendo (opcional)
         </label>
         <textarea
           id="pp-context"
@@ -105,12 +106,15 @@ export function BriefPanel({
           onChange={(e) => setContext(e.target.value)}
           placeholder="Ex.: Aniversário de 5 anos da Ana, na casa da avó em Campinas. A festa teve tema de dinossauros e foi ela que escolheu o bolo."
         />
+        <p className="hint">
+          Sem contexto, o Claude escreve a partir das fotos e talvez faça perguntas rápidas, que dá para pular.
+        </p>
       </div>
 
       <div className="field-row">
         <div className="field grow">
           <label className="label" htmlFor="pp-profile">
-            Sobre o perfil
+            Sobre o perfil (opcional)
           </label>
           <input
             id="pp-profile"

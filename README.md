@@ -103,9 +103,10 @@ Para trocar o nome do aplicativo, edite `src/config.ts`, `index.html` e `public/
 
 ## Post Pronto: stories e publicações para o Instagram
 
-Você envia as fotos e conta o contexto; o Claude olha as imagens, pergunta o que faltar (só quando falta algo
-essencial) e sugere os textos. Depois que você escolhe e confirma, o Post Pronto entrega as fotos prontas para baixar,
-com as sugestões de música e de localização. O modo principal é o de *stories*; o de *feed* continua disponível.
+Você envia as fotos e, se quiser, conta o contexto (só as fotos são obrigatórias); o Claude olha as imagens, pergunta
+o que faltar (só quando falta algo essencial, e dá para pular) e sugere os textos. Depois que você escolhe e confirma,
+o Post Pronto entrega as fotos prontas para baixar, com as sugestões de música e de localização. O modo principal é o
+de *stories*; o de *feed* continua disponível.
 
 - **Stories** (o padrão): uma tela 9:16 para cada foto, até 10 em sequência. O Claude sugere três versões da
   sequência, com um texto curto para escrever em cada foto (a primeira tela prende a atenção, a última chama para a
@@ -115,10 +116,10 @@ com as sugestões de música e de localização. O modo principal é o de *stori
   nela, longe das áreas cobertas pelos botões do *story*. As figurinhas, a música e a localização só funcionam
   adicionadas no próprio Instagram: a prévia mostra onde entram (tracejadas) e a etapa final lista o que adicionar em
   cada tela, com botões para copiar as perguntas e as opções.
-- **Na tela de escolha**: **Usar e editar** abre o editor dentro da opção escolhida, para mudar o texto à mão. Se
-  faltou alguma informação (ou alguma estava errada), escreva em **Acrescente ou corrija uma informação**, ou edite o
-  contexto inteiro, e gere todas as opções de novo levando isso em conta; **Só gerar outras** pede opções diferentes
-  sem mudar nada.
+- **Na tela de escolha**: **Usar e editar** abre o editor dentro da opção escolhida, para mudar o texto à mão.
+  **Gerar de novo** refaz todas as opções: se faltou alguma informação (ou alguma estava errada), escreva antes no
+  campo opcional **Acrescente ou corrija uma informação**, ou edite o contexto inteiro, e o Claude leva isso em conta;
+  com o campo em branco, ele traz opções diferentes com o mesmo contexto.
 - **Feed**: três legendas com gancho na primeira linha (o que aparece antes do "mais"), chamada para ação e até 5
   *hashtags*, o limite atual do Instagram; a foto em 4:5, 3:4, 1:1, 9:16 ou 1,91:1, com texto opcional na capa; botão
   para copiar a legenda e texto alternativo para acessibilidade.
