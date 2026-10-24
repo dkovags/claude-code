@@ -327,10 +327,11 @@ export function buildSuggestPrompt(r: SuggestRequest): string {
     L.push(
       "Antes de escrever, veja se falta alguma informação essencial que não dá para deduzir das fotos nem do contexto " +
         "e que mudaria muito o texto, como: qual é a ocasião; quem são as pessoas e qual a relação com elas; o que está " +
-        "sendo divulgado, o preço ou como comprar. Se faltar, responda com status \"perguntas\": de 1 a 3 perguntas curtas " +
-        "e diretas, cada uma com 2 a 4 respostas prováveis em \"opcoes\" (curtas, para tocar e escolher), e deixe as listas " +
-        "de sugestões vazias. Se der para escrever bons textos com o que já existe, não pergunte nada: responda com " +
-        "status \"sugestoes\".",
+        "sendo divulgado, o preço ou como comprar. Se faltar, responda com status \"perguntas\" e ponha em \"perguntas\" " +
+        "de 1 a 3 perguntas curtas e diretas, cada uma com 2 a 4 respostas prováveis em \"opcoes\" (curtas, para tocar e " +
+        'escolher), assim: {"pergunta": "Qual é a ocasião?", "opcoes": ["Aniversário", "Viagem", "Encontro de família"]}. ' +
+        "Nesse caso, deixe as listas de sugestões vazias. Se der para escrever bons textos com o que já existe, não " +
+        "pergunte nada: responda com status \"sugestoes\".",
     );
   } else {
     L.push(
@@ -540,7 +541,49 @@ export const STORY_REFINE_SCHEMA = {
 // Leitura tolerante das respostas
 
 type Obj = Record<string, unknown>;
-const asObj = (v: unknown): Obj => (v && typeof v === "object" && !Array.isArray(v) ? (v as Obj) : {});
+/** Nome de campo sem acento, em minúsculas e com _ no lugar de espaço: "Opções" → "opcoes", "por quê" → "por_que". */
+const fieldName = (k: string) =>
+  k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/[\s-]+/g, "_");
+
+// Dentro do Claude o formato da resposta não é garantido: às vezes vêm estes nomes no lugar dos combinados.
+const FIELD_ALIASES: Record<string, string> = {
+  analysis: "analise",
+  answers: "opcoes",
+  artist: "artista",
+  captions: "legendas",
+  frames: "telas",
+  locations: "localizacoes",
+  music: "musicas",
+  name: "nome",
+  options: "opcoes",
+  part: "trecho",
+  places: "localizacoes",
+  porque: "por_que",
+  question: "pergunta",
+  questions: "perguntas",
+  respostas: "opcoes",
+  screens: "telas",
+  songs: "musicas",
+  sticker: "figurinha",
+  style: "estilo",
+  text: "texto",
+  tips: "dicas",
+  title: "titulo",
+  type: "tipo",
+  versions: "versoes",
+  why: "por_que",
+};
+
+/** O objeto com os nomes de campo normalizados (sem acento e com os sinônimos trocados pelos nomes combinados). */
+function asObj(v: unknown): Obj {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const out: Obj = Object.create(null);
+  for (const [k, value] of Object.entries(v)) out[fieldName(k)] ??= value;
+  for (const [alias, name] of Object.entries(FIELD_ALIASES)) {
+    if (alias in out && out[name] === undefined) out[name] = out[alias];
+  }
+  return out;
+}
 const asList = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
 /** Troca travessões por meia-risca (preferência de escrita). */
@@ -584,7 +627,7 @@ export function splitTrailingHashtags(caption: string): { text: string; hashtags
 }
 
 function captionOf(v: unknown): CaptionOption | null {
-  const o = asObj(v);
+  const o = typeof v === "string" ? { texto: v } : asObj(v);
   const split = splitTrailingHashtags(text(o.texto));
   if (!split.text) return null;
   return {
@@ -610,7 +653,7 @@ function stickerOf(v: unknown): Sticker | null {
 }
 
 function frameOf(v: unknown): StoryFrame {
-  const o = asObj(v);
+  const o = typeof v === "string" ? { texto: v } : asObj(v);
   return { text: unquote(splitTrailingHashtags(text(o.texto)).text), sticker: stickerOf(o.figurinha) };
 }
 
@@ -621,15 +664,16 @@ function fitFrames(list: unknown[], count: number): StoryFrame[] {
 }
 
 function versionOf(v: unknown, count: number): StoryVersion | null {
-  const o = asObj(v);
+  // às vezes a versão vem só como a lista de telas
+  const o = Array.isArray(v) ? { telas: v } : asObj(v);
   const frames = fitFrames(asList(o.telas), count);
   if (!frames.some((f) => f.text)) return null;
   return { style: text(o.estilo) || "Versão", frames, why: text(o.por_que) };
 }
 
 function questionOf(v: unknown): Question | null {
-  const o = asObj(v);
-  const question = text(o.pergunta);
+  const o = typeof v === "string" ? { pergunta: v } : asObj(v);
+  const question = text(o.pergunta) || text(o.texto);
   if (!question) return null;
   const options = asList(o.opcoes).map(text).filter(Boolean).slice(0, 4);
   return { question, options };
@@ -655,13 +699,13 @@ const present = <T>(x: T | null): x is T => x !== null;
 export class BadAnswerError extends Error {}
 
 export function normalizeSuggestions(raw: unknown, opts: { destination: Destination; frames: number }): Suggestions {
-  const o = asObj(raw);
+  const o = asObj(Array.isArray(raw) && raw.length === 1 ? raw[0] : raw);
   const stories = opts.destination === "stories";
   const questions = asList(o.perguntas).map(questionOf).filter(present).slice(0, 3);
   const captions = stories ? [] : asList(o.legendas).map(captionOf).filter(present).slice(0, 5);
   const versions = stories ? asList(o.versoes).map((v) => versionOf(v, opts.frames)).filter(present).slice(0, 5) : [];
   const options = captions.length + versions.length;
-  const askedQuestions = text(o.status) === "perguntas" || options === 0;
+  const askedQuestions = fieldName(text(o.status)) === "perguntas" || options === 0;
   if (askedQuestions && questions.length === 0 && options === 0) {
     throw new BadAnswerError(`A resposta veio sem ${stories ? "os textos" : "legendas"}. Tente de novo.`);
   }

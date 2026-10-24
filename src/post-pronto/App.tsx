@@ -1,9 +1,10 @@
 import { KeyRound, TriangleAlert, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AiError, type AiBackend, apiBackend, type ApiSettings, connectClaude, loadApiSettings, saveApiSettings,
 } from "./ai";
 import { loadPrefs, type Prefs, savePrefs } from "./brief";
+import { captureElement, captureName } from "./capture";
 import { EXAMPLE_DRAFT, EXAMPLE_MUSIC, EXAMPLE_PLACE, EXAMPLE_STORY, exampleScene } from "./example";
 import { type FinishState, INITIAL_FINISH, overlaysFor } from "./finish";
 import { isImageFile, loadPhoto, MAX_PHOTOS, type Photo, photoForAi, releasePhoto } from "./photos";
@@ -65,6 +66,8 @@ export default function App() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   /** undefined enquanto conecta; null quando a página não está dentro do Claude. */
   const [claude, setClaude] = useState<AiBackend | null | undefined>(undefined);
   const [saver, setSaver] = useState<Saver | null>(null);
@@ -332,6 +335,30 @@ export default function App() {
     setStep("captions");
   }
 
+  /** Salva uma imagem da página inteira, como uma captura de tela (que no celular pode estar bloqueada). */
+  async function captureScreen() {
+    if (!root.current || capturing) return;
+    if (!saver) {
+      setToast("Esta tela não permite baixar arquivos. Abra o Post Pronto no navegador.");
+      return;
+    }
+    setCapturing(true);
+    try {
+      let image: Blob;
+      try {
+        image = await captureElement(root.current);
+      } catch {
+        setToast("Não foi possível criar a imagem da tela.");
+        return;
+      }
+      if ((await saver.save(captureName(), image)) === "saved") setToast("Imagem da tela salva.");
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Não foi possível salvar a imagem da tela.");
+    } finally {
+      setCapturing(false);
+    }
+  }
+
   async function refine(instruction: string): Promise<boolean> {
     if (!backend || !result || !instruction.trim()) return false;
     if (stories) {
@@ -456,13 +483,15 @@ export default function App() {
   };
 
   return (
-    <div className="pp">
+    <div className="pp" ref={root}>
       <Header
         destination={destination}
         step={step}
         reachable={reachable}
         onStep={setStep}
         onSettings={insideClaude ? undefined : () => setSettingsOpen(true)}
+        onCapture={captureScreen}
+        capturing={capturing}
       />
       <main className={`layout step-${step} dest-${destination}`}>
         <section className="stage" aria-label={stories ? "Prévia do story" : "Prévia do post"}>
@@ -627,7 +656,7 @@ export default function App() {
         />
       )}
       {toast && (
-        <div className="toast" role="status">
+        <div className="toast" role="status" data-capture="skip">
           {toast}
         </div>
       )}

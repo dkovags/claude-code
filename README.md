@@ -130,6 +130,8 @@ de *stories*; o de *feed* continua disponível.
   data e o GPS gravados na foto quando existem (dá para desligar); enquadramento arrastando a foto e *zoom*, ou a foto
   inteira com fundo desfocado; *download* da foto (ou de um .zip com todas), dos textos em .txt ou de tudo junto;
   dicas e o passo a passo para publicar. O perfil, o @ e as preferências ficam guardados no aparelho.
+- **Imagem da tela**: o botão no alto salva uma imagem da página inteira, em qualquer etapa (também quando o celular
+  não deixa fazer captura de tela, como na aba anônima do Chrome no Android).
 - Os textos nunca usam travessão: se o Claude escrever um, ele vira meia-risca.
 
 ### Como usar
@@ -162,6 +164,7 @@ src/post-pronto/caption.ts              regras da legenda, figurinhas e arquivos
 src/post-pronto/exif.ts                 data e GPS gravados nas fotos
 src/post-pronto/zip.ts                  .zip para baixar todas as fotos
 src/post-pronto/preview.ts              trecho de 30 segundos das músicas (busca do iTunes, sem chave)
+src/post-pronto/capture.ts              imagem da página inteira (botão Salvar imagem da tela)
 src/post-pronto/ui/                     telas (React): StoriesPanel e StoryPreview para os stories
 tests/post-pronto/                      testes da lógica (Vitest, rodam com npm test)
 scripts/build-post-pronto-artifact.mjs  versão em arquivo único, para publicar como artefato

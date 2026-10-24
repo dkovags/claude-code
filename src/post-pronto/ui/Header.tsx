@@ -1,4 +1,4 @@
-import { KeyRound } from "lucide-react";
+import { Camera, KeyRound } from "lucide-react";
 import type { Destination } from "../types";
 
 export type Step = "brief" | "questions" | "captions" | "finish";
@@ -26,6 +26,8 @@ export function Header({
   reachable,
   onStep,
   onSettings,
+  onCapture,
+  capturing,
 }: {
   destination: Destination;
   step: Step;
@@ -33,6 +35,9 @@ export function Header({
   onStep: (s: Step) => void;
   /** Só fora do Claude, onde a pessoa usa a própria chave da API. */
   onSettings?: () => void;
+  /** Salva uma imagem da página inteira (no celular, a captura de tela pode estar bloqueada). */
+  onCapture: () => void;
+  capturing: boolean;
 }) {
   return (
     <header className="top">
@@ -46,11 +51,30 @@ export function Header({
               : "Das suas fotos para o feed, com legenda, música e localização"}
           </p>
         </div>
-        {onSettings && (
-          <button type="button" className="btn ghost settings" onClick={onSettings}>
-            <KeyRound size={16} aria-hidden="true" /> Configurar
+        <div className="top-tools" data-capture="skip">
+          <button
+            type="button"
+            className="btn ghost"
+            aria-busy={capturing || undefined}
+            disabled={capturing}
+            onClick={onCapture}
+          >
+            <Camera size={16} aria-hidden="true" />{" "}
+            {capturing ? (
+              "Salvando…"
+            ) : (
+              <>
+                <span className="wide-only">Salvar imagem da tela</span>
+                <span className="narrow-only">Imagem da tela</span>
+              </>
+            )}
           </button>
-        )}
+          {onSettings && (
+            <button type="button" className="btn ghost" onClick={onSettings}>
+              <KeyRound size={16} aria-hidden="true" /> Configurar
+            </button>
+          )}
+        </div>
       </div>
       <nav aria-label="Etapas">
         <ol className="steps">

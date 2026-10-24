@@ -26,6 +26,8 @@ await build({
     assetsInlineLimit: () => true,
     cssCodeSplit: false,
     modulePreload: false,
+    // tudo vai num arquivo só, inclusive o gerador da imagem da tela
+    chunkSizeWarningLimit: 1024,
     rolldownOptions: {
       input: fileURLToPath(new URL("../post-pronto/index.html", import.meta.url)),
       output: { codeSplitting: false },

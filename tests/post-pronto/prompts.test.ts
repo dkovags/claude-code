@@ -245,6 +245,55 @@ describe("leitura das respostas", () => {
     );
   });
 
+  it("mostra ao Claude o formato de cada pergunta", () => {
+    expect(buildSuggestPrompt(base)).toContain('{"pergunta": "Qual é a ocasião?", "opcoes": [');
+  });
+
+  it("aceita perguntas em outros formatos (dentro do Claude o formato não é garantido)", () => {
+    const stories = { destination: "stories" as const, frames: 1 };
+    const asText = normalizeSuggestions({ status: "Perguntas", perguntas: ["Qual é a ocasião?", ""], versoes: [] }, stories);
+    expect(asText.status).toBe("questions");
+    expect(asText.questions).toEqual([{ question: "Qual é a ocasião?", options: [] }]);
+    const otherKeys = normalizeSuggestions(
+      { status: "perguntas", perguntas: [{ texto: "Quem são?", opções: ["Casal", "Amigos"] }] },
+      stories,
+    );
+    expect(otherKeys.questions).toEqual([{ question: "Quem são?", options: ["Casal", "Amigos"] }]);
+  });
+
+  it("aceita campos com acento, em inglês, telas como texto e a resposta dentro de uma lista", () => {
+    const s = normalizeSuggestions(
+      [
+        {
+          status: "sugestões",
+          análise: "Festa",
+          versões: [
+            { estilo: "Lista", telas: ["Cinco velinhas", "Vote no tema"] },
+            [{ text: "Só as telas", sticker: { type: "enquete", text: "Tema?", options: ["Dino", "Fada"] } }],
+          ],
+          músicas: [{ título: "Aquarela", artista: "Toquinho", por_quê: "Infantil" }],
+          localizações: [{ nome: "Campinas" }],
+        },
+      ],
+      { destination: "stories", frames: 2 },
+    );
+    expect(s.status).toBe("suggestions");
+    expect(s.analysis).toBe("Festa");
+    expect(s.stories.map((v) => v.frames.map((f) => f.text))).toEqual([
+      ["Cinco velinhas", "Vote no tema"],
+      ["Só as telas", ""],
+    ]);
+    expect(s.stories[1].frames[0].sticker).toEqual({ kind: "poll", text: "Tema?", options: ["Dino", "Fada"] });
+    expect(s.music).toEqual([{ title: "Aquarela", artist: "Toquinho", part: "", why: "Infantil" }]);
+    expect(s.places[0].name).toBe("Campinas");
+    expect(normalizeSuggestions({ legendas: ["Legenda solta\n#praia"] }, FEED).captions[0]).toEqual({
+      style: "Opção",
+      text: "Legenda solta",
+      hashtags: ["#praia"],
+      why: "",
+    });
+  });
+
   it("perguntas sem conteúdo com legendas viram sugestões", () => {
     const s = normalizeSuggestions({ status: "perguntas", perguntas: [], legendas: [{ texto: "Oi", hashtags: [] }] }, FEED);
     expect(s.status).toBe("suggestions");

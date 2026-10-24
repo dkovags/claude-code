@@ -42,6 +42,13 @@ const QUESTIONS = {
   localizacoes: [],
   dicas: [],
 };
+// Dentro do Claude o formato não é garantido: perguntas com outros nomes de campo, acentos e maiúsculas
+const QUESTIONS_LOOSE = {
+  status: "Perguntas",
+  "análise": QUESTIONS.analise,
+  perguntas: [{ texto: QUESTIONS.perguntas[0].pergunta, "opções": QUESTIONS.perguntas[0].opcoes }],
+  "versões": [],
+};
 const STORY_SUGGESTIONS = {
   status: "sugestoes",
   analise: "Festa de 5 anos com tema de dinossauros na casa da avó.",
@@ -384,7 +391,7 @@ try {
   await page.getByRole("button", { name: "Sugerir textos" }).click();
   await page.getByRole("dialog", { name: "Acesso ao Claude" }).waitFor();
   await page.getByLabel("Chave da API").fill("sk-ant-teste-123");
-  await page.getByRole("button", { name: "Salvar" }).click();
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await page.getByText("Chave salva neste navegador.").waitFor();
 
   // 1º pedido: o Claude pergunta
@@ -520,6 +527,18 @@ try {
   expect(all === "story-1.jpg,story-2.jpg,stories.txt", `zip completo: ${all}`);
   await noHorizontalScroll(page, "desktop, stories");
 
+  // imagem da página inteira, com a página rolada
+  await page.mouse.wheel(0, 1500);
+  const screenName = await download(page, page.getByRole("button", { name: "Salvar imagem da tela" }), `${OUT}/downloads/tela.png`);
+  expect(/^post-pronto-tela-\d{4}-\d{2}-\d{2}-\d{4}\.png$/.test(screenName), `nome da imagem da tela: ${screenName}`);
+  await page.getByText("Imagem da tela salva.").waitFor();
+  const screenInfo = python(
+    "import sys\nfrom PIL import Image\nim=Image.open(sys.argv[1]).convert('RGB')\n" +
+      "print(im.size[0], im.size[1], len(im.getcolors(1<<24) or []))",
+    `${OUT}/downloads/tela.png`,
+  ).split(" ").map(Number);
+  expect(screenInfo[0] >= 1200 && screenInfo[1] > 1500 && screenInfo[2] > 500, `imagem da tela: ${screenInfo}`);
+
   // ============ 2. Feed, na mesma página ============
   await page.getByRole("button", { name: "Começar outro post" }).click();
   await page.getByRole("button", { name: "Apagar e começar outro" }).click();
@@ -633,6 +652,10 @@ try {
   expect(phoneItunes.searches.some((p) => p.callback?.startsWith("__postProntoItunes")), "sem CORS, a busca vai por JSONP");
   await m.locator(".song-player").scrollIntoViewIfNeeded();
   await shot(m, "13-celular-trecho-da-musica");
+  expect(await m.getByText("Salvar imagem da tela").isHidden(), "no celular, o botão tem o rótulo curto");
+  await download(m, m.getByRole("button", { name: "Imagem da tela" }), `${OUT}/downloads/tela-celular.png`);
+  const phoneScreen = python("import sys\nfrom PIL import Image\nprint(Image.open(sys.argv[1]).size[0])", `${OUT}/downloads/tela-celular.png`);
+  expect(Number(phoneScreen) >= 700, `no celular, a imagem sai com o dobro da largura: ${phoneScreen}`);
   await noHorizontalScroll(m, "celular, etapa final");
   await phone.close();
 
@@ -647,14 +670,14 @@ try {
     "</body></html>";
   await art.route("https://artefato.teste/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: skeleton }));
   await art.addInitScript(
-    ({ QUESTIONS, SUGGESTIONS, REFINE, STORY_SUGGESTIONS, STORY_REFINE }) => {
+    ({ QUESTIONS_LOOSE, SUGGESTIONS, REFINE, STORY_SUGGESTIONS, STORY_REFINE }) => {
       const pick = (p) =>
         p.includes("Reescreva os textos dos stories")
           ? STORY_REFINE
           : p.includes("Reescreva a legenda")
             ? REFINE
             : p.includes("Antes de escrever")
-              ? QUESTIONS
+              ? QUESTIONS_LOOSE
               : p.includes("TEXTOS DOS STORIES")
                 ? STORY_SUGGESTIONS
                 : SUGGESTIONS;
@@ -684,7 +707,7 @@ try {
       };
       window.claude = { use: async (name) => (name === "sample" ? sample : name === "downloads" ? downloads : null) };
     },
-    { QUESTIONS, SUGGESTIONS, REFINE, STORY_SUGGESTIONS, STORY_REFINE },
+    { QUESTIONS_LOOSE, SUGGESTIONS, REFINE, STORY_SUGGESTIONS, STORY_REFINE },
   );
   const a = (current = await art.newPage());
   watch(a);
@@ -697,6 +720,9 @@ try {
   await a.locator(".film .frame:not(.add)").first().waitFor();
   await a.getByLabel("O que está acontecendo").fill(CONTEXT);
   await a.getByRole("button", { name: "Sugerir textos" }).click();
+  // perguntas em outro formato (sem o formato garantido) aparecem mesmo assim, em vez do erro "veio sem os textos"
+  await a.getByText("Como a aniversariante se chama e quantos anos fez?").waitFor();
+  await a.getByRole("button", { name: "Ana, 5 anos" }).waitFor();
   await a.getByRole("button", { name: "Pular e gerar assim mesmo" }).click();
   await a.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
   const calls = await a.evaluate(() => window.__calls);
@@ -729,6 +755,13 @@ try {
   const saved = await a.evaluate(() => window.__saved);
   expect(saved[0].filename === "story.jpg" && saved[0].size > 20000, `foto salva no artefato: ${JSON.stringify(saved[0])}`);
   expect(saved[1].filename === "stories.txt", "texto salvo no artefato");
+  await a.getByRole("button", { name: "Salvar imagem da tela" }).click();
+  await a.waitForFunction(() => window.__saved.length === 3);
+  const screen = (await a.evaluate(() => window.__saved))[2];
+  expect(
+    /^post-pronto-tela-.+\.png$/.test(screen.filename) && screen.type === "image/png" && screen.size > 20000,
+    `imagem da tela no artefato: ${JSON.stringify(screen)}`,
+  );
   await shot(a, "20-artefato-stories-pronto");
   // dentro do Claude a página não toca áudio de outros sites: a música abre no YouTube
   const youtube = a.getByRole("link", { name: "Ouvir no YouTube: Happy" });

@@ -188,8 +188,14 @@ h3 {
   font-size: var(--text-sm);
 }
 
-.brand .settings {
+.top-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
   margin-left: 8px;
+}
+.narrow-only {
+  display: none;
 }
 
 .steps {
@@ -1888,6 +1894,24 @@ input.emoji-input {
   }
   .tagline {
     display: none;
+  }
+  .wide-only {
+    display: none;
+  }
+  .narrow-only {
+    display: inline;
+  }
+  /* o título fica numa linha; sem espaço ao lado dele, os botões passam para a linha de baixo */
+  .brand {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .brand h1 {
+    white-space: nowrap;
+  }
+  .top-tools {
+    margin-left: auto;
   }
   .panel-body {
     padding: 18px 16px;
