@@ -1,8 +1,39 @@
 import { ChevronLeft, ChevronRight, ImagePlus, TriangleAlert, X } from "lucide-react";
 import { useId, useState, type DragEvent } from "react";
 import { MAX_PHOTOS, type Photo } from "../photos";
-import { inClaude } from "../runtime";
+import { ARTIFACT_URL, inClaude, mobileKind } from "../runtime";
 import type { Destination } from "../types";
+import { CopyButton } from "./parts";
+
+/**
+ * No celular, dentro do app do Claude, o seletor de fotos pode não abrir (acontece no app do Android). O mesmo link
+ * aberto no navegador funciona, com a mesma conta.
+ */
+function OpenInBrowser() {
+  const kind = mobileKind();
+  if (!inClaude() || !kind) return null;
+  return (
+    <div className={`open-browser${kind === "android-app" ? " strong" : ""}`}>
+      <p>
+        {kind === "android-app" ? (
+          <>
+            <strong>No app do Claude para Android, o botão pode não abrir a galeria.</strong> Abra o Post Pronto no Chrome,
+            entrando com a mesma conta do Claude:
+          </>
+        ) : (
+          "Se o botão não abrir a galeria, abra o Post Pronto no navegador do celular, entrando com a mesma conta do Claude:"
+        )}
+      </p>
+      <p className="open-browser-link">{ARTIFACT_URL}</p>
+      <div className="actions">
+        <CopyButton text={ARTIFACT_URL} label="Copiar link" className="btn secondary small" />
+        <a className="btn ghost small" href={ARTIFACT_URL} target="_blank" rel="noreferrer">
+          Abrir no navegador
+        </a>
+      </div>
+    </div>
+  );
+}
 
 /**
  * As fotos do post numa tira de filme, na ordem em que vão aparecer (o número de cada quadro é a posição:
@@ -33,6 +64,7 @@ export function PhotoStrip({
   error?: string | null;
 }) {
   const inputId = useId();
+  const phone = mobileKind() !== null;
   const [over, setOver] = useState(false);
   const dragProps = onAdd
     ? {
@@ -75,7 +107,7 @@ export function PhotoStrip({
         <div className={`dropzone${over ? " over" : ""}`} {...dragProps}>
           <ImagePlus size={30} aria-hidden="true" />
           <p>
-            <strong>Arraste suas fotos para cá</strong>
+            <strong>{phone ? "Escolha as fotos na galeria" : "Arraste suas fotos para cá"}</strong>
           </p>
           {fileInput}
           <label htmlFor={inputId} className={`btn primary${loading ? " is-loading" : ""}`}>
@@ -85,15 +117,10 @@ export function PhotoStrip({
             {destination === "stories"
               ? `Uma foto para cada tela do story, até ${MAX_PHOTOS} em sequência,`
               : `Uma foto ou até ${MAX_PHOTOS} para um carrossel (a primeira vira a capa),`}{" "}
-            em JPG, PNG ou WebP. Também dá para colar uma imagem com Ctrl+V.
+            em JPG, PNG ou WebP.{!phone && " Também dá para colar uma imagem com Ctrl+V."}
           </p>
-          {inClaude() && (
-            <p className="hint">
-              Se o botão não abrir suas fotos no app do Claude, abra este mesmo link no navegador do celular ou do
-              computador.
-            </p>
-          )}
         </div>
+        <OpenInBrowser />
         {problem}
       </div>
     );

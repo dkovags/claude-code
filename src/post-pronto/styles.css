@@ -662,6 +662,30 @@ label.btn {
   cursor: progress;
 }
 
+.open-browser {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--sheet-2);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+.open-browser.strong {
+  border: 1.5px solid var(--marker);
+  background: var(--marker-soft);
+  color: var(--ink);
+}
+.open-browser p {
+  margin: 0;
+}
+.open-browser-link {
+  font: 500 var(--text-xs) / 1.4 var(--font-mono);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
 .upload-error {
   display: flex;
   gap: 8px;

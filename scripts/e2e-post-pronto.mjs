@@ -613,7 +613,33 @@ try {
   expect(saved[0].filename === "story.jpg" && saved[0].size > 20000, `foto salva no artefato: ${JSON.stringify(saved[0])}`);
   expect(saved[1].filename === "stories.txt", "texto salvo no artefato");
   await shot(a, "20-artefato-stories-pronto");
+  expect((await a.locator(".open-browser").count()) === 0, "no computador, o aviso de abrir no navegador não aparece");
   await art.close();
+
+  // ============ 5. Artefato aberto no app do Claude para Android ============
+  const droid = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    locale: "pt-BR",
+    userAgent:
+      "Mozilla/5.0 (Linux; Android 15; Pixel 8 Build/AP3A.241005.015; wv) AppleWebKit/537.36 (KHTML, like Gecko) " +
+      "Version/4.0 Chrome/130.0.6723.58 Mobile Safari/537.36",
+  });
+  await hermetic(droid);
+  await droid.route("https://artefato.teste/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: skeleton }));
+  await droid.addInitScript(() => {
+    window.claude = { use: async () => null };
+  });
+  const d = (current = await droid.newPage());
+  watch(d);
+  await d.goto("https://artefato.teste/");
+  const hintBox = d.locator(".open-browser.strong");
+  await hintBox.waitFor();
+  expect((await hintBox.innerText()).includes("https://claude.ai/artifact/"), "o aviso traz o link do artefato");
+  await hintBox.getByRole("button", { name: "Copiar link" }).waitFor();
+  await shot(d, "21-artefato-android-app");
+  await droid.close();
 
   if (errors.length) fail(`Erros no console:\n${errors.join("\n")}`);
   console.log(`OK: stories e feed na página publicada, no celular e no artefato. Capturas em ${OUT}/`);
