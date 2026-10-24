@@ -3,6 +3,9 @@
 Aplicativo para dividir despesas com amigos, praticamente idêntico ao Splitwise, em português.
 Funciona no navegador do computador e do celular, pode ser instalado como aplicativo (PWA) e funciona sem internet.
 
+Este repositório também traz o **Post Pronto**, que transforma fotos em publicações para o Instagram, com legenda,
+música e localização (veja [Post Pronto](#post-pronto-publicações-para-o-instagram), no fim).
+
 ## O que ele faz
 
 - **Grupos** (casa, viagem, casal, outro) com membros, moeda padrão e **simplificação de dívidas**.
@@ -97,3 +100,66 @@ Os valores são guardados em centavos (números inteiros), então não há erro 
 centavos que sobram vão para as primeiras pessoas da lista, e a soma das partes sempre fecha com o total.
 
 Para trocar o nome do aplicativo, edite `src/config.ts`, `index.html` e `public/manifest.webmanifest`.
+
+## Post Pronto: publicações para o Instagram
+
+Você envia as fotos (uma só ou um carrossel de até 10) e conta o contexto; o Claude olha as imagens, pergunta o que
+faltar (só quando falta algo essencial) e sugere três legendas. Depois que você escolhe e confirma, o Post Pronto
+entrega a foto pronta no formato do Instagram, a legenda para copiar e as sugestões de música e de localização.
+
+- **Fotos e contexto**: arraste, escolha ou cole (Ctrl+V) as fotos, conte o que está acontecendo e escolha o objetivo
+  (comentários, salvamentos e compartilhamentos, divulgar ou vender, registrar um momento), o tom, o idioma e a
+  quantidade de emojis. O perfil, o @ e as preferências ficam guardados no aparelho.
+- **Perguntas, se precisar**: quando falta algo que muda a legenda (a ocasião, quem são as pessoas, o que está à
+  venda), o Claude faz até três perguntas com respostas prontas para tocar. Dá para pular.
+- **Três legendas** com abordagens diferentes, gancho na primeira linha (o que aparece no *feed* antes do "mais"),
+  chamada para ação e até 5 *hashtags*, o limite atual do Instagram. Cada opção explica por que tende a engajar. A
+  escolhida pode ser editada à mão ou ajustada pelo Claude com um toque (mais curta, mais emotiva, sem emojis...) ou com
+  um pedido livre, e o ajuste pode ser desfeito.
+- **Pronto para postar**: a foto em 4:5, 3:4, 1:1, 9:16 (*Stories* e *Reels*) ou 1,91:1, com enquadramento escolhido
+  arrastando a foto e *zoom*, ou a foto inteira com fundo desfocado; texto opcional na capa, em quatro estilos;
+  *download* da foto (ou de um .zip com o carrossel), da legenda em .txt ou de tudo junto; botão para copiar a legenda; e
+  uma prévia de como o *post* aparece no *feed*.
+- **Música e localização**: cinco músicas com o trecho a usar e *links* para ouvir no Spotify e no YouTube; três
+  opções de lugar, do mais específico ao mais amplo, usando também a data e o GPS gravados na foto, quando existem
+  (dá para desligar), com *link* para conferir no mapa.
+- **Texto alternativo** para acessibilidade, dicas para o *post* render mais e o passo a passo para publicar.
+- As legendas nunca usam travessão: se o Claude escrever um, ele vira meia-risca.
+
+### Como usar
+
+- **Dentro do Claude** (o jeito mais simples): abra o artefato
+  [Post Pronto](https://claude.ai/artifact/QgwA6tj19x3bCCBwy4Cywv). Ele usa a sua própria conta do Claude, sem chave
+  nem configuração; na primeira vez, o Claude pede permissão para a página usar o Claude e enviar as fotos. O link é
+  privado: outras pessoas só conseguem abrir depois que você compartilhar o artefato pelo menu dele. Para gerar de
+  novo o arquivo do artefato a partir do código, rode `npm run build:artifact` (cria `dist-artifact/post-pronto.html`).
+- **Fora do Claude**: o Post Pronto é publicado junto com o Rateio no GitHub Pages, em
+  `https://<usuário>.github.io/<repositório>/post-pronto/`, e roda no computador com `npm run dev`, em
+  `http://localhost:5173/post-pronto/`. Nesse modo ele usa a API da Anthropic: toque em **Configurar** e informe uma
+  chave criada no [Claude Console](https://platform.claude.com/settings/keys). O uso é cobrado na conta da API; a chave
+  fica guardada só no navegador e vai direto para a Anthropic. O modelo pode ser trocado na mesma tela.
+
+As fotos vão para o Claude (ou para a API da Anthropic) só para gerar as sugestões, em versão reduzida e sem os dados
+gravados no arquivo; a data e o GPS, quando a opção está ligada, vão como texto no pedido.
+
+### Código do Post Pronto
+
+```
+post-pronto/index.html                  a página (entra no build junto com o Rateio)
+src/post-pronto/prompts.ts              instruções para o Claude e leitura das respostas
+src/post-pronto/ai.ts                   conexão: conta do Claude (artefato) ou API com chave própria
+src/post-pronto/render.ts               formatos do Instagram, enquadramento e texto na foto
+src/post-pronto/exif.ts                 data e GPS gravados nas fotos
+src/post-pronto/zip.ts                  .zip para baixar o carrossel
+src/post-pronto/ui/                     telas (React)
+tests/post-pronto/                      testes da lógica (Vitest, rodam com npm test)
+scripts/build-post-pronto-artifact.mjs  versão em arquivo único, para publicar como artefato
+scripts/e2e-post-pronto.mjs             teste de ponta a ponta com as respostas do Claude simuladas
+```
+
+```bash
+npm run build:artifact   # gera dist-artifact/post-pronto.html
+npm run test:e2e-post    # teste completo no navegador (capturas em screenshots/post-pronto/)
+```
+
+Para usar um Chromium já instalado no teste de ponta a ponta, informe o caminho em `CHROMIUM_PATH`.

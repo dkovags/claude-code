@@ -13,9 +13,12 @@
     "test:cloud": "npx -y firebase-tools@15.34.0 emulators:exec --project demo-rateio --only firestore,auth \"vitest run tests/cloud.test.ts\"",
     "build:cloud-test": "VITE_FIREBASE_CONFIG='{\"apiKey\":\"demo-key\",\"authDomain\":\"demo-rateio.firebaseapp.com\",\"projectId\":\"demo-rateio\"}' VITE_FIREBASE_EMULATOR=localhost vite build --outDir dist-cloud",
     "test:e2e-cloud": "npm run build:cloud-test && npx -y firebase-tools@15.34.0 emulators:exec --project demo-rateio --only firestore,auth \"node scripts/e2e-cloud.mjs\"",
-    "test:e2e": "npm run build && node scripts/e2e.mjs"
+    "test:e2e": "npm run build && node scripts/e2e.mjs",
+    "test:e2e-post": "npm run build && node scripts/e2e-post-pronto.mjs",
+    "build:artifact": "node scripts/build-post-pronto-artifact.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.133.0",
     "@fontsource/lato": "5.3.0",
     "firebase": "13.0.0",
     "lucide-react": "1.57.0",

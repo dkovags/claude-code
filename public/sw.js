@@ -21,6 +21,8 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== self.location.origin) return;
+  // o Post Pronto é outra página no mesmo site: não pode ser salvo como a página principal do Rateio
+  if (url.pathname.includes("/post-pronto/")) return;
   const immutable = url.pathname.includes("/assets/");
   if (immutable) {
     event.respondWith(
