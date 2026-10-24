@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { drawPost, ensureOverlayFont, type FormatSpec, type Framing, type Overlay, pan } from "../render";
+import { drawPost, ensureOverlayFonts, type FormatSpec, type Framing, type Overlay, overlayStyles, pan } from "../render";
 
 export interface PreviewSource {
   img: CanvasImageSource;
@@ -33,14 +33,16 @@ export function useShot({
   const H = Math.round((width * spec.h) / spec.w);
   const canPan = framing.mode === "fill" && !!onFraming;
 
+  const fonts = overlay ? overlayStyles(overlay).join(" ") : "";
   useEffect(() => {
     if (!overlay) return;
     let alive = true;
-    ensureOverlayFont(overlay.style).then(() => alive && setFontsReady((n) => n + 1));
+    ensureOverlayFonts(overlay).then(() => alive && setFontsReady((n) => n + 1));
     return () => {
       alive = false;
     };
-  }, [overlay?.style]);
+    // só as fontes importam aqui: o texto muda a cada tecla
+  }, [fonts]);
 
   useEffect(() => {
     const c = canvas.current;

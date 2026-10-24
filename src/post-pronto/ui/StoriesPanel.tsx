@@ -1,6 +1,6 @@
 import { ArrowLeft, Check } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { STICKER_LABELS, STORY_WORDS, stickerSummary, wordCount } from "../caption";
+import { bothParts, STICKER_LABELS, STORY_WORDS, stickerSummary, wordCount } from "../caption";
 import type { Photo } from "../photos";
 import { STORY_REFINE_PRESETS } from "../prompts";
 import type { Sticker, StickerKind, StoryFrame, StoryLength, Suggestions } from "../types";
@@ -110,6 +110,7 @@ export function StoriesPanel({
   hashtags,
   setHashtags,
   storyLength,
+  twoParts,
   onRefine,
   canUndo,
   onUndo,
@@ -129,6 +130,8 @@ export function StoriesPanel({
   setHashtags: (h: string[]) => void;
   /** Tamanho escolhido para os textos (decide a partir de quantas palavras o contador avisa). */
   storyLength: StoryLength;
+  /** Texto de cada tela em dois trechos, com fontes diferentes (ligado na etapa final). */
+  twoParts: boolean;
   /** Pede um ajuste ao Claude; true se deu certo. */
   onRefine: (instruction: string) => Promise<boolean>;
   canUndo: boolean;
@@ -204,14 +207,15 @@ export function StoriesPanel({
               <section className="editor" ref={editor} aria-labelledby="pp-editor-title">
                 <h3 id="pp-editor-title">Ajuste os textos</h3>
                 {frames.map((f, j) => {
-                  const words = wordCount(f.text);
+                  const words = wordCount(bothParts(f));
+                  const screen = several ? ` da tela ${j + 1}` : "";
                   return (
                     <div className="frame-editor" key={j}>
                       {photos[j] && <img className="story-thumb" src={photos[j].url} alt={`Foto ${j + 1}`} />}
                       <div className="frame-editor-body">
                         <div className="field">
                           <label className="label" htmlFor={`pp-frame-${j}`}>
-                            {several ? `Texto da tela ${j + 1}` : "Texto na foto"}
+                            {twoParts ? `Trecho 1${screen}` : several ? `Texto${screen}` : "Texto na foto"}
                           </label>
                           <textarea
                             id={`pp-frame-${j}`}
@@ -219,6 +223,19 @@ export function StoriesPanel({
                             value={f.text}
                             onChange={(e) => update(j, { text: e.target.value })}
                           />
+                          {twoParts && (
+                            <>
+                              <label className="label" htmlFor={`pp-frame2-${j}`}>
+                                Trecho 2{screen} (outra fonte)
+                              </label>
+                              <textarea
+                                id={`pp-frame2-${j}`}
+                                rows={2}
+                                value={f.text2 ?? ""}
+                                onChange={(e) => update(j, { text2: e.target.value })}
+                              />
+                            </>
+                          )}
                           <p className={`counter${words > maxWords ? " over" : ""}`}>
                             {words} {words === 1 ? "palavra" : "palavras"}
                             {words > maxWords &&

@@ -65,6 +65,10 @@ export interface Overlay {
   color: "light" | "dark";
   /** Faixa semitransparente atrás do texto. */
   band: boolean;
+  /** Segundo trecho, logo abaixo do primeiro, com fonte e tamanho próprios (vazio = só um trecho). */
+  text2: string;
+  style2: OverlayStyle;
+  size2: number;
 }
 
 export const DEFAULT_OVERLAY: Overlay = {
@@ -74,6 +78,9 @@ export const DEFAULT_OVERLAY: Overlay = {
   size: 1,
   color: "light",
   band: false,
+  text2: "",
+  style2: "handwritten",
+  size2: 1,
 };
 
 export const OVERLAY_STYLES: Record<
@@ -138,20 +145,29 @@ export function wrapLines(text: string, maxWidth: number, measure: (s: string) =
   return lines;
 }
 
-export interface OverlayLayout {
+/** Um trecho do texto já medido: fonte, linhas e lugar na foto. */
+export interface OverlayBlock {
   font: string;
   px: number;
   lines: string[];
   lineHeight: number;
-  /** Topo do bloco de texto. */
   top: number;
-  blockWidth: number;
-  blockHeight: number;
+  width: number;
+  height: number;
+}
+
+export interface OverlayLayout {
+  /** Um ou dois trechos, um embaixo do outro. */
+  blocks: OverlayBlock[];
+  /** Topo, largura e altura do conjunto. */
+  top: number;
+  width: number;
+  height: number;
 }
 
 /**
- * Calcula fonte, linhas e posição do texto. Diminui a letra até caber (no máximo 5 linhas e 45% da altura).
- * Em 9:16 deixa livres o topo e a base, onde ficam os botões dos Stories.
+ * Calcula fonte, linhas e posição de cada trecho do texto. Diminui a letra até caber: no máximo 5 linhas e 45% da
+ * altura com um trecho, 7 linhas e 55% com dois. Em 9:16 deixa livres o topo e a base, onde ficam os botões dos Stories.
  */
 export function layoutOverlay(
   o: Overlay,
@@ -159,31 +175,46 @@ export function layoutOverlay(
   H: number,
   measureWith: (font: string, s: string) => number,
 ): OverlayLayout {
-  const style = OVERLAY_STYLES[o.style];
-  const text = style.upper ? o.text.toLocaleUpperCase("pt-BR") : o.text;
+  const parts = [
+    { text: o.text, style: o.style, size: o.size },
+    { text: o.text2, style: o.style2, size: o.size2 },
+  ].filter((p) => p.text.trim());
+  const two = parts.length > 1;
   const maxWidth = W * 0.84;
   const minPx = Math.round(W * 0.03);
-  let px = Math.max(minPx, Math.round(W * 0.085 * Math.min(1.6, Math.max(0.6, o.size))));
-  let font = overlayFont(o.style, px);
-  let lines: string[] = [];
-  let widest = 0;
+  const maxLines = two ? 7 : 5;
+  const maxHeight = H * (two ? 0.55 : 0.45);
+  const sizes = parts.map((p) => Math.max(minPx, Math.round(W * 0.085 * Math.min(1.6, Math.max(0.6, p.size)))));
+  let blocks: OverlayBlock[] = [];
+  let gap = 0;
   for (;;) {
-    font = overlayFont(o.style, px);
-    const measure = (s: string) => measureWith(font, s);
-    lines = wrapLines(text, maxWidth, measure);
-    widest = Math.max(0, ...lines.map(measure));
-    const fits = widest <= maxWidth && lines.length <= 5 && lines.length * px * style.lineHeight <= H * 0.45;
-    if (fits || px <= minPx) break;
-    px = Math.max(minPx, Math.floor(px * 0.92));
+    blocks = parts.map((p, i) => {
+      const style = OVERLAY_STYLES[p.style];
+      const px = sizes[i];
+      const font = overlayFont(p.style, px);
+      const measure = (s: string) => measureWith(font, s);
+      const lines = wrapLines(style.upper ? p.text.toLocaleUpperCase("pt-BR") : p.text, maxWidth, measure);
+      const lineHeight = px * style.lineHeight;
+      return { font, px, lines, lineHeight, top: 0, width: Math.max(0, ...lines.map(measure)), height: lines.length * lineHeight };
+    });
+    gap = two ? Math.round(Math.min(...sizes) * 0.35) : 0;
+    const lines = blocks.reduce((n, b) => n + b.lines.length, 0);
+    const height = blocks.reduce((h, b) => h + b.height, gap);
+    const fits = blocks.every((b) => b.width <= maxWidth) && lines <= maxLines && height <= maxHeight;
+    if (fits || sizes.every((px) => px <= minPx)) break;
+    sizes.forEach((px, i) => (sizes[i] = Math.max(minPx, Math.floor(px * 0.92))));
   }
-  const lineHeight = px * style.lineHeight;
-  const blockHeight = lines.length * lineHeight;
+  const height = blocks.reduce((h, b) => h + b.height, gap);
   const story = H / W > 1.7;
   const marginTop = H * (story ? 0.14 : 0.07);
   const marginBottom = H * (story ? 0.2 : 0.07);
-  const top =
-    o.position === "top" ? marginTop : o.position === "center" ? (H - blockHeight) / 2 : H - marginBottom - blockHeight;
-  return { font, px, lines, lineHeight, top, blockWidth: widest, blockHeight };
+  const top = o.position === "top" ? marginTop : o.position === "center" ? (H - height) / 2 : H - marginBottom - height;
+  let y = top;
+  for (const b of blocks) {
+    b.top = y;
+    y += b.height + gap;
+  }
+  return { blocks, top, width: Math.max(0, ...blocks.map((b) => b.width)), height };
 }
 
 type Source = CanvasImageSource;
@@ -219,38 +250,35 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 export function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, W: number, H: number) {
-  if (!o.text.trim()) return;
   const layout = layoutOverlay(o, W, H, (font, s) => {
     ctx.font = font;
     return ctx.measureText(s).width;
   });
+  if (!layout.blocks.length) return;
   const light = o.color === "light";
+  const px = Math.max(...layout.blocks.map((b) => b.px));
   ctx.save();
   if (o.band) {
-    const padX = layout.px * 0.55;
-    const padY = layout.px * 0.35;
+    // uma faixa só, atrás dos dois trechos
+    const padX = px * 0.55;
+    const padY = px * 0.35;
     ctx.fillStyle = light ? "rgba(12, 12, 14, 0.55)" : "rgba(255, 255, 255, 0.78)";
-    roundRect(
-      ctx,
-      (W - layout.blockWidth) / 2 - padX,
-      layout.top - padY,
-      layout.blockWidth + padX * 2,
-      layout.blockHeight + padY * 2,
-      layout.px * 0.28,
-    );
+    roundRect(ctx, (W - layout.width) / 2 - padX, layout.top - padY, layout.width + padX * 2, layout.height + padY * 2, px * 0.28);
     ctx.fill();
   } else {
     ctx.shadowColor = light ? "rgba(0, 0, 0, 0.55)" : "rgba(255, 255, 255, 0.5)";
-    ctx.shadowBlur = layout.px * 0.4;
-    ctx.shadowOffsetY = layout.px * 0.04;
   }
-  ctx.font = layout.font;
   ctx.fillStyle = light ? "#ffffff" : "#111111";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  layout.lines.forEach((line, i) => {
-    ctx.fillText(line, W / 2, layout.top + layout.lineHeight * (i + 0.5));
-  });
+  for (const b of layout.blocks) {
+    if (!o.band) {
+      ctx.shadowBlur = b.px * 0.4;
+      ctx.shadowOffsetY = b.px * 0.04;
+    }
+    ctx.font = b.font;
+    b.lines.forEach((line, i) => ctx.fillText(line, W / 2, b.top + b.lineHeight * (i + 0.5)));
+  }
   ctx.restore();
 }
 
@@ -300,11 +328,20 @@ export function exportJpeg(
   );
 }
 
-/** Carrega a fonte do texto antes de desenhar (as fontes da web só baixam quando usadas). */
-export async function ensureOverlayFont(style: OverlayStyle): Promise<void> {
-  try {
-    await document.fonts.load(overlayFont(style, 64), "Ág");
-  } catch {
-    // sem a fonte, o navegador usa a alternativa da lista
-  }
+/** As fontes que o texto usa: a do primeiro trecho e, se houver segundo trecho, a dele. */
+export function overlayStyles(o: Overlay): OverlayStyle[] {
+  return o.text2.trim() && o.style2 !== o.style ? [o.style, o.style2] : [o.style];
+}
+
+/** Carrega as fontes do texto antes de desenhar (as fontes da web só baixam quando usadas). */
+export async function ensureOverlayFonts(o: Overlay): Promise<void> {
+  await Promise.all(
+    overlayStyles(o).map(async (style) => {
+      try {
+        await document.fonts.load(overlayFont(style, 64), "Ág");
+      } catch {
+        // sem a fonte, o navegador usa a alternativa da lista
+      }
+    }),
+  );
 }

@@ -73,6 +73,8 @@ export interface Sticker {
 /** Uma tela de story: uma foto, com o texto escrito nela e talvez uma figurinha. */
 export interface StoryFrame {
   text: string;
+  /** Segundo trecho, escrito com outra fonte (com "Dois trechos com fontes diferentes" ligado). */
+  text2?: string;
   sticker: Sticker | null;
 }
 

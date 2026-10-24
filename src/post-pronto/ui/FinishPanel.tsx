@@ -3,13 +3,13 @@ import {
   Sticker as StickerIcon, Type,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { fullCaption, musicLabel, postText, stickerSummary, storiesText } from "../caption";
+import { bothParts, fullCaption, musicLabel, postText, stickerSummary, storiesText, withTwoParts } from "../caption";
 import { fileNames, type FinishState, INITIAL_FINISH, overlaysFor } from "../finish";
 import { mapsPoint, mapsSearch } from "../links";
 import type { Photo } from "../photos";
 import { formatTakenAt } from "../prompts";
 import {
-  DEFAULT_FRAMING, ensureOverlayFont, exportJpeg, FORMATS, type FormatId, formatSpec, type Framing, type Overlay,
+  DEFAULT_FRAMING, ensureOverlayFonts, exportJpeg, FORMATS, type FormatId, formatSpec, type Framing, type Overlay,
   OVERLAY_STYLES, type OverlayStyle,
 } from "../render";
 import type { Saver } from "../save";
@@ -177,10 +177,10 @@ export function FinishPanel({
   const stories = destination === "stories";
   const spec = formatSpec(stories ? "9:16" : finish.format);
   const photo = photos[Math.min(active, photos.length - 1)];
-  const { overlayOn, overlay } = finish;
+  const { overlayOn, twoParts, overlay } = finish;
   const overlays = useMemo(
-    () => overlaysFor(destination, photos.length, { ...INITIAL_FINISH, overlayOn, overlay }, frames),
-    [destination, photos.length, overlayOn, overlay, frames],
+    () => overlaysFor(destination, photos.length, { ...INITIAL_FINISH, overlayOn, twoParts, overlay }, frames),
+    [destination, photos.length, overlayOn, twoParts, overlay, frames],
   );
   const names = fileNames(destination, photos.length);
   const music = result.music[finish.music];
@@ -189,8 +189,28 @@ export function FinishPanel({
   const several = photos.length > 1;
   const set = (patch: Partial<FinishState>) => setFinish({ ...finish, ...patch });
   const setOverlay = (patch: Partial<Overlay>) => set({ overlay: { ...finish.overlay, ...patch } });
-  const frameText = (i: number, text: string) =>
-    setFrames(photos.map((_, k) => (k === i ? { ...(frames[k] ?? { sticker: null }), text } : (frames[k] ?? { text: "", sticker: null }))));
+  const frameText = (i: number, patch: Pick<StoryFrame, "text"> | Pick<StoryFrame, "text2">) =>
+    setFrames(photos.map((_, k) => ({ ...(frames[k] ?? { text: "", sticker: null }), ...(k === i ? patch : {}) })));
+  // ao ligar, divide o texto de cada tela (ou da capa) em dois; ao desligar, junta de novo
+  const setTwoParts = (on: boolean) => {
+    if (stories) setFrames(photos.map((_, k) => withTwoParts(frames[k] ?? { text: "", sticker: null }, on)));
+    set({ twoParts: on, overlay: stories ? finish.overlay : withTwoParts(finish.overlay, on) });
+  };
+  const styleOptions = (Object.keys(OVERLAY_STYLES) as OverlayStyle[]).map((id) => ({
+    id,
+    label: (
+      <span
+        style={{
+          fontFamily: OVERLAY_STYLES[id].family,
+          fontWeight: OVERLAY_STYLES[id].weight,
+          fontStyle: OVERLAY_STYLES[id].italic ? "italic" : "normal",
+        }}
+      >
+        {OVERLAY_STYLES[id].label}
+      </span>
+    ),
+  }));
+  const screen = several ? ` da tela ${active + 1}` : "";
   const textFile = () =>
     stories
       ? storiesText({ frames: photos.map((_, i) => frames[i] ?? { text: "", sticker: null }), hashtags: storyTags, music, place })
@@ -201,7 +221,7 @@ export function FinishPanel({
     let alive = true;
     setPrepared(null);
     const t = setTimeout(async () => {
-      await Promise.all(overlays.map((o) => (o ? ensureOverlayFont(o.style) : null)));
+      await Promise.all(overlays.map((o) => (o ? ensureOverlayFonts(o) : null)));
       const photoName = fileNames(destination, photos.length).photo;
       const files = await Promise.all(
         photos.map(async (p, i) => {
@@ -346,20 +366,41 @@ export function FinishPanel({
           onChange={(overlayOn) => set({ overlayOn })}
           label={stories ? "Escrever os textos nas fotos" : "Escrever um texto na capa"}
         />
+        {finish.overlayOn && (
+          <Toggle checked={twoParts} onChange={setTwoParts} label="Dois trechos com fontes diferentes" />
+        )}
         {stories && (
           <div className="field">
             <label className="label" htmlFor="pp-frame-text">
-              {several ? `Texto da tela ${active + 1}` : "Texto"}
+              {overlayOn && twoParts ? `Trecho 1${screen}` : several ? `Texto${screen}` : "Texto"}
             </label>
             <textarea
               id="pp-frame-text"
               rows={2}
               value={frames[active]?.text ?? ""}
-              onChange={(e) => frameText(active, e.target.value)}
+              onChange={(e) => frameText(active, { text: e.target.value })}
             />
+            {overlayOn && twoParts && (
+              <>
+                <label className="label" htmlFor="pp-frame-text2">
+                  Trecho 2{screen}
+                </label>
+                <textarea
+                  id="pp-frame-text2"
+                  rows={2}
+                  value={frames[active]?.text2 ?? ""}
+                  onChange={(e) => frameText(active, { text2: e.target.value })}
+                  placeholder="Escrito com a fonte do trecho 2, logo abaixo"
+                />
+              </>
+            )}
             {!finish.overlayOn && (
               <div className="actions">
-                <CopyButton text={frames[active]?.text ?? ""} label="Copiar texto" className="btn ghost small" />
+                <CopyButton
+                  text={frames[active] ? bothParts(frames[active], "\n") : ""}
+                  label="Copiar texto"
+                  className="btn ghost small"
+                />
                 <span className="hint">Sem o texto na foto, escreva no story com o botão Aa.</span>
               </div>
             )}
@@ -369,7 +410,7 @@ export function FinishPanel({
           <>
             <div className="field">
               <label className="label" htmlFor="pp-overlay-text">
-                Texto
+                {twoParts ? "Trecho 1" : "Texto"}
               </label>
               <textarea
                 id="pp-overlay-text"
@@ -378,6 +419,20 @@ export function FinishPanel({
                 onChange={(e) => setOverlay({ text: e.target.value })}
                 placeholder="Uma frase curta"
               />
+              {twoParts && (
+                <>
+                  <label className="label" htmlFor="pp-overlay-text2">
+                    Trecho 2
+                  </label>
+                  <textarea
+                    id="pp-overlay-text2"
+                    rows={2}
+                    value={finish.overlay.text2}
+                    onChange={(e) => setOverlay({ text2: e.target.value })}
+                    placeholder="Escrito com a fonte do trecho 2, logo abaixo"
+                  />
+                </>
+              )}
             </div>
             {result.overlays.length > 0 && (
               <div className="chips" aria-label="Sugestões do Claude">
@@ -398,24 +453,19 @@ export function FinishPanel({
         {finish.overlayOn && (
           <>
             <Segmented<OverlayStyle>
-              label="Estilo"
-              options={(Object.keys(OVERLAY_STYLES) as OverlayStyle[]).map((id) => ({
-                id,
-                label: (
-                  <span
-                    style={{
-                      fontFamily: OVERLAY_STYLES[id].family,
-                      fontWeight: OVERLAY_STYLES[id].weight,
-                      fontStyle: OVERLAY_STYLES[id].italic ? "italic" : "normal",
-                    }}
-                  >
-                    {OVERLAY_STYLES[id].label}
-                  </span>
-                ),
-              }))}
+              label={twoParts ? "Fonte do trecho 1" : "Estilo"}
+              options={styleOptions}
               value={finish.overlay.style}
               onChange={(style) => setOverlay({ style })}
             />
+            {twoParts && (
+              <Segmented<OverlayStyle>
+                label="Fonte do trecho 2"
+                options={styleOptions}
+                value={finish.overlay.style2}
+                onChange={(style2) => setOverlay({ style2 })}
+              />
+            )}
             <div className="field-row">
               <Segmented<Overlay["position"]>
                 label="Posição"
@@ -437,24 +487,42 @@ export function FinishPanel({
                 onChange={(color) => setOverlay({ color })}
               />
             </div>
-            <div className="field">
-              <label className="label" htmlFor="pp-overlay-size">
-                Tamanho
-              </label>
-              <input
-                id="pp-overlay-size"
-                type="range"
-                min={0.6}
-                max={1.6}
-                step={0.05}
-                value={finish.overlay.size}
-                onChange={(e) => setOverlay({ size: Number(e.target.value) })}
-              />
+            <div className={twoParts ? "field-row" : undefined}>
+              <div className="field">
+                <label className="label" htmlFor="pp-overlay-size">
+                  {twoParts ? "Tamanho do trecho 1" : "Tamanho"}
+                </label>
+                <input
+                  id="pp-overlay-size"
+                  type="range"
+                  min={0.6}
+                  max={1.6}
+                  step={0.05}
+                  value={finish.overlay.size}
+                  onChange={(e) => setOverlay({ size: Number(e.target.value) })}
+                />
+              </div>
+              {twoParts && (
+                <div className="field">
+                  <label className="label" htmlFor="pp-overlay-size2">
+                    Tamanho do trecho 2
+                  </label>
+                  <input
+                    id="pp-overlay-size2"
+                    type="range"
+                    min={0.6}
+                    max={1.6}
+                    step={0.05}
+                    value={finish.overlay.size2}
+                    onChange={(e) => setOverlay({ size2: Number(e.target.value) })}
+                  />
+                </div>
+              )}
             </div>
             <Toggle checked={finish.overlay.band} onChange={(band) => setOverlay({ band })} label="Faixa atrás do texto" />
             <p className="hint">
               {stories
-                ? "O mesmo estilo vale para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story."
+                ? `${twoParts ? "As mesmas fontes valem" : "O mesmo estilo vale"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`
                 : several
                   ? "O texto vai só na capa (foto 1)."
                   : ""}

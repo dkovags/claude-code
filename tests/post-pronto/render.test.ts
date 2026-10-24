@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, layoutOverlay, pan, wrapLines } from "../../src/post-pronto/render";
+import {
+  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, layoutOverlay, overlayStyles, pan, wrapLines,
+} from "../../src/post-pronto/render";
 
 // largura fictícia: cada caractere mede 0,5 do tamanho da fonte
 const measureWith = (font: string, s: string) => s.length * 0.5 * Number(/(\d+)px/.exec(font)![1]);
@@ -46,22 +48,51 @@ describe("texto na foto", () => {
   it("diminui a letra até caber em no máximo 5 linhas", () => {
     const text = "palavra ".repeat(30).trim();
     const l = layoutOverlay({ ...DEFAULT_OVERLAY, text }, 1080, 1350, measureWith);
-    expect(l.lines.length).toBeLessThanOrEqual(5);
-    expect(l.blockWidth).toBeLessThanOrEqual(1080 * 0.84);
-    expect(l.px).toBeLessThan(Math.round(1080 * 0.085));
+    expect(l.blocks).toHaveLength(1);
+    expect(l.blocks[0].lines.length).toBeLessThanOrEqual(5);
+    expect(l.width).toBeLessThanOrEqual(1080 * 0.84);
+    expect(l.blocks[0].px).toBeLessThan(Math.round(1080 * 0.085));
   });
 
   it("posiciona embaixo deixando livre a área dos botões nos Stories", () => {
     const feed = layoutOverlay({ ...DEFAULT_OVERLAY, text: "Oi" }, 1080, 1350, measureWith);
-    expect(feed.top + feed.blockHeight).toBeCloseTo(1350 * 0.93);
+    expect(feed.top + feed.height).toBeCloseTo(1350 * 0.93);
     const story = layoutOverlay({ ...DEFAULT_OVERLAY, text: "Oi" }, 1080, 1920, measureWith);
-    expect(story.top + story.blockHeight).toBeCloseTo(1920 * 0.8);
+    expect(story.top + story.height).toBeCloseTo(1920 * 0.8);
     const top = layoutOverlay({ ...DEFAULT_OVERLAY, text: "Oi", position: "top" }, 1080, 1920, measureWith);
     expect(top.top).toBeCloseTo(1920 * 0.14);
   });
 
   it("estilo Impacto escreve em maiúsculas", () => {
     const l = layoutOverlay({ ...DEFAULT_OVERLAY, text: "fim de tarde", style: "impact" }, 1080, 1350, measureWith);
-    expect(l.lines.join(" ")).toBe("FIM DE TARDE");
+    expect(l.blocks[0].lines.join(" ")).toBe("FIM DE TARDE");
+  });
+
+  it("dois trechos: cada um com a sua fonte e o seu tamanho, o segundo logo abaixo do primeiro", () => {
+    const o = { ...DEFAULT_OVERLAY, position: "top" as const, text: "Cinco velinhas", style: "impact" as const, text2: "e um dinossauro", style2: "handwritten" as const, size2: 0.7 };
+    const l = layoutOverlay(o, 1080, 1920, measureWith);
+    const [first, second] = l.blocks;
+    expect(l.blocks).toHaveLength(2);
+    expect(first.font).toContain("Anton");
+    expect(second.font).toContain("Caveat");
+    expect(second.px).toBeLessThan(first.px);
+    expect(first.top).toBeCloseTo(1920 * 0.14);
+    expect(second.top).toBeGreaterThan(first.top + first.height);
+    expect(l.height).toBeCloseTo(second.top + second.height - first.top);
+    expect(overlayStyles(o)).toEqual(["impact", "handwritten"]);
+  });
+
+  it("dois trechos longos diminuem juntos até caber; só o segundo trecho também funciona", () => {
+    const long = "palavra ".repeat(12).trim();
+    const l = layoutOverlay({ ...DEFAULT_OVERLAY, text: long, text2: long }, 1080, 1920, measureWith);
+    expect(l.blocks.reduce((n, b) => n + b.lines.length, 0)).toBeLessThanOrEqual(7);
+    expect(l.height).toBeLessThanOrEqual(1920 * 0.55);
+    // texto demais para caber: a letra para no tamanho mínimo
+    const huge = "palavra ".repeat(40).trim();
+    const min = layoutOverlay({ ...DEFAULT_OVERLAY, text: huge, text2: huge }, 1080, 1920, measureWith);
+    expect(min.blocks.map((b) => b.px)).toEqual([Math.round(1080 * 0.03), Math.round(1080 * 0.03)]);
+    const onlySecond = layoutOverlay({ ...DEFAULT_OVERLAY, text: " ", text2: "Oi" }, 1080, 1920, measureWith);
+    expect(onlySecond.blocks.map((b) => b.lines)).toEqual([["Oi"]]);
+    expect(overlayStyles({ ...DEFAULT_OVERLAY, text: "Oi" })).toEqual(["modern"]);
   });
 });

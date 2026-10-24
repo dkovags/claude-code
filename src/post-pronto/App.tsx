@@ -4,6 +4,7 @@ import {
   AiError, type AiBackend, apiBackend, type ApiSettings, connectClaude, loadApiSettings, saveApiSettings,
 } from "./ai";
 import { loadPrefs, type Prefs, savePrefs } from "./brief";
+import { withTwoParts } from "./caption";
 import { captureElement, captureName } from "./capture";
 import { EXAMPLE_DRAFT, EXAMPLE_MUSIC, EXAMPLE_PLACE, EXAMPLE_STORY, exampleScene } from "./example";
 import { type FinishState, INITIAL_FINISH, overlaysFor } from "./finish";
@@ -40,7 +41,7 @@ type TaskOptions = { signal: AbortSignal; onProgress: (chars: number) => void };
 
 const EMPTY_DRAFT: Draft = { text: "", hashtags: [] };
 const copyFrames = (frames: StoryFrame[]) =>
-  frames.map((f) => ({ text: f.text, sticker: f.sticker && { ...f.sticker, options: [...f.sticker.options] } }));
+  frames.map((f) => ({ ...f, sticker: f.sticker && { ...f.sticker, options: [...f.sticker.options] } }));
 
 export default function App() {
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
@@ -328,7 +329,9 @@ export default function App() {
       ...f,
       // nos stories o texto vai na foto; no feed, o texto na capa é opcional
       overlayOn: stories ? true : f.overlayOn,
-      overlay: { ...f.overlay, text: next.overlays[0] ?? "", position: stories ? "top" : f.overlay.position },
+      // sugestões novas começam com um trecho só
+      twoParts: false,
+      overlay: { ...f.overlay, text: next.overlays[0] ?? "", text2: "", position: stories ? "top" : f.overlay.position },
       music: next.music.length ? 0 : -1,
       place: next.places.length ? 0 : -1,
       altText: next.altText,
@@ -375,7 +378,7 @@ export default function App() {
       );
       if (!next) return false;
       setUndoFrames(current);
-      setFrames(next);
+      setFrames(finish.twoParts ? next.map((f) => withTwoParts(f, true)) : next);
       return true;
     }
     const prompt = buildRefinePrompt({ brief, analysis: result.analysis, draft, instruction });
@@ -395,7 +398,8 @@ export default function App() {
     if (!result || i === chosen) return;
     setChosen(i);
     if (stories) {
-      setFrames(copyFrames(result.stories[i].frames));
+      const picked = copyFrames(result.stories[i].frames);
+      setFrames(finish.twoParts ? picked.map((f) => withTwoParts(f, true)) : picked);
       setUndoFrames(null);
     } else {
       const c = result.captions[i];
@@ -562,6 +566,7 @@ export default function App() {
               hashtags={storyTags}
               setHashtags={setStoryTags}
               storyLength={prefs.storyLength}
+              twoParts={finish.twoParts}
               onRefine={refine}
               canUndo={!!undoFrames}
               onUndo={() => {

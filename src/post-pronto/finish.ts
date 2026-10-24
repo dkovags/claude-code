@@ -7,6 +7,8 @@ export interface FinishState {
   format: FormatId;
   /** Escrever texto nas fotos: nos stories, o de cada tela; no feed, um texto na capa. */
   overlayOn: boolean;
+  /** Texto em dois trechos, cada um com a sua fonte (o segundo fica no `text2` de cada tela ou do overlay). */
+  twoParts: boolean;
   overlay: Overlay;
   /** Música e localização escolhidas (-1 = nenhuma). */
   music: number;
@@ -17,6 +19,7 @@ export interface FinishState {
 export const INITIAL_FINISH: FinishState = {
   format: "4:5",
   overlayOn: false,
+  twoParts: false,
   // em cima: nos stories, deixa o meio e a parte de baixo para as figurinhas
   overlay: { ...DEFAULT_OVERLAY, position: "top" },
   music: 0,
@@ -33,8 +36,10 @@ export function overlaysFor(
 ): (Overlay | null)[] {
   return Array.from({ length: count }, (_, i) => {
     if (!finish.overlayOn) return null;
-    const text = destination === "stories" ? (frames[i]?.text ?? "") : i === 0 ? finish.overlay.text : "";
-    return text.trim() ? { ...finish.overlay, text } : null;
+    const source = destination === "stories" ? frames[i] : i === 0 ? finish.overlay : undefined;
+    const text = source?.text ?? "";
+    const text2 = finish.twoParts ? (source?.text2 ?? "") : "";
+    return text.trim() || text2.trim() ? { ...finish.overlay, text, text2 } : null;
   });
 }
 

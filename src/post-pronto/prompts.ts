@@ -1,6 +1,6 @@
 // Instruções enviadas ao Claude e leitura das respostas.
 // O Claude recebe só o texto montado aqui (mais as fotos): cada chamada é independente.
-import { MAX_HASHTAGS, STORY_WORDS } from "./caption";
+import { bothParts, MAX_HASHTAGS, STORY_WORDS } from "./caption";
 import type {
   Answer, Brief, CaptionOption, Destination, Draft, Goal, MusicPick, PhotoMeta, PlacePick, Question, Sticker,
   StickerKind, StoryFrame, StoryLength, StoryVersion, Suggestions, Tone,
@@ -395,7 +395,8 @@ export function buildRefinePrompt(r: RefineRequest): string {
 /** As telas no formato combinado com o Claude. */
 function framesForPrompt(frames: StoryFrame[]) {
   return frames.map((f) => ({
-    texto: f.text,
+    // com dois trechos, o Claude vê o texto inteiro (a página divide de novo depois do ajuste)
+    texto: bothParts(f),
     figurinha: f.sticker ? { tipo: STICKER_TYPES[f.sticker.kind], texto: f.sticker.text, opcoes: f.sticker.options } : NO_STICKER,
   }));
 }

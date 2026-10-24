@@ -510,6 +510,14 @@ try {
   expect((await page.locator(".how").innerText()).includes("Na tela 2, toque no ícone de figurinhas e adicione Enquete"), "passo a passo");
   await page.getByRole("radio", { name: "Moderno" }).click();
   await page.getByText("Faixa atrás do texto").click();
+  // dois trechos com fontes diferentes: o texto de cada tela é dividido num ponto natural
+  await page.getByText("Dois trechos com fontes diferentes").click();
+  expect((await page.getByLabel("Trecho 1 da tela 1").inputValue()) === "Cinco velinhas", "trecho 1 da tela 1");
+  expect((await page.getByLabel("Trecho 2 da tela 1").inputValue()) === "e um dinossauro de chantilly", "trecho 2 da tela 1");
+  const font2 = page.getByRole("radiogroup", { name: "Fonte do trecho 2" });
+  expect((await font2.getByRole("radio", { name: "Manuscrito" }).getAttribute("aria-checked")) === "true", "o trecho 2 começa manuscrito");
+  await font2.getByRole("radio", { name: "Editorial" }).click();
+  await page.getByLabel("Tamanho do trecho 2").fill("0.8");
   await shot(page, "06-stories-pronto");
   await shot(page, "06b-stories-pronto-pagina-inteira", true);
 
@@ -534,7 +542,12 @@ try {
 
   await download(page, page.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }), `${OUT}/downloads/stories.txt`);
   const storiesTxt = readFileSync(`${OUT}/downloads/stories.txt`, "utf8");
-  expect(storiesTxt.startsWith("STORIES\nTela 1: Cinco velinhas – e um dinossauro de chantilly\n  Figurinha – Caixa de perguntas: Mande um recado para a Ana"), `txt: ${storiesTxt}`);
+  expect(
+    storiesTxt.startsWith(
+      "STORIES\nTela 1: Cinco velinhas\n  Trecho 2: e um dinossauro de chantilly\n  Figurinha – Caixa de perguntas: Mande um recado para a Ana",
+    ),
+    `txt: ${storiesTxt}`,
+  );
   expect(storiesTxt.includes("MÚSICA\nHappy – Pharrell Williams (refrão)") && storiesTxt.includes("HASHTAGS\n#festadinossauro #5anos #vovó"), `txt: ${storiesTxt}`);
   await download(page, page.getByRole("button", { name: "Baixar tudo junto (.zip)" }), `${OUT}/downloads/stories-completo.zip`);
   const all = python("import sys,zipfile\nprint(','.join(zipfile.ZipFile(sys.argv[1]).namelist()))", `${OUT}/downloads/stories-completo.zip`);
@@ -552,6 +565,12 @@ try {
     `${OUT}/downloads/tela.png`,
   ).split(" ").map(Number);
   expect(screenInfo[0] >= 1200 && screenInfo[1] > 1500 && screenInfo[2] > 500, `imagem da tela: ${screenInfo}`);
+
+  // de volta à escolha, o editor mostra os dois trechos
+  await page.getByRole("button", { name: "Voltar para os textos" }).click();
+  expect((await page.getByLabel("Trecho 2 da tela 1 (outra fonte)").inputValue()) === "e um dinossauro de chantilly", "trecho 2 no editor");
+  await page.getByRole("button", { name: "Confirmar textos" }).click();
+  await page.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
 
   // ============ 2. Feed, na mesma página ============
   await page.getByRole("button", { name: "Começar outro post" }).click();
@@ -594,6 +613,12 @@ try {
   await page.getByText("Escrever um texto na capa").click();
   expect((await page.getByLabel("Texto", { exact: true }).inputValue()) === "5 anos de Ana", "deveria sugerir o texto da capa");
   await page.getByRole("radio", { name: "Impacto" }).click();
+  // na capa também: ligar divide o texto, desligar junta de novo
+  await page.getByText("Dois trechos com fontes diferentes").click();
+  expect((await page.getByLabel("Trecho 1", { exact: true }).inputValue()) === "5 anos", "trecho 1 da capa");
+  expect((await page.getByLabel("Trecho 2", { exact: true }).inputValue()) === "de Ana", "trecho 2 da capa");
+  await page.getByText("Dois trechos com fontes diferentes").click();
+  expect((await page.getByLabel("Texto", { exact: true }).inputValue()) === "5 anos de Ana", "desligar junta os trechos");
   const zoom = page.getByLabel("Zoom");
   await zoom.focus();
   for (let i = 0; i < 30; i++) await zoom.press("ArrowRight");
