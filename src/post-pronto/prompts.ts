@@ -14,7 +14,7 @@ const GOAL_PROMPT: Record<Destination, Record<Goal, string>> = {
     memory: "registrar um momento com afeto, para amigos e família",
   },
   stories: {
-    comments: "gerar interação: respostas por mensagem e votos e respostas nas figurinhas",
+    comments: "gerar interação: respostas por mensagem, reações e compartilhamentos",
     shares: "alcançar mais gente: ser compartilhado e repostado por quem aparece ou por quem assiste",
     sales: "divulgar um produto, serviço ou negócio e levar a uma ação (mandar mensagem, tocar no link)",
     memory: "registrar um momento com afeto, para amigos e família",
@@ -66,7 +66,10 @@ const HUMAN_VOICE = [
   "- Evite o que denuncia texto de IA: expressões como \"momentos inesquecíveis\", \"memórias para a vida toda\", " +
     '"a magia de", "cada detalhe", "jornada", "mergulhe", "descubra", "embarque", "prepare-se", "simplesmente", ' +
     '"que tal", "é sobre isso" e "e tá tudo bem"; estruturas como "não é só X, é Y" e "O segredo? ..."; listas de três ' +
-    'adjetivos; frase de efeito no fim; perguntas genéricas como "E você, o que acha?".',
+    "adjetivos; frase de efeito no fim.",
+  "- Não faça perguntas: nem no gancho, nem no meio, nem para chamar para a ação. No lugar delas, use um convite " +
+    "direto, ligado ao assunto (para comentar, mandar mensagem, marcar alguém). Pergunta só se a pessoa pedir um quiz " +
+    "(no contexto, nas respostas ou no pedido de ajuste).",
   "- Pontuação simples: no máximo uma exclamação por texto, sem reticências de suspense e sem emojis de enfeite como ✨ e 💫.",
 ];
 
@@ -145,7 +148,7 @@ const STORIES_EXAMPLE = {
       estilo: "Narrativa",
       telas: [
         { texto: "Frase curta sobre a foto 1", figurinha: NO_STICKER },
-        { texto: "Frase curta sobre a foto 2", figurinha: { tipo: "enquete", texto: "Pergunta da enquete?", opcoes: ["Opção 1", "Opção 2"] } },
+        { texto: "Frase curta sobre a foto 2", figurinha: { tipo: "adicione o seu", texto: "Convite para postarem algo parecido", opcoes: [] } },
       ],
       por_que: "Por que tende a engajar, em uma frase.",
     },
@@ -192,7 +195,7 @@ function feedBody(L: string[], r: SuggestRequest) {
     "",
     "LEGENDAS",
     "Escreva 3 opções com abordagens diferentes entre si (por exemplo: uma pequena história, uma curta e marcante, uma " +
-      "que puxe conversa com uma pergunta) e dê a cada uma um nome curto em \"estilo\". Em todas:",
+      "que puxe conversa com um convite direto) e dê a cada uma um nome curto em \"estilo\". Em todas:",
     "- A primeira linha é o gancho: precisa prender a atenção sozinha e ter no máximo 125 caracteres, que é o que " +
       "aparece no feed antes do \"mais\".",
     "- Fale do que aparece de fato nas fotos e do contexto informado; evite clichês e frases que serviriam para qualquer foto.",
@@ -260,18 +263,21 @@ function storiesBody(L: string[], r: SuggestRequest) {
     "TEXTOS DOS STORIES",
     "Nos stories não há legenda: o texto vai escrito sobre a foto, que ocupa a tela inteira (9:16), e quem assiste fica " +
       "uns 5 segundos em cada tela. Escreva 3 versões com abordagens diferentes entre si (por exemplo: narrativa, direta " +
-      `e marcante, interativa) e dê a cada uma um nome curto em "estilo". Cada versão tem ${screens}, em "telas". Em cada tela:`,
+      `e marcante, com um convite para quem assiste) e dê a cada uma um nome curto em "estilo". Cada versão tem ${screens}, ` +
+      'em "telas". Em cada tela:',
     `- "texto": o que vai escrito sobre a foto, ${storyWordsRule(r.brief.storyLength)}. ` +
       (n > 1
-        ? "A primeira tela prende a atenção e a última chama para a ação (responder, votar, mandar mensagem, tocar no link)."
-        : "Prenda a atenção e, se fizer sentido, chame para a ação (responder, votar, mandar mensagem, tocar no link)."),
+        ? "A primeira tela prende a atenção e a última chama para a ação (mandar mensagem, compartilhar, tocar no link)."
+        : "Prenda a atenção e, se fizer sentido, chame para a ação (mandar mensagem, compartilhar, tocar no link)."),
     ...(r.brief.storyLength === "long" ? [TITLE_LINE] : []),
-    `- "figurinha": a figurinha interativa que combina com a tela, ou tipo "nenhuma". Tipos: ${types}. Enquete: ` +
-      'pergunta em "texto" e de 2 a 4 opções curtas em "opcoes". Caixa de perguntas: o convite para as pessoas mandarem ' +
-      "perguntas ou respostas. Quiz: pergunta e de 2 a 4 opções, a primeira é a correta. Slider: pergunta e um emoji em " +
-      '"opcoes". Contagem regressiva: o nome do evento. Link: o texto do botão (o endereço a pessoa coloca no Instagram). ' +
-      "Adicione o seu: o convite para outras pessoas postarem algo parecido. Use figurinhas onde fizerem sentido, sem pôr " +
-      'em todas as telas: são elas que mais geram respostas nos stories. Com "nenhuma", deixe "texto" vazio e "opcoes" como [].',
+    `- "figurinha": a figurinha interativa que combina com a tela, ou tipo "nenhuma". Tipos: ${types}. Enquete, caixa ` +
+      "de perguntas, quiz e slider são perguntas: só entram se a pessoa pedir (no contexto, nas respostas ou no pedido " +
+      'de ajuste), e o quiz só quando ela pedir um quiz. Enquete: pergunta em "texto" e de 2 a 4 opções curtas em ' +
+      '"opcoes". Caixa de perguntas: o convite para as pessoas mandarem perguntas ou respostas. Quiz: pergunta e de 2 a 4 ' +
+      'opções, a primeira é a correta. Slider: pergunta e um emoji em "opcoes". Contagem regressiva: o nome do evento. ' +
+      "Link: o texto do botão (o endereço a pessoa coloca no Instagram). Adicione o seu: o convite para outras pessoas " +
+      "postarem algo parecido. Use figurinhas só onde fizerem sentido, sem pôr em todas as telas. Com \"nenhuma\", deixe " +
+      '"texto" vazio e "opcoes" como [].',
     "- Fale do que aparece de fato na foto e do contexto informado; evite clichês e frases que serviriam para qualquer foto.",
     ...HUMAN_VOICE,
     "- Não coloque hashtags nem menções no texto.",
@@ -489,7 +495,10 @@ export const REFINE_PRESETS: { label: string; instruction: string }[] = [
   { label: "Mais divertida", instruction: "Deixe a legenda mais leve e divertida, com humor." },
   { label: "Mais profissional", instruction: "Deixe a legenda mais profissional e objetiva." },
   { label: "Sem emojis", instruction: "Remova todos os emojis." },
-  { label: "Terminar com pergunta", instruction: "Termine a legenda com uma pergunta que incentive comentários." },
+  {
+    label: "Terminar com convite",
+    instruction: "Termine a legenda com um convite direto para comentar ou compartilhar, sem pergunta.",
+  },
   { label: "Trocar hashtags", instruction: "Mantenha o texto e troque as hashtags por outras mais específicas." },
 ];
 
@@ -510,6 +519,11 @@ export const STORY_REFINE_PRESETS: { label: string; instruction: string }[] = [
   {
     label: "Mais figurinhas",
     instruction: "Inclua figurinhas interativas (enquete, caixa de perguntas ou quiz) onde fizer sentido, para gerar mais respostas.",
+  },
+  {
+    label: "Com quiz",
+    instruction:
+      "Ponha um quiz numa das telas: a pergunta vai na figurinha de quiz, com de 2 a 4 opções e a certa primeiro.",
   },
   { label: "Sem figurinhas", instruction: "Remova todas as figurinhas e mantenha só os textos." },
 ];

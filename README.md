@@ -110,9 +110,10 @@ de *stories*; o de *feed* continua disponível.
 
 - **Stories** (o padrão): uma tela 9:16 para cada foto, até 10 em sequência. O Claude sugere três versões da
   sequência, com um texto curto para escrever em cada foto (a primeira tela prende a atenção, a última chama para a
-  ação) e a figurinha interativa que combina com cada tela: enquete, caixa de perguntas, *quiz*, *slider* de emoji,
-  contagem regressiva, *link* ou "Adicione o seu". Dá para editar o texto e a figurinha de cada tela à mão ou pedir
-  ajustes ao Claude (mais curtos, mais divertidos, mais figurinhas...). Em **Tamanho do texto nas fotos**, o texto de
+  ação) e a figurinha interativa que combina com cada tela: contagem regressiva, *link* ou "Adicione o seu"; as que
+  são perguntas (enquete, caixa de perguntas, *quiz* e *slider* de emoji) só entram quando você pede, no contexto ou num
+  ajuste (há o atalho **Com quiz**). Dá para editar o texto e a figurinha de cada tela à mão ou pedir ajustes ao Claude
+  (mais curtos, mais divertidos, mais figurinhas...). Em **Tamanho do texto nas fotos**, o texto de
   cada tela pode ser curto (até 12 palavras, para ler num relance) ou mais longo (até 30, para contar mais). A foto sai
   em 1080 × 1920 com o texto escrito nela, longe das áreas cobertas pelos botões do *story*. As figurinhas, a música e a localização só funcionam
   adicionadas no próprio Instagram: a prévia mostra onde entram (tracejadas) e a etapa final lista o que adicionar em
@@ -126,8 +127,9 @@ de *stories*; o de *feed* continua disponível.
   frases impessoais ou em terceira pessoa, ou falam com quem assiste. Palavras do dia a dia e frases de tamanhos
   diferentes; um detalhe concreto no lugar de um adjetivo bonito; nada de expressões como "momentos inesquecíveis", "a
   magia de" e "jornada", estruturas como "não é só X, é Y", listas de três adjetivos e frase de efeito no fim; no máximo
-  uma exclamação e nada de emojis de enfeite. Nos ajustes, **Mais natural** (legenda) e **Mais naturais** (stories)
-  pedem uma reescrita nesse sentido.
+  uma exclamação e nada de emojis de enfeite. Também sem perguntas, nem no fim, para chamar comentários: no lugar
+  delas, um convite direto; pergunta só quando você pede um *quiz*. Nos ajustes, **Mais natural** (legenda) e **Mais
+  naturais** (stories) pedem uma reescrita nesse sentido, e **Terminar com convite** fecha a legenda sem pergunta.
 - **Na tela de escolha**: **Usar e editar** abre o editor dentro da opção escolhida, para mudar o texto à mão.
   **Gerar de novo** refaz todas as opções: se faltou alguma informação (ou alguma estava errada), escreva antes no
   campo opcional **Acrescente ou corrija uma informação**, ou edite o contexto inteiro, e o Claude leva isso em conta;

@@ -79,11 +79,18 @@ describe("buildSuggestPrompt", () => {
       expect(p).not.toContain('"a gente").');
       expect(p).toContain('"momentos inesquecíveis"');
       expect(p).toContain("no máximo uma exclamação por texto");
+      expect(p).toContain("Não faça perguntas: nem no gancho, nem no meio, nem para chamar para a ação.");
+      expect(p).toContain("Pergunta só se a pessoa pedir um quiz");
     }
+    // nos stories, figurinhas com pergunta só a pedido; o exemplo de resposta não puxa para a enquete
+    const stories = buildSuggestPrompt(base);
+    expect(stories).toContain("Enquete, caixa de perguntas, quiz e slider são perguntas: só entram se a pessoa pedir");
+    expect(stories).not.toContain('"tipo": "enquete"');
+    expect(buildSuggestPrompt(feed)).not.toContain("com uma pergunta");
   });
 
   it("o objetivo muda conforme o destino", () => {
-    expect(buildSuggestPrompt(base)).toContain("respostas por mensagem e votos e respostas nas figurinhas");
+    expect(buildSuggestPrompt(base)).toContain("respostas por mensagem, reações e compartilhamentos");
     expect(buildSuggestPrompt(feed)).toContain("puxar conversa e gerar comentários");
   });
 
