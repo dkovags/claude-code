@@ -10,7 +10,7 @@ import type { Photo } from "../photos";
 import { formatTakenAt } from "../prompts";
 import {
   ensureOverlayFonts, exportJpeg, fitZoom, FORMATS, type FormatId, formatSpec, type FormatSpec, type Framing, MAX_ZOOM,
-  minZoom, type Overlay,
+  minZoom, type Overlay, snapZoom,
   OVERLAY_STYLES, type OverlayStyle, TEXT_BG_LABELS, type TextBg,
 } from "../render";
 import { touchScreen } from "../runtime";
@@ -740,19 +740,15 @@ export function FinishPanel({
             max={MAX_ZOOM}
             step={0.01}
             value={zoom}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              // perto de preencher a tela ou da foto inteira, encaixa no ponto exato (sem fiapos de fundo desfocado)
-              const snapped = Math.abs(v - 1) < 0.006 ? 1 : Math.abs(v - wholeZoom) < 0.006 ? wholeZoom : v;
-              setFraming(active, { ...photo.framing, zoom: snapped });
-            }}
+            onChange={(e) => setFraming(active, { ...photo.framing, zoom: snapZoom(Number(e.target.value), wholeZoom) })}
           />
         </div>
         <p className="hint with-icon">
           <Move size={15} aria-hidden="true" />
           <span>
-            Diminua o zoom para mostrar mais da foto, até ela inteira ou menor. Arraste a foto na prévia (ou use as setas
-            do teclado) para escolher o que aparece e onde ela fica.
+            Diminua o zoom para mostrar mais da foto, até ela inteira ou menor. Na prévia, arraste a foto (ou use as setas
+            do teclado) para escolher o que aparece e onde ela fica, e faça pinça com dois dedos para o zoom (no
+            computador, com a pinça do trackpad ou Ctrl + roda do mouse).
             {zoom < 0.995 && " O espaço que sobra fica com a própria foto, desfocada."}
           </span>
         </p>

@@ -804,6 +804,15 @@ try {
   expect(afterDrag !== beforeDrag, "a foto menor que a tela também se arrasta");
   await framingGroup.getByRole("radio", { name: "Preencher a tela" }).click();
   expect(Number(await zoom.inputValue()) === 1, "Preencher a tela volta ao zoom 1");
+  // no computador, a pinça do trackpad chega como roda com Ctrl; a roda sozinha continua rolando a página
+  await page.mouse.move(cbox.x + cbox.width / 2, cbox.y + cbox.height * 0.6);
+  await page.mouse.wheel(0, -100);
+  expect(Number(await zoom.inputValue()) === 1, "a roda sem Ctrl não muda o zoom");
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -100);
+  await page.keyboard.up("Control");
+  await page.waitForFunction(() => Number(document.querySelector("#pp-zoom")?.value) > 1.5);
+  await framingGroup.getByRole("radio", { name: "Preencher a tela" }).click();
   await shot(page, "08-feed-pronto");
 
   expect(
@@ -872,8 +881,30 @@ try {
   await m.getByRole("button", { name: "Remover figurinha" }).click();
   expect((await m.getByLabel("Figurinha (você adiciona no Instagram)").inputValue()) === "", "o editor fica sem figurinha");
   expect((await m.locator(".story-screen .sticker-ghost").count()) === 0, "a prévia fica sem figurinha");
+  // pinça com dois dedos na prévia: afasta os dedos para aproximar e junta para mostrar a foto inteira (e menor)
+  const touch = await phone.newCDPSession(m);
+  const pinchPreview = async (from, to) => {
+    const b = await m.locator(".story-screen").boundingBox();
+    const cx = b.x + b.width / 2;
+    const cy = b.y + b.height * 0.62;
+    const points = (gap) => [{ x: cx - gap / 2, y: cy, id: 0 }, { x: cx + gap / 2, y: cy, id: 1 }];
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points(from) });
+    for (let i = 1; i <= 6; i++) {
+      await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: points(from + ((to - from) * i) / 6) });
+    }
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  };
+  await m.locator(".story-screen").scrollIntoViewIfNeeded();
+  await m.getByText("Arraste a foto para enquadrar e faça pinça com dois dedos para o zoom.").waitFor();
+  await pinchPreview(80, 160);
   await m.getByRole("button", { name: "Confirmar textos" }).click();
   await m.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
+  const phoneZoom = m.getByLabel("Zoom");
+  expect(Math.abs(Number(await phoneZoom.inputValue()) - 2) < 0.05, `a pinça na escolha aproxima a foto: ${await phoneZoom.inputValue()}`);
+  await m.locator(".story-screen").scrollIntoViewIfNeeded();
+  await pinchPreview(200, 40);
+  expect(Math.abs(Number(await phoneZoom.inputValue()) - 0.45) < 0.011, `juntar os dedos leva ao menor zoom: ${await phoneZoom.inputValue()}`);
+  await m.getByRole("radiogroup", { name: "Enquadramento" }).getByRole("radio", { name: "Preencher a tela" }).click();
   await shot(m, "12-celular-pronto");
   // no celular, enquanto ajusta o texto, uma prévia pequena acompanha no canto
   await m.locator('section[aria-labelledby="pp-overlay"]').scrollIntoViewIfNeeded();

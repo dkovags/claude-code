@@ -135,11 +135,13 @@ de *stories*; o de *feed* continua disponível.
   data e o GPS gravados na foto quando existem (dá para desligar); enquadramento livre (veja abaixo); *download* da
   foto (ou de um .zip com todas), dos textos em .txt ou de tudo junto;
   dicas e o passo a passo para publicar. O perfil, o @ e as preferências ficam guardados no aparelho.
-- **Enquadramento livre**: o *zoom* vai da foto um pouco menor que inteira até 3 vezes mais perto, e a foto pode ser
-  arrastada na prévia (ou movida com as setas) em qualquer *zoom*. Quando ela sobra, arrastar escolhe a parte que
-  aparece; quando não ocupa a tela toda, escolhe onde ela fica, e o espaço que sobra é preenchido com a própria foto,
-  desfocada. **Preencher a tela** e **Foto inteira** são atalhos para esses dois pontos, e o controle encaixa neles
-  quando chega perto.
+- **Enquadramento livre**: o *zoom* vai da foto um pouco menor que inteira até 3 vezes mais perto, e dá para
+  enquadrar direto na prévia, desde a escolha dos textos (ou da legenda): arrastar a foto com um dedo (ou as setas do
+  teclado) e fazer pinça com dois dedos para o *zoom*, que acompanha o meio dos dedos; no computador, a pinça do
+  *trackpad* ou Ctrl + roda do mouse. A pinça funciona também em cima dos textos e da figurinha. Quando a foto sobra,
+  arrastar escolhe a parte que aparece; quando ela não ocupa a tela toda, escolhe onde ela fica, e o espaço que sobra
+  é preenchido com a própria foto, desfocada. Na etapa final, **Preencher a tela** e **Foto inteira** são atalhos para
+  esses dois pontos, e o *zoom* encaixa neles quando chega perto.
 - **Título e explicação**: na tela de escolha ou na etapa final, o texto escrito na foto pode ser dividido em título
   e explicação, um embaixo do outro, cada um com a sua fonte, o seu tamanho e a sua caixa. Ao ligar, a página separa o
   título: a primeira linha, a primeira frase (se for curta) ou o começo até dois-pontos ou um travessão; sem nada

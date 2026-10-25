@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, fitZoom, formatSpec, layoutOverlay, minZoom, overlayStyles, pan,
-  placePhoto, sharpness, textBoxes, textColors, upscale, wrapLines,
+  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, fitZoom, formatSpec, layoutOverlay, minZoom, overlayStyles, pan, pinch,
+  placePhoto, sharpness, snapZoom, textBoxes, textColors, upscale, wrapLines,
 } from "../../src/post-pronto/render";
 
 // largura fictícia: cada caractere mede 0,5 do tamanho da fonte
@@ -51,6 +51,28 @@ describe("enquadramento", () => {
     expect(placePhoto(4000, 3000, 1080, 1920, DEFAULT_FRAMING).dh).toBeCloseTo(1920);
     // foto no mesmo formato do quadro: inteira é o mesmo que preencher
     expect(fitZoom(1080, 1920, 1080, 1920)).toBe(1);
+  });
+
+  it("pinça: o ponto da foto embaixo dos dedos continua embaixo deles, e a foto acompanha os dedos", () => {
+    const at = { x: 0.3, y: 0.4 };
+    const before = placePhoto(4000, 3000, 1080, 1350, DEFAULT_FRAMING);
+    const zoomed = pinch(DEFAULT_FRAMING, 2, at, at, 4000, 3000, 1080, 1350);
+    const after = placePhoto(4000, 3000, 1080, 1350, zoomed);
+    expect(zoomed.zoom).toBe(2);
+    expect((at.x * 1080 - after.dx) / after.scale).toBeCloseTo((at.x * 1080 - before.dx) / before.scale);
+    expect((at.y * 1350 - after.dy) / after.scale).toBeCloseTo((at.y * 1350 - before.dy) / before.scale);
+    // sem mudar o zoom, os dedos andando 10% da largura levam a foto junto
+    const moved = pinch(DEFAULT_FRAMING, 1, { x: 0.5, y: 0.5 }, { x: 0.6, y: 0.5 }, 4000, 3000, 1080, 1350);
+    expect(placePhoto(4000, 3000, 1080, 1350, moved).dx - before.dx).toBeCloseTo(108);
+    // juntar demais os dedos para no menor zoom
+    expect(pinch(DEFAULT_FRAMING, 0.01, at, at, 4000, 3000, 1080, 1350).zoom).toBeCloseTo(minZoom(4000, 3000, 1080, 1350));
+  });
+
+  it("perto de preencher a tela ou da foto inteira, o zoom encaixa no ponto exato", () => {
+    expect(snapZoom(0.997, 0.75)).toBe(1);
+    expect(snapZoom(0.754, 0.75)).toBe(0.75);
+    expect(snapZoom(0.9, 0.75)).toBe(0.9);
+    expect(snapZoom(0.985, 0.75, 0.02)).toBe(1);
   });
 
   it("com a foto menor que a tela, arrastar muda onde ela fica, sem sair da tela", () => {

@@ -59,6 +59,40 @@ export function placePhoto(imgW: number, imgH: number, outW: number, outH: numbe
   return { scale, dx: ((outW - dw) * (clamp(f.x) + 1)) / 2, dy: ((outH - dh) * (clamp(f.y) + 1)) / 2, dw, dh };
 }
 
+/** Perto de preencher o quadro (1) ou da foto inteira, o zoom encaixa no ponto exato (sem fiapos de fundo desfocado). */
+export function snapZoom(zoom: number, whole: number, tolerance = 0.006): number {
+  return Math.abs(zoom - 1) < tolerance ? 1 : Math.abs(zoom - whole) < tolerance ? whole : zoom;
+}
+
+/**
+ * Zoom com pinça: muda o zoom mantendo embaixo dos dedos o mesmo ponto da foto, que acompanha o meio dos dedos.
+ * `from` e `to` são o meio dos dedos no começo do gesto e agora, em fração do quadro.
+ */
+export function pinch(
+  start: Framing,
+  zoom: number,
+  from: Spot,
+  to: Spot,
+  imgW: number,
+  imgH: number,
+  outW: number,
+  outH: number,
+): Framing {
+  const p0 = placePhoto(imgW, imgH, outW, outH, start);
+  const next = { ...start, zoom: clamp(zoom, minZoom(imgW, imgH, outW, outH), MAX_ZOOM) };
+  const p = placePhoto(imgW, imgH, outW, outH, next);
+  // o ponto da foto que estava embaixo dos dedos vai para onde os dedos estão agora
+  const dx = to.x * outW - ((from.x * outW - p0.dx) / p0.scale) * p.scale;
+  const dy = to.y * outH - ((from.y * outH - p0.dy) / p0.scale) * p.scale;
+  const slackX = outW - p.dw;
+  const slackY = outH - p.dh;
+  return {
+    ...next,
+    x: Math.abs(slackX) > 0.5 ? clamp((2 * dx) / slackX - 1) : 0,
+    y: Math.abs(slackY) > 0.5 ? clamp((2 * dy) / slackY - 1) : 0,
+  };
+}
+
 /** Parte da foto (em pixels da foto) que aparece no quadro quando ela o preenche (zoom de 1 a 3). */
 export function cropRect(imgW: number, imgH: number, outW: number, outH: number, f: Framing) {
   const scale = Math.max(outW / imgW, outH / imgH) * clamp(f.zoom, 1, MAX_ZOOM);

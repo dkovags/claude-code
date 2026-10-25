@@ -14,11 +14,14 @@ const keepIn = (b: TextBox, at: Spot): Spot => ({
 export function TextHandles({
   boxes,
   frame,
+  pinching,
   onMove,
 }: {
   boxes: TextBox[];
   /** O quadro da prévia, para converter o arraste em fração da foto. */
   frame: RefObject<HTMLElement | null>;
+  /** Pinça em andamento no quadro: com dois dedos, o texto para de acompanhar o dedo. */
+  pinching?: { current: boolean };
   onMove: (part: 1 | 2, at: Spot) => void;
 }) {
   const grab = useRef<{ box: TextBox; dx: number; dy: number } | null>(null);
@@ -43,19 +46,27 @@ export function TextHandles({
           aria-label={`${boxes.length < 2 ? "Texto" : b.part === 1 ? "Título" : "Explicação"} na foto: arraste (ou use as setas) para mudar de lugar`}
           style={{ left: `${b.x * 100}%`, top: `${b.y * 100}%`, width: `${b.w * 100}%`, height: `${b.h * 100}%` }}
           onPointerDown={(e) => {
+            // o segundo dedo é da pinça, que enquadra a foto
+            if (!e.isPrimary || pinching?.current) return;
             e.preventDefault();
             e.currentTarget.setPointerCapture(e.pointerId);
             const p = spotOf(e);
             // guarda onde o dedo pegou, para a caixa não pular
             grab.current = { box: b, dx: p.x - b.center.x, dy: p.y - b.center.y };
           }}
-          onPointerMove={moveTo}
+          onPointerMove={(e) => {
+            if (pinching?.current) grab.current = null;
+            else moveTo(e);
+          }}
           // o último movimento pode chegar junto com o soltar: a posição final vem dele
           onPointerUp={(e) => {
-            moveTo(e);
+            if (!pinching?.current) moveTo(e);
             grab.current = null;
           }}
           onPointerCancel={() => {
+            grab.current = null;
+          }}
+          onLostPointerCapture={() => {
             grab.current = null;
           }}
           onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {

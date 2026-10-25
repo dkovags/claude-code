@@ -505,7 +505,8 @@ export default function App() {
     music: isExample ? EXAMPLE_MUSIC : atFinish ? result?.music[finish.music] : undefined,
     place: isExample ? EXAMPLE_PLACE : atFinish ? result?.places[finish.place] : undefined,
     example: isExample,
-    editable: atFinish,
+    // enquadrar na prévia vale desde a escolha dos textos (ou da legenda)
+    editable: picked && !isExample,
     onFraming: (f: Framing) => setFraming(previewIndex, f),
     index: previewIndex,
     count: photos.length,

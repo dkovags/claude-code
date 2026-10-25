@@ -85,7 +85,8 @@ export function StoryPreview({
 }) {
   const shot = useShot({ source, spec: STORY, framing, overlay, width: 540, onFraming: editable ? onFraming : undefined });
   const name = handle || "seu_perfil";
-  const screen = useRef<HTMLDivElement>(null);
+  // o quadro da prévia: é nele que valem os gestos de enquadrar (arrastar e pinça)
+  const screen = shot.surface;
   const grab = useRef<{ dx: number; dy: number } | null>(null);
   const textPosition = overlay && (overlay.text.trim() || overlay.text2.trim()) ? overlay.position : null;
   // figurinhas empilhadas na parte livre da tela: longe do texto, do topo e da barra de resposta
@@ -116,19 +117,27 @@ export function StoryPreview({
   const dragHandlers = movable
     ? {
         onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
+          // o segundo dedo é da pinça, que enquadra a foto
+          if (!e.isPrimary || shot.pinching.current) return;
           e.preventDefault();
           e.currentTarget.setPointerCapture(e.pointerId);
           const g = e.currentTarget.getBoundingClientRect();
           // guarda onde o dedo pegou, para a figurinha não pular
           grab.current = { dx: e.clientX - (g.left + g.width / 2), dy: e.clientY - (g.top + g.height / 2) };
         },
-        onPointerMove: (e: PointerEvent<HTMLDivElement>) => moveTo(e),
+        onPointerMove: (e: PointerEvent<HTMLDivElement>) => {
+          if (shot.pinching.current) grab.current = null;
+          else moveTo(e);
+        },
         // o último movimento pode chegar junto com o soltar: a posição final vem dele
         onPointerUp: (e: PointerEvent<HTMLDivElement>) => {
-          moveTo(e);
+          if (!shot.pinching.current) moveTo(e);
           grab.current = null;
         },
         onPointerCancel: () => {
+          grab.current = null;
+        },
+        onLostPointerCapture: () => {
           grab.current = null;
         },
         onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
@@ -180,19 +189,19 @@ export function StoryPreview({
   return (
     <figure className="story">
       {example && <span className="example-tag">Exemplo</span>}
-      <div className={`story-screen${shot.canPan ? " editing" : ""}`} ref={screen}>
+      <div className={`story-screen${shot.canPan ? " editing" : ""}`} ref={screen} {...shot.surfaceHandlers}>
         <canvas
           ref={shot.canvas}
           role="img"
           aria-label={
             example
               ? "Exemplo de story: pôr do sol no mar, com o texto Fim de tarde que pede pausa"
-              : `Prévia da tela ${index + 1} do story${shot.canPan ? ". Arraste para enquadrar" : ""}`
+              : `Prévia da tela ${index + 1} do story${shot.canPan ? ". Arraste ou faça pinça para enquadrar" : ""}`
           }
           tabIndex={shot.tabIndex}
           {...shot.handlers}
         />
-        {movableText && <TextHandles boxes={shot.boxes} frame={screen} onMove={onTextMove!} />}
+        {movableText && <TextHandles boxes={shot.boxes} frame={screen} pinching={shot.pinching} onMove={onTextMove!} />}
         <div className="story-top" aria-hidden="true">
           <div className="story-bars">
             {Array.from({ length: Math.max(1, count) }, (_, i) => (
@@ -252,9 +261,10 @@ export function StoryPreview({
           </>
         )}
       </div>
-      {(ghosts || movableText) && (
+      {(ghosts || movableText || (shot.canPan && !example)) && (
         <figcaption className="story-note">
           {ghosts && "O que está tracejado você adiciona no Instagram, com as figurinhas. Não vai na foto baixada."}
+          {shot.canPan && !example && " Arraste a foto para enquadrar e faça pinça com dois dedos para o zoom."}
           {movable && " Arraste a figurinha para ver onde ela fica melhor."}
           {movableText && " Arraste os textos para mudar o lugar deles na foto."}
         </figcaption>

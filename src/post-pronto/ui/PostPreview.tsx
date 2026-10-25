@@ -1,5 +1,5 @@
 import { Bookmark, ChevronLeft, ChevronRight, Ellipsis, Heart, MessageCircle, Music, Send } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { feedExcerpt } from "../caption";
 import type { FormatSpec, Framing, Overlay, Spot } from "../render";
 import type { Draft, MusicPick, PlacePick } from "../types";
@@ -60,7 +60,6 @@ export function PostPreview({
   onIndex: (i: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const frame = useRef<HTMLDivElement>(null);
   const shot = useShot({ source, spec, framing, overlay, width: 720, onFraming: editable ? onFraming : undefined });
   const name = handle || "seu_perfil";
   const caption = draft ? draft.text.trim() : "";
@@ -88,19 +87,19 @@ export function PostPreview({
         <Ellipsis size={18} aria-hidden="true" className="feed-more" />
       </header>
 
-      <div className={`shot${canPan ? " editing" : ""}`} ref={frame}>
+      <div className={`shot${canPan ? " editing" : ""}`} ref={shot.surface} {...shot.surfaceHandlers}>
         <canvas
           ref={shot.canvas}
           role="img"
           aria-label={
             example
               ? "Exemplo: pôr do sol no mar, com duas pessoas sentadas na pedra"
-              : `Prévia da foto ${index + 1} no formato ${spec.label}${canPan ? ". Arraste para enquadrar" : ""}`
+              : `Prévia da foto ${index + 1} no formato ${spec.label}${canPan ? ". Arraste ou faça pinça para enquadrar" : ""}`
           }
           tabIndex={shot.tabIndex}
           {...shot.handlers}
         />
-        {onTextMove && <TextHandles boxes={shot.boxes} frame={frame} onMove={onTextMove} />}
+        {onTextMove && <TextHandles boxes={shot.boxes} frame={shot.surface} pinching={shot.pinching} onMove={onTextMove} />}
         {canPan && (
           <>
             <i className="crop tl" aria-hidden="true" />
