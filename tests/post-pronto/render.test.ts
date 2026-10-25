@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, layoutOverlay, overlayStyles, pan, wrapLines,
+  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, formatSpec, layoutOverlay, overlayStyles, pan, sharpness, upscale,
+  wrapLines,
 } from "../../src/post-pronto/render";
 
 // largura fictícia: cada caractere mede 0,5 do tamanho da fonte
@@ -34,6 +35,28 @@ describe("enquadramento", () => {
     const r = cropRect(3000, 3000, 1080, 1080, { ...DEFAULT_FRAMING, zoom: 2 });
     expect(r.sw).toBeCloseTo(1500);
     expect(r.sx).toBeCloseTo(750);
+  });
+});
+
+describe("nitidez da foto baixada", () => {
+  const story = formatSpec("9:16");
+
+  it("foto do celular em pé: sobra resolução para o story", () => {
+    const f = upscale(3024, 4032, story, DEFAULT_FRAMING);
+    expect(f).toBeCloseTo(1080 / 2268);
+    expect(sharpness(f)).toBe("ok");
+  });
+
+  it("foto pequena e deitada (como as de mensagem) recortada em pé fica borrada; inteira, não", () => {
+    expect(upscale(1280, 960, story, DEFAULT_FRAMING)).toBeCloseTo(2);
+    expect(sharpness(upscale(1280, 960, story, DEFAULT_FRAMING))).toBe("blurry");
+    expect(sharpness(upscale(1280, 960, story, { ...DEFAULT_FRAMING, mode: "fit" }))).toBe("ok");
+  });
+
+  it("o zoom amplia a foto", () => {
+    expect(sharpness(upscale(4000, 3000, story, DEFAULT_FRAMING))).toBe("ok");
+    expect(sharpness(upscale(4000, 3000, story, { ...DEFAULT_FRAMING, zoom: 3 }))).toBe("blurry");
+    expect(sharpness(1.3)).toBe("soft");
   });
 });
 

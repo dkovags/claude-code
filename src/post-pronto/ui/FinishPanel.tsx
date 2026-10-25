@@ -1,6 +1,6 @@
 import {
   ArrowLeft, Crop, Download, ExternalLink, FileText, Images, Lightbulb, ListOrdered, MapPin, Move, Share2,
-  Sticker as StickerIcon, Trash2, Type,
+  Sticker as StickerIcon, Trash2, TriangleAlert, Type,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bothParts, fullCaption, musicLabel, postText, stickerSummary, storiesText } from "../caption";
@@ -20,6 +20,7 @@ import { makeZip } from "../zip";
 import { MusicSection } from "./MusicSection";
 import { CopyButton, Segmented, Toggle } from "./parts";
 import { PhotoStrip } from "./PhotoStrip";
+import { andList, photoSharpness, SharpnessNote } from "./Sharpness";
 import { useShot } from "./shot";
 
 /**
@@ -244,6 +245,10 @@ export function FinishPanel({
     [destination, photos.length, overlayOn, twoParts, overlay, frameTexts],
   );
   const names = fileNames(destination, photos.length);
+  // fotos que vão perder nitidez na imagem baixada (pouca resolução para o enquadramento)
+  const lowRes = photos.map((p) => photoSharpness(p, spec).level !== "ok");
+  const lowResNumbers = lowRes.flatMap((low, i) => (low ? [i + 1] : []));
+  const photoLabel = (i: number) => (!several ? "A foto" : stories ? `A foto da tela ${i + 1}` : `A foto ${i + 1}`);
   const music = result.music[finish.music];
   const place = result.places[finish.place];
   const caption = fullCaption(draft);
@@ -392,6 +397,23 @@ export function FinishPanel({
               <Download size={15} aria-hidden="true" /> Baixar tudo junto (.zip)
             </button>
           </div>
+        )}
+        {lowResNumbers.length > 0 && (
+          <p className="quality-note soft" role="status">
+            <TriangleAlert size={16} aria-hidden="true" />
+            <span>
+              {!several
+                ? "A foto"
+                : lowResNumbers.length === 1
+                  ? photoLabel(lowResNumbers[0] - 1)
+                  : stories
+                    ? `As fotos das telas ${andList(lowResNumbers)}`
+                    : `As fotos ${andList(lowResNumbers)}`}{" "}
+              {lowResNumbers.length > 1 ? "vão" : "vai"} perder nitidez na imagem baixada, porque{" "}
+              {lowResNumbers.length > 1 ? "têm" : "tem"} pouca resolução para o enquadramento. Veja em Foto, logo
+              abaixo, como melhorar.
+            </span>
+          </p>
         )}
         {saver?.share && (
           <p className="hint">
@@ -612,7 +634,7 @@ export function FinishPanel({
         {several && (
           <div className="field">
             <span className="label">{stories ? "Tela que você está ajustando" : "Foto que você está ajustando"}</span>
-            <PhotoStrip photos={photos} destination={destination} active={active} onActive={setActive} />
+            <PhotoStrip photos={photos} destination={destination} active={active} onActive={setActive} lowRes={lowRes} />
           </div>
         )}
         <Segmented<Framing["mode"]>
@@ -624,6 +646,7 @@ export function FinishPanel({
           value={photo.framing.mode}
           onChange={(mode) => setFraming(active, { ...photo.framing, mode })}
         />
+        <SharpnessNote photo={photo} spec={spec} label={photoLabel(active)} />
         {photo.framing.mode === "fill" ? (
           <>
             <div className="field">

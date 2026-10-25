@@ -49,6 +49,7 @@ export function PhotoStrip({
   onActive,
   loading,
   error,
+  lowRes,
 }: {
   photos: Photo[];
   destination: Destination;
@@ -62,6 +63,8 @@ export function PhotoStrip({
   loading?: boolean;
   /** Problema com as fotos enviadas, mostrado logo abaixo delas. */
   error?: string | null;
+  /** Fotos com pouca resolução para o enquadramento (ganham uma marca). */
+  lowRes?: boolean[];
 }) {
   const inputId = useId();
   const phone = mobileKind() !== null;
@@ -140,11 +143,16 @@ export function PhotoStrip({
                   className="thumb"
                   disabled={!onActive}
                   aria-pressed={onActive ? active === i : undefined}
-                  aria-label={destination === "stories" ? `Tela ${i + 1}` : `Foto ${i + 1}${cover ? ", capa" : ""}`}
+                  aria-label={`${destination === "stories" ? `Tela ${i + 1}` : `Foto ${i + 1}${cover ? ", capa" : ""}`}${lowRes?.[i] ? ", pouca resolução" : ""}`}
                   onClick={() => onActive?.(i)}
                 >
                   <img src={p.url} alt="" />
                 </button>
+                {lowRes?.[i] && (
+                  <span className="low-res-mark" aria-hidden="true" title="Pouca resolução para o enquadramento">
+                    !
+                  </span>
+                )}
                 <span className="frame-no">
                   {i + 1}
                   <span aria-hidden="true"> ▸</span>

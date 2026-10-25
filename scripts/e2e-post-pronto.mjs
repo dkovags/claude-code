@@ -1025,6 +1025,54 @@ try {
     await sized.close();
   }
 
+  // ============ 7. Foto pequena (como as recebidas por mensagem): avisa e mostra como melhorar ============
+  const lowCtx = await browser.newContext({
+    viewport: { width: 412, height: 915 },
+    isMobile: true,
+    hasTouch: true,
+    locale: "pt-BR",
+    reducedMotion: "reduce",
+  });
+  await hermetic(lowCtx);
+  await lowCtx.route("https://artefato.teste/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: skeleton }));
+  await lowCtx.addInitScript(
+    ({ QUESTIONS_LOOSE, STORY_SUGGESTIONS }) => {
+      const sample = async () => {
+        throw { code: "invalid_request" };
+      };
+      sample.json = async (input) => (input.includes("Antes de escrever") ? QUESTIONS_LOOSE : STORY_SUGGESTIONS);
+      sample.limits = async () => ({ images: { maxCount: 5, maxInputBytes: 20e6, mediaTypes: ["image/jpeg"] } });
+      const downloads = { save: async () => ({ status: "saved" }) };
+      window.claude = { use: async (name) => (name === "sample" ? sample : name === "downloads" ? downloads : null) };
+    },
+    { QUESTIONS_LOOSE, STORY_SUGGESTIONS },
+  );
+  const lp = (current = await lowCtx.newPage());
+  watch(lp);
+  await lp.goto("https://artefato.teste/");
+  await lp.getByRole("heading", { name: "Post Pronto" }).waitFor();
+  const smallPhoto = await drawPhoto(lp, 1280, 960, ["#a8d8f7", "#6b8be9", "#e9c46a"]);
+  await lp.locator('input[type="file"]').setInputFiles([{ name: "IMG-WA0001.jpg", mimeType: "image/jpeg", buffer: smallPhoto }]);
+  await lp.getByText("A foto tem pouca resolução e pode ficar borrada no story.").waitFor();
+  await lp.getByRole("button", { name: "Sugerir textos" }).click();
+  await lp.getByRole("button", { name: "Pular e gerar assim mesmo" }).click();
+  await lp.getByRole("button", { name: "Usar e editar" }).first().click();
+  await lp.getByRole("button", { name: "Confirmar textos" }).click();
+  await lp.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
+  await lp.getByText("A foto vai perder nitidez na imagem baixada").waitFor();
+  const photoNote = lp.locator('section[aria-labelledby="pp-photo"] .quality-note');
+  const noteText = await photoNote.innerText();
+  expect(
+    noteText.includes("1280 × 960 pixels e precisa ser ampliada 2,0 vezes") && noteText.includes("escolha Foto inteira"),
+    `aviso da foto pequena: ${noteText}`,
+  );
+  await photoNote.scrollIntoViewIfNeeded();
+  await shot(lp, "31-foto-pequena-aviso");
+  await lp.getByRole("radio", { name: "Foto inteira" }).click();
+  await lp.getByText("A foto: 1280 × 960 pixels, nítida neste enquadramento.").waitFor();
+  expect((await lp.locator(".quality-note").count()) === 0, "com a foto inteira, os avisos somem");
+  await lowCtx.close();
+
   if (errors.length) fail(`Erros no console:\n${errors.join("\n")}`);
   console.log(`OK: stories e feed na página publicada, no celular e no artefato. Capturas em ${OUT}/`);
 } catch (e) {

@@ -42,6 +42,21 @@ export function cropRect(imgW: number, imgH: number, outW: number, outH: number,
   return { sx: ((imgW - sw) * (clamp(f.x) + 1)) / 2, sy: ((imgH - sh) * (clamp(f.y) + 1)) / 2, sw, sh };
 }
 
+/**
+ * Quanto a foto é ampliada na imagem final: pixels da imagem final para cada pixel da original. Acima de 1, a foto
+ * não tem pixels suficientes para o enquadramento (foto pequena, recebida por mensagem, zoom alto ou foto deitada
+ * recortada em pé) e perde nitidez.
+ */
+export function upscale(imgW: number, imgH: number, spec: { w: number; h: number }, f: Framing): number {
+  if (f.mode === "fit") return Math.min(spec.w / imgW, spec.h / imgH);
+  return spec.w / cropRect(imgW, imgH, spec.w, spec.h, f).sw;
+}
+
+/** Nitidez esperada da foto na imagem baixada, pelo quanto ela é ampliada. */
+export function sharpness(factor: number): "ok" | "soft" | "blurry" {
+  return factor > 1.6 ? "blurry" : factor > 1.15 ? "soft" : "ok";
+}
+
 /** Arrastar a foto: dx e dy em fração do quadro (0,1 = 10% da largura ou da altura). */
 export function pan(f: Framing, dx: number, dy: number, imgW: number, imgH: number, outW: number, outH: number): Framing {
   const { sw, sh } = cropRect(imgW, imgH, outW, outH, f);
@@ -324,7 +339,7 @@ export function exportJpeg(
   canvas.height = spec.h;
   drawPost(canvas.getContext("2d")!, img, imgW, imgH, spec.w, spec.h, framing, overlay);
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob"))), "image/jpeg", 0.92),
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob"))), "image/jpeg", 0.95),
   );
 }
 

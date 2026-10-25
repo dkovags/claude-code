@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { Sparkles, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   cleanHandle, DESTINATION_LABELS, EMOJI_LABELS, GOAL_LABELS, LANGUAGE_LABELS, type Prefs, STORY_LENGTH_LABELS,
@@ -6,9 +6,11 @@ import {
 } from "../brief";
 import { STORY_WORDS } from "../caption";
 import { metaSummary, type Photo } from "../photos";
+import { DEFAULT_FRAMING, formatSpec } from "../render";
 import type { Destination, EmojiLevel, StoryLength } from "../types";
 import { Chips, Segmented, Toggle } from "./parts";
 import { PhotoStrip } from "./PhotoStrip";
+import { andList, photoSharpness } from "./Sharpness";
 
 export function BriefPanel({
   photos,
@@ -46,6 +48,10 @@ export function BriefPanel({
   onSubmit: () => void;
 }) {
   const meta = metaSummary(photos);
+  // fotos pequenas demais para o formato: avisa já, porque a original costuma estar na galeria
+  const stories = prefs.destination === "stories";
+  const spec = formatSpec(stories ? "9:16" : "4:5");
+  const small = photos.flatMap((p, i) => (photoSharpness(p, spec, DEFAULT_FRAMING).level === "blurry" ? [i + 1] : []));
   const update = <K extends keyof Prefs>(key: K, value: Prefs[K]) => setPrefs({ ...prefs, [key]: value });
   const metaLabel =
     meta.dated && meta.located ? "a data e o local" : meta.located ? "o local" : "a data";
@@ -85,6 +91,21 @@ export function BriefPanel({
         loading={loadingPhotos}
         error={uploadError}
       />
+      {small.length > 0 && (
+        <p className="quality-note blurry" role="status">
+          <TriangleAlert size={16} aria-hidden="true" />
+          <span>
+            {photos.length === 1
+              ? "A foto tem"
+              : small.length === 1
+                ? `A foto ${small[0]} tem`
+                : `As fotos ${andList(small)} têm`}{" "}
+            pouca resolução e {small.length > 1 ? "podem" : "pode"} ficar {small.length > 1 ? "borradas" : "borrada"}{" "}
+            {stories ? "no story" : "no post"}. Se tiver, use a original, e não a recebida por mensagem. Na etapa final,
+            dá para ver e ajustar o enquadramento.
+          </span>
+        </p>
+      )}
       {(meta.dated > 0 || meta.located > 0) && (
         <Toggle
           checked={useMeta}
