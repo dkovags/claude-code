@@ -28,6 +28,8 @@ describe("buildSuggestPrompt", () => {
     expect(p).toContain("A primeira tela prende a atenção e a última chama para a ação");
     expect(p).toContain('"enquete", "caixa de perguntas", "quiz"');
     expect(p).toContain("figurinha de música");
+    expect(p).toContain("Elas ficam ocultas: a pessoa digita no story em letra mínima, na cor do fundo");
+    expect(p).not.toContain("figurinha de hashtag");
     expect(p).toContain("Nunca use travessão (—)");
     expect(p).not.toContain("LEGENDAS");
     for (const field of STORIES_SCHEMA.required) expect(p).toContain(`"${field}"`);
@@ -55,6 +57,7 @@ describe("buildSuggestPrompt", () => {
     expect(p).not.toContain("Foto 2:");
     expect(p).toContain("no máximo 125 caracteres");
     expect(p).toContain("o Instagram aceita no máximo 5");
+    expect(p).toContain("elas ficam ocultas, fora da legenda, no primeiro comentário");
     expect(p).toContain('responda com status "perguntas"');
     expect(p).not.toContain("TEXTOS DOS STORIES");
     for (const field of FEED_SCHEMA.required) expect(p).toContain(`"${field}"`);

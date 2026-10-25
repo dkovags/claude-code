@@ -13,14 +13,6 @@ export function charCount(s: string): number {
   return Array.from(s).length;
 }
 
-/** Legenda completa para colar no Instagram: texto, linha em branco e hashtags. */
-export function fullCaption(d: Draft): string {
-  const text = d.text.trim();
-  const tags = d.hashtags.join(" ");
-  if (!tags) return text;
-  return text ? `${text}\n\n${tags}` : tags;
-}
-
 /** O trecho que aparece no feed antes do "mais": a primeira linha, cortada em ~125 caracteres. */
 export function feedExcerpt(caption: string): { shown: string; truncated: boolean } {
   const full = caption.trim();
@@ -45,9 +37,12 @@ export function musicLabel(m: MusicPick): string {
   return m.artist ? `${m.title} – ${m.artist}` : m.title;
 }
 
-/** Conteúdo do arquivo de texto que acompanha as fotos. */
+/** Conteúdo do arquivo de texto que acompanha as fotos. As hashtags ficam fora da legenda, para o primeiro comentário. */
 export function postText(p: PostSummary): string {
-  const parts = ["LEGENDA", fullCaption(p.draft)];
+  const parts = ["LEGENDA", p.draft.text.trim()];
+  if (p.draft.hashtags.length) {
+    parts.push("", "HASHTAGS OCULTAS (cole no primeiro comentário)", p.draft.hashtags.join(" "));
+  }
   if (p.music) parts.push("", "MÚSICA", musicLabel(p.music) + (p.music.part ? ` (${p.music.part})` : ""));
   if (p.place) parts.push("", "LOCALIZAÇÃO", p.place.name);
   if (p.altText.trim()) parts.push("", "TEXTO ALTERNATIVO", p.altText.trim());
@@ -145,7 +140,7 @@ export interface StoriesSummary {
   place?: PlacePick;
 }
 
-/** Conteúdo do arquivo de texto que acompanha os stories. */
+/** Conteúdo do arquivo de texto que acompanha os stories. As hashtags ficam ocultas: escondidas no editor do story. */
 export function storiesText(p: StoriesSummary): string {
   const parts: string[] = ["STORIES"];
   p.frames.forEach((f, i) => {
@@ -155,6 +150,8 @@ export function storiesText(p: StoriesSummary): string {
   });
   if (p.music) parts.push("", "MÚSICA", musicLabel(p.music) + (p.music.part ? ` (${p.music.part})` : ""));
   if (p.place) parts.push("", "LOCALIZAÇÃO", p.place.name);
-  if (p.hashtags.length) parts.push("", "HASHTAGS", p.hashtags.join(" "));
+  if (p.hashtags.length) {
+    parts.push("", "HASHTAGS OCULTAS (cole com Aa, em letra mínima e na cor do fundo)", p.hashtags.join(" "));
+  }
   return parts.join("\n") + "\n";
 }

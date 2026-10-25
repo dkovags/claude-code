@@ -75,7 +75,7 @@ describe("textos dos stories", () => {
     expect(wordCount("   ")).toBe(0);
   });
 
-  it("monta o arquivo de texto com telas, figurinhas, música, local e hashtags", () => {
+  it("monta o arquivo de texto com telas, figurinhas, música, local e hashtags ocultas", () => {
     const txt = storiesText({
       frames,
       hashtags: ["#festa"],
@@ -84,7 +84,8 @@ describe("textos dos stories", () => {
     });
     expect(txt).toBe(
       "STORIES\nTela 1: Cinco velinhas\nTela 2: (sem texto)\n  Figurinha – Enquete: Melhor tema? (Dino / Fada)\n\n" +
-        "MÚSICA\nAquarela – Toquinho (refrão)\n\nLOCALIZAÇÃO\nCampinas, São Paulo\n\nHASHTAGS\n#festa\n",
+        "MÚSICA\nAquarela – Toquinho (refrão)\n\nLOCALIZAÇÃO\nCampinas, São Paulo\n\n" +
+        "HASHTAGS OCULTAS (cole com Aa, em letra mínima e na cor do fundo)\n#festa\n",
     );
     expect(txt).not.toContain("—");
     expect(storiesText({ frames: [{ text: "Cinco velinhas", text2: "e um bolo", sticker: null }], hashtags: [] })).toBe(

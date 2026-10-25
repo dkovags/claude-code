@@ -57,7 +57,7 @@ export default function App() {
   /** Feed: a legenda escolhida. */
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [undoDraft, setUndoDraft] = useState<Draft | null>(null);
-  /** Stories: texto e figurinha de cada tela, e as hashtags da figurinha de hashtag. */
+  /** Stories: texto e figurinha de cada tela, e as hashtags ocultas. */
   const [frames, setFrames] = useState<StoryFrame[]>([]);
   const [undoFrames, setUndoFrames] = useState<StoryFrame[] | null>(null);
   const [storyTags, setStoryTags] = useState<string[]>([]);

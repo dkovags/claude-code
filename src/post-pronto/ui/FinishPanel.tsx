@@ -1,9 +1,9 @@
 import {
-  ArrowLeft, Crop, Download, ExternalLink, FileText, Images, Lightbulb, ListOrdered, MapPin, Move, Share2,
+  ArrowLeft, Crop, Download, ExternalLink, FileText, Hash, Images, Lightbulb, ListOrdered, MapPin, Move, Share2,
   Sticker as StickerIcon, Trash2, TriangleAlert, Type,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { bothParts, fullCaption, musicLabel, postText, stickerSummary, storiesText } from "../caption";
+import { bothParts, musicLabel, postText, stickerSummary, storiesText } from "../caption";
 import { fileNames, type FinishState, INITIAL_FINISH, overlaysFor } from "../finish";
 import { mapsPoint, mapsSearch } from "../links";
 import type { Photo } from "../photos";
@@ -108,17 +108,9 @@ function PlaceSection({
 }
 
 /** Stories: as figurinhas interativas a adicionar em cada tela, com o texto pronto para copiar. */
-function StickersSection({
-  frames,
-  hashtags,
-  onRemove,
-}: {
-  frames: StoryFrame[];
-  hashtags: string[];
-  onRemove: (index: number) => void;
-}) {
+function StickersSection({ frames, onRemove }: { frames: StoryFrame[]; onRemove: (index: number) => void }) {
   const withSticker = frames.flatMap((f, i) => (f.sticker ? [{ i, sticker: f.sticker }] : []));
-  if (!withSticker.length && !hashtags.length) return null;
+  if (!withSticker.length) return null;
   const several = frames.length > 1;
   return (
     <section className="block" aria-labelledby="pp-stickers">
@@ -153,15 +145,45 @@ function StickersSection({
             </p>
           </li>
         ))}
-        {hashtags.length > 0 && (
-          <li>
-            <p className="pick-main">Hashtag: {hashtags.join(" ")}</p>
-            <p className="pick-links">
-              <CopyButton text={hashtags.join(" ")} label="Copiar hashtags" className="btn ghost small" />
-            </p>
-          </li>
-        )}
       </ul>
+    </section>
+  );
+}
+
+/**
+ * Hashtags ocultas, fora do que as pessoas veem. Nos stories, só contam as digitadas no editor do Instagram (escrita na
+ * foto, a hashtag não vira link), então a pessoa cola e esconde; no feed, elas vão no primeiro comentário.
+ */
+function HiddenTagsSection({ hashtags, stories }: { hashtags: string[]; stories: boolean }) {
+  if (!hashtags.length) return null;
+  const tags = hashtags.join(" ");
+  return (
+    <section className="block" aria-labelledby="pp-tags">
+      <h3 id="pp-tags">
+        <Hash size={17} aria-hidden="true" /> Hashtags ocultas
+      </h3>
+      <div className="hidden-tags">
+        <p className="tags">{tags}</p>
+        <CopyButton text={tags} label="Copiar hashtags" className="btn ghost small" />
+      </div>
+      {stories ? (
+        <ol className="hide-steps">
+          <li>
+            No story, toque em <b>Aa</b> e cole as hashtags.
+          </li>
+          <li>Diminua o texto ao máximo, fazendo pinça com dois dedos.</li>
+          <li>
+            Arraste para um canto liso da foto, longe do texto, e pinte com a cor do fundo: na paleta de cores, o
+            conta-gotas pega a cor exata. Ou arraste a figurinha de música ou de localização por cima.
+          </li>
+          <li>Deixe dentro da tela: hashtag arrastada para fora pode ser descartada.</li>
+        </ol>
+      ) : (
+        <p className="hint">
+          Elas ficam fora da legenda: quem vê o post no feed não as vê. Logo depois de publicar, toque no balão de
+          comentário do seu post e cole as hashtags.
+        </p>
+      )}
     </section>
   );
 }
@@ -251,7 +273,7 @@ export function FinishPanel({
   const photoLabel = (i: number) => (!several ? "A foto" : stories ? `A foto da tela ${i + 1}` : `A foto ${i + 1}`);
   const music = result.music[finish.music];
   const place = result.places[finish.place];
-  const caption = fullCaption(draft);
+  const caption = draft.text.trim();
   const several = photos.length > 1;
   const set = (patch: Partial<FinishState>) => setFinish({ ...finish, ...patch });
   const setOverlay = (patch: Partial<Overlay>) => set({ overlay: { ...finish.overlay, ...patch } });
@@ -679,7 +701,6 @@ export function FinishPanel({
       {stories && (
         <StickersSection
           frames={frames.slice(0, photos.length)}
-          hashtags={storyTags}
           onRemove={(i) => {
             setFrames(photos.map((_, k) => {
               const f = frames[k] ?? { text: "", sticker: null };
@@ -689,6 +710,7 @@ export function FinishPanel({
           }}
         />
       )}
+      <HiddenTagsSection hashtags={stories ? storyTags : draft.hashtags} stories={stories} />
       <MusicSection music={result.music} value={finish.music} onChange={(i) => set({ music: i })} stories={stories} />
       <PlaceSection
         places={result.places}
@@ -754,6 +776,12 @@ export function FinishPanel({
                 Adicione a figurinha <b>Localização</b> e busque “{place.name}”.
               </li>
             )}
+            {storyTags.length > 0 && (
+              <li>
+                {several ? "Na tela 1 (e nas outras, se quiser), toque" : "Toque"} em <b>Aa</b>, cole as hashtags e
+                esconda como mostra <b>Hashtags ocultas</b>, acima.
+              </li>
+            )}
             {!finish.overlayOn && <li>Escreva o texto de cada tela com o botão Aa.</li>}
             <li>Publique em Seu story e responda às mensagens e às respostas das figurinhas.</li>
           </ol>
@@ -784,7 +812,13 @@ export function FinishPanel({
                 Em <b>Configurações avançadas</b>, na parte de acessibilidade, cole o texto alternativo.
               </li>
             )}
-            <li>Publique e responda aos comentários na primeira hora: isso ajuda o post a alcançar mais gente.</li>
+            {draft.hashtags.length > 0 && (
+              <li>Publique e, logo em seguida, comente no seu post colando as hashtags copiadas.</li>
+            )}
+            <li>
+              {draft.hashtags.length > 0 ? "Responda" : "Publique e responda"} aos comentários na primeira hora: isso
+              ajuda o post a alcançar mais gente.
+            </li>
           </ol>
         )}
       </section>

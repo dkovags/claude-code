@@ -1,6 +1,6 @@
 import { Bookmark, ChevronLeft, ChevronRight, Ellipsis, Heart, MessageCircle, Music, Send } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
-import { feedExcerpt, fullCaption } from "../caption";
+import { feedExcerpt } from "../caption";
 import type { FormatSpec, Framing, Overlay } from "../render";
 import type { Draft, MusicPick, PlacePick } from "../types";
 import { type PreviewSource, useShot } from "./shot";
@@ -22,7 +22,7 @@ function CaptionBody({ text }: { text: string }) {
   );
 }
 
-/** Prévia do post como aparece no feed: foto no formato escolhido, música, local e legenda. */
+/** Prévia do post como aparece no feed: foto no formato escolhido, música, local e legenda (sem as hashtags ocultas). */
 export function PostPreview({
   source,
   spec,
@@ -58,7 +58,7 @@ export function PostPreview({
   const [expanded, setExpanded] = useState(false);
   const shot = useShot({ source, spec, framing, overlay, width: 720, onFraming: editable ? onFraming : undefined });
   const name = handle || "seu_perfil";
-  const caption = draft ? fullCaption(draft) : "";
+  const caption = draft ? draft.text.trim() : "";
   const excerpt = feedExcerpt(caption);
   const canPan = shot.canPan;
 

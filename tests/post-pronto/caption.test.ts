@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { charCount, feedExcerpt, fullCaption, postText } from "../../src/post-pronto/caption";
+import { charCount, feedExcerpt, postText } from "../../src/post-pronto/caption";
 
 describe("legenda", () => {
-  it("junta texto e hashtags com uma linha em branco", () => {
-    expect(fullCaption({ text: " Olá \n", hashtags: ["#a", "#b"] })).toBe("Olá\n\n#a #b");
-    expect(fullCaption({ text: "Olá", hashtags: [] })).toBe("Olá");
-    expect(fullCaption({ text: "", hashtags: ["#a"] })).toBe("#a");
-  });
-
   it("conta emoji como um caractere", () => {
     expect(charCount("Sol 🌅")).toBe(5);
   });
@@ -25,17 +19,18 @@ describe("legenda", () => {
     expect(shown.endsWith("palavra")).toBe(true);
   });
 
-  it("monta o arquivo de texto com meia-risca entre música e artista", () => {
+  it("monta o arquivo de texto com as hashtags fora da legenda e meia-risca entre música e artista", () => {
     const txt = postText({
-      draft: { text: "Legenda", hashtags: ["#x"] },
+      draft: { text: " Legenda \n", hashtags: ["#x", "#y"] },
       music: { title: "Wave", artist: "Tom Jobim", part: "início", why: "" },
       place: { name: "Arpoador, Rio de Janeiro", kind: "", why: "" },
       altText: "Pôr do sol no mar.",
     });
     expect(txt).toBe(
-      "LEGENDA\nLegenda\n\n#x\n\nMÚSICA\nWave – Tom Jobim (início)\n\nLOCALIZAÇÃO\nArpoador, Rio de Janeiro\n\n" +
-        "TEXTO ALTERNATIVO\nPôr do sol no mar.\n",
+      "LEGENDA\nLegenda\n\nHASHTAGS OCULTAS (cole no primeiro comentário)\n#x #y\n\n" +
+        "MÚSICA\nWave – Tom Jobim (início)\n\nLOCALIZAÇÃO\nArpoador, Rio de Janeiro\n\nTEXTO ALTERNATIVO\nPôr do sol no mar.\n",
     );
     expect(txt).not.toContain("—");
+    expect(postText({ draft: { text: "Legenda", hashtags: [] }, altText: "" })).toBe("LEGENDA\nLegenda\n");
   });
 });

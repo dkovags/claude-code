@@ -529,7 +529,9 @@ try {
   const stickersText = await page.locator(".picks.stickers").innerText();
   expect(stickersText.includes("Caixa de perguntas: Mande um recado para a Ana"), "figurinha da tela 1 na lista");
   expect(stickersText.includes("Enquete: Melhor tema de festa? (Dinossauro / Princesa)"), "figurinha da tela 2 na lista");
-  expect(stickersText.includes("#festadinossauro #5anos #vovó"), "hashtags da figurinha");
+  expect(!stickersText.includes("#"), "as hashtags não entram na lista de figurinhas");
+  const hiddenTags = page.locator(".hidden-tags .tags");
+  expect((await hiddenTags.innerText()) === "#festadinossauro #5anos #vovó", "hashtags ocultas");
   await page.getByRole("radio", { name: /Happy/ }).check();
   await page.locator(".story-music", { hasText: "Happy · Pharrell Williams" }).waitFor();
 
@@ -552,6 +554,8 @@ try {
   expect((await player.count()) === 0, "só um trecho por vez");
   await page.locator(".place-ghost", { hasText: "CAMPINAS, SÃO PAULO" }).waitFor();
   expect((await page.locator(".how").innerText()).includes("Na tela 2, toque no ícone de figurinhas e adicione Enquete"), "passo a passo");
+  expect((await page.locator(".how").innerText()).includes("cole as hashtags e esconda como mostra Hashtags ocultas"), "passo das hashtags");
+  expect((await page.locator(".hide-steps").innerText()).includes("o conta-gotas pega a cor exata"), "como esconder as hashtags");
   await page.getByRole("radio", { name: "Moderno" }).click();
   await page.getByText("Faixa atrás do texto").click();
   // dois trechos com fontes diferentes: o texto de cada tela é dividido num ponto natural
@@ -610,7 +614,7 @@ try {
     ),
     `txt: ${storiesTxt}`,
   );
-  expect(storiesTxt.includes("MÚSICA\nHappy – Pharrell Williams (refrão)") && storiesTxt.includes("HASHTAGS\n#festadinossauro #5anos #vovó"), `txt: ${storiesTxt}`);
+  expect(storiesTxt.includes("MÚSICA\nHappy – Pharrell Williams (refrão)") && storiesTxt.includes("HASHTAGS OCULTAS (cole com Aa, em letra mínima e na cor do fundo)\n#festadinossauro #5anos #vovó"), `txt: ${storiesTxt}`);
   await download(page, page.getByRole("button", { name: "Baixar tudo junto (.zip)" }), `${OUT}/downloads/stories-completo.zip`);
   const all = python("import sys,zipfile\nprint(','.join(zipfile.ZipFile(sys.argv[1]).namelist()))", `${OUT}/downloads/stories-completo.zip`);
   expect(all === "story-1.jpg,story-2.jpg,stories.txt", `zip completo: ${all}`);
@@ -641,7 +645,8 @@ try {
   expect(!(await page.locator(".how").innerText()).includes("Enquete"), "o passo a passo esquece a enquete removida");
   await page.getByRole("button", { name: "Remover a figurinha", exact: true }).click();
   expect((await page.locator(".story-screen .sticker-ghost").count()) === 0, "a figurinha some da prévia");
-  expect((await page.locator(".picks.stickers").innerText()).trim().startsWith("Hashtag:"), "na lista fica só a hashtag");
+  expect((await page.locator(".picks.stickers").count()) === 0, "sem figurinhas, a lista some");
+  expect((await hiddenTags.innerText()) === "#festadinossauro #5anos #vovó", "as hashtags ocultas continuam");
 
   // de volta à escolha, o editor mostra os dois trechos
   await page.getByRole("button", { name: "Voltar para os textos" }).click();
@@ -673,6 +678,7 @@ try {
   const feedCall = apiCalls[apiCalls.length - 1];
   expect(feedCall.body.output_config.format.schema.required.includes("legendas") && feedCall.prompt.includes("LEGENDAS"), "pedido do feed");
   const optionsText = await page.locator(".options").innerText();
+  expect(/hashtags ocultas #aniversarioinfantil #festadinossauro #5anos/i.test(optionsText), `hashtags ocultas nas opções: ${optionsText}`);
   expect(!optionsText.includes("—") && optionsText.includes("festa – e fez"), "o travessão deveria virar meia-risca");
   await shot(page, "07-feed-legendas", true);
 
@@ -721,11 +727,18 @@ try {
   await page.getByRole("button", { name: "Copiar legenda" }).click();
   await page.getByText("Legenda copiada.").waitFor();
   const clip = await page.evaluate(() => navigator.clipboard.readText());
-  expect(clip.startsWith("Cinco velinhas") && clip.endsWith("#aniversarioinfantil #festadinossauro #5anos #vovólúcia"), `legenda copiada: ${clip}`);
+  expect(clip.startsWith("Cinco velinhas") && clip.endsWith("Conta aqui 👇") && !clip.includes("#"), `legenda copiada sem hashtags: ${clip}`);
   expect(!clip.includes("—"), "a legenda copiada não pode ter travessão");
+  expect(!(await page.locator(".feed-caption").innerText()).includes("#"), "a prévia do feed não mostra as hashtags");
+  await page.locator(".hidden-tags").getByRole("button", { name: "Copiar hashtags" }).click();
+  await page.locator(".hidden-tags").getByRole("button", { name: "Copiado" }).waitFor();
+  const tagsClip = await page.evaluate(() => navigator.clipboard.readText());
+  expect(tagsClip === "#aniversarioinfantil #festadinossauro #5anos #vovólúcia", `hashtags copiadas: ${tagsClip}`);
+  expect((await page.locator(".how").innerText()).includes("comente no seu post colando as hashtags copiadas"), "passo do comentário");
   await download(page, page.getByRole("button", { name: /Baixar legenda, música e local/ }), `${OUT}/downloads/legenda.txt`);
   const txt = readFileSync(`${OUT}/downloads/legenda.txt`, "utf8");
   expect(txt.includes("LOCALIZAÇÃO\nCampinas, São Paulo") && txt.includes("TEXTO ALTERNATIVO\nMenina de vestido amarelo"), `txt: ${txt}`);
+  expect(txt.includes("Conta aqui 👇\n\nHASHTAGS OCULTAS (cole no primeiro comentário)\n#aniversarioinfantil #festadinossauro #5anos #vovólúcia"), `txt: ${txt}`);
   await noHorizontalScroll(page, "desktop, feed");
   await ctx.close();
 

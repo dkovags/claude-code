@@ -1,6 +1,6 @@
 import { ArrowLeft, Check } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { CAPTION_LIMIT, charCount, fullCaption, MAX_HASHTAGS } from "../caption";
+import { CAPTION_LIMIT, charCount, MAX_HASHTAGS } from "../caption";
 import { REFINE_PRESETS } from "../prompts";
 import type { Draft, Suggestions } from "../types";
 import { MarkerCircle, RefineBox, TagEditor } from "./parts";
@@ -51,7 +51,7 @@ export function CaptionsPanel({
   onBack: () => void;
 }) {
   const editor = useRef<HTMLElement>(null);
-  const count = charCount(fullCaption(draft));
+  const count = charCount(draft.text.trim());
 
   useEffect(() => {
     if (chosen !== null) editor.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -73,7 +73,11 @@ export function CaptionsPanel({
               <span className="option-style">{c.style}</span>
             </div>
             <CaptionText text={c.text} />
-            {c.hashtags.length > 0 && <p className="tags">{c.hashtags.join(" ")}</p>}
+            {c.hashtags.length > 0 && (
+              <p className="tags">
+                <span className="label">Hashtags ocultas</span> {c.hashtags.join(" ")}
+              </p>
+            )}
             {c.why && (
               <p className="why">
                 <span className="label">Por que funciona</span> {c.why}
@@ -107,21 +111,23 @@ export function CaptionsPanel({
                     onChange={(e) => setDraft({ ...draft, text: e.target.value })}
                   />
                   <p className={`counter${count > CAPTION_LIMIT ? " over" : ""}`}>
-                    {count.toLocaleString("pt-BR")} de {CAPTION_LIMIT.toLocaleString("pt-BR")} caracteres, com as
-                    hashtags
+                    {count.toLocaleString("pt-BR")} de {CAPTION_LIMIT.toLocaleString("pt-BR")} caracteres
                   </p>
                 </div>
 
                 <div className="field">
                   <span className="label">
-                    Hashtags ({draft.hashtags.length} de {MAX_HASHTAGS})
+                    Hashtags ocultas ({draft.hashtags.length} de {MAX_HASHTAGS})
                   </span>
                   <TagEditor
                     tags={draft.hashtags}
                     max={MAX_HASHTAGS}
                     onChange={(hashtags) => setDraft({ ...draft, hashtags })}
                   />
-                  <p className="hint">O Instagram aceita até {MAX_HASHTAGS} hashtags por post.</p>
+                  <p className="hint">
+                    Elas ficam fora da legenda: depois de publicar, você cola no primeiro comentário. O Instagram aceita
+                    até {MAX_HASHTAGS} hashtags por post.
+                  </p>
                 </div>
 
                 <RefineBox

@@ -117,13 +117,17 @@ de *stories*; o de *feed* continua disponível.
   em 1080 × 1920 com o texto escrito nela, longe das áreas cobertas pelos botões do *story*. As figurinhas, a música e a localização só funcionam
   adicionadas no próprio Instagram: a prévia mostra onde entram (tracejadas) e a etapa final lista o que adicionar em
   cada tela, com botões para copiar as perguntas e as opções.
+- **Hashtags ocultas**: as *hashtags* sugeridas nunca aparecem para quem vê o post. Nos *stories*, escrita na foto a
+  *hashtag* não vira *link* nem entra na busca; por isso a etapa final tem um botão para copiá-las e o passo a passo
+  para colá-las no editor do Instagram e escondê-las (letra mínima, na cor do fundo ou embaixo de uma figurinha). No
+  *feed*, elas ficam fora da legenda copiada, prontas para colar no primeiro comentário logo depois de publicar.
 - **Na tela de escolha**: **Usar e editar** abre o editor dentro da opção escolhida, para mudar o texto à mão.
   **Gerar de novo** refaz todas as opções: se faltou alguma informação (ou alguma estava errada), escreva antes no
   campo opcional **Acrescente ou corrija uma informação**, ou edite o contexto inteiro, e o Claude leva isso em conta;
   com o campo em branco, ele traz opções diferentes com o mesmo contexto.
 - **Feed**: três legendas com gancho na primeira linha (o que aparece antes do "mais"), chamada para ação e até 5
-  *hashtags*, o limite atual do Instagram; a foto em 4:5, 3:4, 1:1, 9:16 ou 1,91:1, com texto opcional na capa; botão
-  para copiar a legenda e texto alternativo para acessibilidade.
+  *hashtags* ocultas (o limite atual do Instagram), fora da legenda; a foto em 4:5, 3:4, 1:1, 9:16 ou 1,91:1, com texto
+  opcional na capa; botões para copiar a legenda e as *hashtags* e texto alternativo para acessibilidade.
 - **Nos dois modos**: objetivo (mais interação, mais alcance, divulgar ou vender, registrar um momento), tom, idioma e
   quantidade de emojis; perguntas com respostas prontas para tocar, que dá para pular; cinco músicas com o trecho a usar,
   um botão para ouvir 30 segundos de cada uma (a prévia da Apple Music, que toca na própria página) e *links* para o

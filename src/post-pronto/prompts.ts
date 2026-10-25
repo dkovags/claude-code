@@ -183,8 +183,9 @@ function feedBody(L: string[], r: SuggestRequest) {
     "- Use quebras de linha para facilitar a leitura e termine com uma chamada para ação coerente com o objetivo " +
       "(comentar, salvar, compartilhar, marcar alguém, mandar mensagem, link na bio).",
     "- No máximo 2.200 caracteres, o limite do Instagram; prefira legendas enxutas.",
-    `- Não coloque hashtags no texto. Elas vão em "hashtags": de 3 a ${MAX_HASHTAGS} por opção (o Instagram aceita no ` +
-      `máximo ${MAX_HASHTAGS}), específicas do assunto, sem genéricas como #instagood, #love ou #reels.`,
+    `- Não coloque hashtags no texto: elas ficam ocultas, fora da legenda, no primeiro comentário. Vão em "hashtags": de 3 ` +
+      `a ${MAX_HASHTAGS} por opção (o Instagram aceita no máximo ${MAX_HASHTAGS}), específicas do assunto, sem genéricas ` +
+      "como #instagood, #love ou #reels.",
     `- ${NO_EM_DASH}`,
     "- Não identifique ninguém pelo rosto; use só nomes que estejam no contexto.",
     "- Não invente fatos (nomes, datas, lugares, preços) que não estejam no contexto nem visíveis nas fotos.",
@@ -259,7 +260,8 @@ function storiesBody(L: string[], r: SuggestRequest) {
     'Em "por_que", explique em uma frase por que a versão tende a engajar.',
     "",
     "HASHTAGS",
-    'Em "hashtags", sugira de 1 a 3 hashtags específicas para a figurinha de hashtag, que é opcional nos stories.',
+    'Em "hashtags", sugira de 1 a 3 hashtags específicas do assunto ou do lugar, das que alguém buscaria. Elas ficam ' +
+      "ocultas: a pessoa digita no story em letra mínima, na cor do fundo, e ninguém as vê.",
     "",
     "MÚSICAS",
     'Em "musicas", sugira 5 músicas reais e conhecidas para a figurinha de música, que combinem com o clima das fotos e ' +

@@ -268,8 +268,11 @@ export function StoriesPanel({
                 })}
 
                 <div className="field">
-                  <span className="label">Hashtags para a figurinha de hashtag (opcional)</span>
+                  <span className="label">Hashtags ocultas (opcional)</span>
                   <TagEditor tags={hashtags} max={3} onChange={setHashtags} />
+                  <p className="hint">
+                    Ninguém as vê: você cola no story em letra mínima, na cor do fundo. No fim, o Post Pronto mostra como.
+                  </p>
                 </div>
 
                 <RefineBox

@@ -79,7 +79,7 @@ export function BriefPanel({
       <p className="hint destination-hint">
         {prefs.destination === "stories"
           ? "Stories: o texto vai escrito na foto, em tela cheia (9:16), e o Claude sugere figurinhas de enquete, perguntas, música e localização."
-          : "Feed: o Claude escreve a legenda com hashtags, e a foto sai no formato do feed."}
+          : "Feed: o Claude escreve a legenda, com as hashtags ocultas no primeiro comentário, e a foto sai no formato do feed."}
       </p>
 
       <PhotoStrip

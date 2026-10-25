@@ -95,7 +95,7 @@ export interface Suggestions {
   captions: CaptionOption[];
   /** Stories: versões da sequência, com uma tela por foto. */
   stories: StoryVersion[];
-  /** Stories: hashtags para a figurinha de hashtag. */
+  /** Stories: hashtags ocultas, para esconder no story. */
   hashtags: string[];
   overlays: string[];
   altText: string;
@@ -107,5 +107,6 @@ export interface Suggestions {
 /** A legenda escolhida, como a pessoa está editando. */
 export interface Draft {
   text: string;
+  /** Hashtags ocultas: fora da legenda, para o primeiro comentário. */
   hashtags: string[];
 }
