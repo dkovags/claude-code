@@ -11,7 +11,7 @@ import { formatTakenAt } from "../prompts";
 import {
   ensureOverlayFonts, exportJpeg, fitZoom, FORMATS, type FormatId, formatSpec, type FormatSpec, type Framing, MAX_ZOOM,
   minZoom, type Overlay, snapZoom,
-  OVERLAY_STYLES, type OverlayStyle, TEXT_BG_LABELS, type TextBg,
+  OVERLAY_STYLES, type OverlayStyle, sameAsBox, TEXT_BG_LABELS, TEXT_COLORS, type TextBg, type TextColor,
 } from "../render";
 import { mobileKind, touchScreen } from "../runtime";
 import type { Saver } from "../save";
@@ -117,24 +117,52 @@ const BG_OPTIONS = (Object.keys(TEXT_BG_LABELS) as TextBg[]).map((id) => ({
   ),
 }));
 
-/** Fonte, fundo e tamanho do título (`part` 1) ou da explicação (`part` 2); sem `part`, do texto todo. */
+/** As cores do texto como bolinhas para tocar, com o nome para o leitor de tela. */
+function ColorSwatches({ label, value, onChange }: { label: string; value: TextColor; onChange: (c: TextColor) => void }) {
+  return (
+    <div className="field" role="radiogroup" aria-label={label}>
+      <span className="label">{label}</span>
+      <div className="swatches">
+        {(Object.keys(TEXT_COLORS) as TextColor[]).map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={value === id}
+            aria-label={TEXT_COLORS[id].label}
+            title={TEXT_COLORS[id].label}
+            className={`swatch${value === id ? " on" : ""}`}
+            style={{ background: TEXT_COLORS[id].hex }}
+            onClick={() => onChange(id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Fonte, fundo, cor e tamanho do título (`part` 1) ou da explicação (`part` 2); sem `part`, do texto todo. */
 function PartControls({
   part,
   style,
   bg,
+  color,
   size,
   styleOptions,
   onStyle,
   onBg,
+  onColor,
   onSize,
 }: {
   part?: 1 | 2;
   style: OverlayStyle;
   bg: TextBg;
+  color: TextColor;
   size: number;
   styleOptions: { id: OverlayStyle; label: ReactNode }[];
   onStyle: (s: OverlayStyle) => void;
   onBg: (b: TextBg) => void;
+  onColor: (c: TextColor) => void;
   onSize: (n: number) => void;
 }) {
   const of = part === 1 ? " do título" : part === 2 ? " da explicação" : "";
@@ -149,6 +177,10 @@ function PartControls({
         onChange={onStyle}
       />
       <Segmented<TextBg> label={`Fundo${of}`} options={BG_OPTIONS} narrowColumns={2} value={bg} onChange={onBg} />
+      <ColorSwatches label={`Cor do texto${of}`} value={color} onChange={onColor} />
+      {sameAsBox(bg, color) && (
+        <p className="hint">Na caixa da mesma cor, o texto fica {bg === "white" ? "preto" : "branco"}, para não sumir.</p>
+      )}
       <div className="field">
         <label className="label" htmlFor={sizeId}>
           Tamanho{of}
@@ -344,8 +376,6 @@ export function FinishPanel({
   const several = photos.length > 1;
   const set = (patch: Partial<FinishState>) => setFinish({ ...finish, ...patch });
   const setOverlay = (patch: Partial<Overlay>) => set({ overlay: { ...finish.overlay, ...patch } });
-  // fundos em uso: o do texto todo ou o do título e o da explicação
-  const bgs = twoParts ? [overlay.bg, overlay.bg2] : [overlay.bg];
   // texto arrastado na prévia (nos stories, em alguma tela; no feed, na capa)
   const moved = stories
     ? frames.some((f) => f.textAt || (twoParts && f.text2At))
@@ -658,10 +688,12 @@ export function FinishPanel({
               part={twoParts ? 1 : undefined}
               style={overlay.style}
               bg={overlay.bg}
+              color={overlay.color}
               size={overlay.size}
               styleOptions={styleOptions}
               onStyle={(style) => setOverlay({ style })}
               onBg={(bg) => setOverlay({ bg })}
+              onColor={(color) => setOverlay({ color })}
               onSize={(size) => setOverlay({ size })}
             />
             {twoParts && (
@@ -669,10 +701,12 @@ export function FinishPanel({
                 part={2}
                 style={overlay.style2}
                 bg={overlay.bg2}
+                color={overlay.color2}
                 size={overlay.size2}
                 styleOptions={styleOptions}
                 onStyle={(style2) => setOverlay({ style2 })}
                 onBg={(bg2) => setOverlay({ bg2 })}
+                onColor={(color2) => setOverlay({ color2 })}
                 onSize={(size2) => setOverlay({ size2 })}
               />
             )}
@@ -687,26 +721,14 @@ export function FinishPanel({
                 value={finish.overlay.position}
                 onChange={setPosition}
               />
-              {bgs.some((b) => b === "none" || b === "translucent") && (
-                <Segmented<Overlay["color"]>
-                  label="Cor do texto"
-                  options={[
-                    { id: "light", label: "Branco" },
-                    { id: "dark", label: "Preto" },
-                  ]}
-                  value={overlay.color}
-                  onChange={(color) => setOverlay({ color })}
-                />
-              )}
             </div>
             <p className="hint">
               {[
                 moved
                   ? "Você mudou o texto de lugar na prévia; para voltar ao lugar padrão, toque numa opção de Posição."
                   : `Na prévia, dá para arrastar ${twoParts ? "o título e a explicação" : "o texto"} para outro lugar.`,
-                bgs.some((b) => b === "white" || b === "black") && "Com fundo branco ou preto, o texto fica na cor oposta.",
                 stories &&
-                  `${twoParts ? "As mesmas fontes e fundos valem" : "O mesmo estilo e o mesmo fundo valem"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`,
+                  `${twoParts ? "As mesmas fontes, fundos e cores valem" : "O mesmo estilo, o fundo e a cor valem"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`,
                 !stories && several && "O texto vai só na capa (foto 1).",
               ]
                 .filter(Boolean)

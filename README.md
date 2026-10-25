@@ -162,9 +162,11 @@ de *stories*; o de *feed* continua disponível.
   na fonte Editorial, um pouco menor que o título. No texto mais longo, o Claude já escreve o título na primeira linha,
   e nos ajustes ele mantém essa divisão. As fontes ficam em **Texto nas fotos**, logo abaixo dos botões de baixar; no
   celular, uma prévia pequena no canto acompanha os ajustes.
-- **Fundo do título e da explicação**: cada um (ou o texto todo, sem explicação) pode ficar sem fundo, com sombra, ou
-  ganhar uma caixa semitransparente, branca ou preta, do tamanho do próprio texto. Com caixa branca ou preta, o texto
-  fica na cor oposta; sem fundo ou com caixa semitransparente, vale a **Cor do texto** escolhida.
+- **Fundo e cor do título e da explicação**: cada um (ou o texto todo, sem explicação) tem a sua caixa, do tamanho do
+  próprio texto (sem fundo, com sombra, semitransparente, branca ou preta), e a sua cor de texto: branco, preto,
+  amarelo, vermelho, verde ou azul, em bolinhas para tocar. Por padrão, as cores se alternam: o título branco numa
+  caixa escura e a explicação preta numa caixa clara. A caixa semitransparente é clara atrás do texto preto e escura
+  atrás das outras cores; texto da mesma cor da caixa branca ou preta fica na cor oposta, para não sumir.
 - **Arrastar o texto na prévia**: o título e a explicação podem ser arrastados (ou movidos com as setas) para qualquer
   lugar da foto, e a foto baixada sai igual. A explicação acompanha o título até ser arrastada também; as caixas não
   saem da foto. Nos *stories*, o lugar vale para cada tela; no *feed*, para o texto da capa. Tocar numa opção de

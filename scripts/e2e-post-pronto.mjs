@@ -567,18 +567,21 @@ try {
   expect((await page.getByLabel("Tamanho da explicação").inputValue()) === "0.8", "a explicação começa menor que o título");
   await font2.getByRole("radio", { name: "Editorial" }).click();
   await page.getByLabel("Tamanho da explicação").fill("0.8");
-  // cada um com a sua caixa: o título continua semitransparente e a explicação ganha fundo preto
+  // cada um com a sua caixa e a sua cor; por padrão, as cores se alternam: título branco, explicação preta numa caixa clara
   const bg1 = page.getByRole("radiogroup", { name: "Fundo do título" });
   const bg2 = page.getByRole("radiogroup", { name: "Fundo da explicação" });
-  expect((await bg1.getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).getAttribute("aria-checked")) === "true", "o fundo do título continua");
-  expect((await bg2.getByRole("radio", { name: "Sem fundo" }).getAttribute("aria-checked")) === "true", "a explicação começa sem fundo");
+  const color1 = page.getByRole("radiogroup", { name: "Cor do texto do título" });
+  const color2 = page.getByRole("radiogroup", { name: "Cor do texto da explicação" });
+  const checked = async (group, name) => (await group.getByRole("radio", { name }).getAttribute("aria-checked")) === "true";
+  expect(await checked(bg1, /^Semi\u00ad?transparente$/), "o fundo do título continua");
+  expect(await checked(bg2, /^Semi\u00ad?transparente$/), "a explicação começa numa caixa semitransparente");
+  expect((await checked(color1, "Branco")) && (await checked(color2, "Preto")), "as cores começam alternadas");
+  // a explicação ganha caixa preta: com o texto preto, ele fica branco para não sumir; depois, amarelo
   await bg2.getByRole("radio", { name: "Preto" }).click();
-  await page.getByText("Com fundo branco ou preto, o texto fica na cor oposta.").waitFor();
-  const textColor = page.getByRole("radiogroup", { name: "Cor do texto" });
-  expect((await textColor.count()) === 1, "com o título semitransparente, a cor do texto ainda vale");
-  await bg1.getByRole("radio", { name: "Branco" }).click();
-  expect((await textColor.count()) === 0, "com fundo branco e preto, a cor do texto some");
-  await bg1.getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).click();
+  const sameColor = page.getByText("Na caixa da mesma cor, o texto fica branco, para não sumir.");
+  await sameColor.waitFor();
+  await color2.getByRole("radio", { name: "Amarelo" }).click();
+  expect((await sameColor.count()) === 0, "com outra cor, o aviso some");
   await shot(page, "06-stories-pronto");
 
   // a figurinha tracejada pode ser arrastada na prévia (só para planejar) e fica no lugar em cada tela
@@ -627,6 +630,17 @@ try {
     `${OUT}/downloads/stories-sem-texto.zip`,
   ).split("\n").map(Number);
   expect(darkPixels[0] > 15000 && darkPixels[1] < 500, `caixa preta da explicação: ${darkPixels}`);
+  // e o texto amarelo dentro dela (a foto de teste não tem amarelo)
+  const yellowPixels = Number(
+    python(
+      "import sys,zipfile,io\nfrom PIL import Image, ImageChops\n" +
+        "r,g,b=Image.open(io.BytesIO(zipfile.ZipFile(sys.argv[1]).read('story-1.jpg'))).convert('RGB').split()\n" +
+        "m=ImageChops.multiply(ImageChops.multiply(r.point(lambda v: 255 if v>200 else 0), g.point(lambda v: 255 if v>170 else 0)), b.point(lambda v: 255 if v<120 else 0))\n" +
+        "print(m.histogram()[255])",
+      `${OUT}/downloads/stories.zip`,
+    ),
+  );
+  expect(yellowPixels > 1500, `texto amarelo da explicação: ${yellowPixels}`);
   await page.getByText("Escrever os textos nas fotos").click();
 
   // arrastar a explicação (a caixa preta) para baixo na prévia: a foto baixada sai igual

@@ -144,6 +144,18 @@ export const TEXT_BG_LABELS: Record<TextBg, string> = {
   black: "Preto",
 };
 
+/** Cores do texto de cada caixa. */
+export type TextColor = "white" | "black" | "yellow" | "red" | "green" | "blue";
+
+export const TEXT_COLORS: Record<TextColor, { label: string; hex: string }> = {
+  white: { label: "Branco", hex: "#ffffff" },
+  black: { label: "Preto", hex: "#111111" },
+  yellow: { label: "Amarelo", hex: "#ffd43b" },
+  red: { label: "Vermelho", hex: "#e5383b" },
+  green: { label: "Verde", hex: "#2b9348" },
+  blue: { label: "Azul", hex: "#3a86ff" },
+};
+
 /** Um ponto na foto, em fração da largura e da altura (0,5 e 0,5 é o centro). */
 export interface Spot {
   x: number;
@@ -156,14 +168,15 @@ export interface Overlay {
   position: "top" | "center" | "bottom";
   /** Multiplicador do tamanho da letra, de 0,6 a 1,6. */
   size: number;
-  /** Cor do texto sem fundo ou com fundo semitransparente (com fundo branco ou preto, o texto fica na cor oposta). */
-  color: "light" | "dark";
+  /** Cor do texto do título (ou do texto todo, quando não há explicação). */
+  color: TextColor;
   /** Caixa atrás do título (ou do texto todo, quando não há explicação). */
   bg: TextBg;
   /** Explicação, logo abaixo do título, com fonte, tamanho e caixa próprios (vazio = só um trecho). */
   text2: string;
   style2: OverlayStyle;
   size2: number;
+  color2: TextColor;
   bg2: TextBg;
   /** Centro da caixa do título e da explicação arrastadas na prévia (sem ele, o trecho fica na `position`). */
   at?: Spot;
@@ -175,13 +188,15 @@ export const DEFAULT_OVERLAY: Overlay = {
   style: "modern",
   position: "bottom",
   size: 1,
-  color: "light",
-  bg: "none",
+  // as cores se alternam: título branco numa caixa escura, explicação preta numa caixa clara
+  color: "white",
+  bg: "translucent",
   text2: "",
   // a explicação, mais longa, numa fonte fácil de ler e um pouco menor que o título
   style2: "editorial",
   size2: 0.8,
-  bg2: "none",
+  color2: "black",
+  bg2: "translucent",
 };
 
 export const OVERLAY_STYLES: Record<
@@ -260,6 +275,7 @@ export interface OverlayBlock {
   width: number;
   height: number;
   bg: TextBg;
+  color: TextColor;
   /** Folga da caixa em volta do texto (zero sem fundo). */
   padX: number;
   padY: number;
@@ -285,8 +301,8 @@ export function layoutOverlay(
   measureWith: (font: string, s: string) => number,
 ): OverlayLayout {
   const parts = [
-    { part: 1 as const, text: o.text, style: o.style, size: o.size, bg: o.bg, at: o.at },
-    { part: 2 as const, text: o.text2, style: o.style2, size: o.size2, bg: o.bg2, at: o.at2 },
+    { part: 1 as const, text: o.text, style: o.style, size: o.size, bg: o.bg, color: o.color, at: o.at },
+    { part: 2 as const, text: o.text2, style: o.style2, size: o.size2, bg: o.bg2, color: o.color2, at: o.at2 },
   ].filter((p) => p.text.trim());
   const two = parts.length > 1;
   const maxWidth = W * 0.84;
@@ -316,6 +332,7 @@ export function layoutOverlay(
         width: Math.max(0, ...lines.map(measure)),
         height: lines.length * lineHeight,
         bg: p.bg,
+        color: p.color,
         padX: boxed ? px * 0.5 : 0,
         padY: boxed ? px * 0.3 : 0,
       };
@@ -428,20 +445,28 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
-/** Cores de um trecho: a do texto e a da caixa atrás dele (sem fundo, não há caixa e o texto ganha sombra). */
-export function textColors(bg: TextBg, color: Overlay["color"]): { ink: string; box: string | null } {
-  const light = color === "light";
+/**
+ * Cores de um trecho: a do texto e a da caixa atrás dele (sem fundo, não há caixa e o texto ganha sombra). A caixa
+ * semitransparente é clara atrás do texto preto e escura atrás das outras cores; texto da mesma cor da caixa branca ou
+ * preta fica na cor oposta, para não sumir.
+ */
+export function textColors(bg: TextBg, color: TextColor): { ink: string; box: string | null } {
+  const dark = color === "black";
+  const ink = (c: TextColor) => TEXT_COLORS[c].hex;
   switch (bg) {
     case "white":
-      return { ink: "#111111", box: "#ffffff" };
+      return { ink: ink(color === "white" ? "black" : color), box: "#ffffff" };
     case "black":
-      return { ink: "#ffffff", box: "#111111" };
+      return { ink: ink(color === "black" ? "white" : color), box: "#111111" };
     case "translucent":
-      return { ink: light ? "#ffffff" : "#111111", box: light ? "rgba(12, 12, 14, 0.55)" : "rgba(255, 255, 255, 0.78)" };
+      return { ink: ink(color), box: dark ? "rgba(255, 255, 255, 0.78)" : "rgba(12, 12, 14, 0.55)" };
     default:
-      return { ink: light ? "#ffffff" : "#111111", box: null };
+      return { ink: ink(color), box: null };
   }
 }
+
+/** Texto da mesma cor da caixa branca ou preta: a cor escolhida não vale (ele fica na cor oposta). */
+export const sameAsBox = (bg: TextBg, color: TextColor) => (bg === "white" || bg === "black") && bg === color;
 
 /** Escreve o texto na foto e devolve onde ficou cada trecho. */
 export function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, W: number, H: number): OverlayLayout {
@@ -455,14 +480,14 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, W: number
   ctx.textBaseline = "middle";
   // cada trecho com a sua caixa
   for (const b of layout.blocks) {
-    const { ink, box } = textColors(b.bg, o.color);
+    const { ink, box } = textColors(b.bg, b.color);
     ctx.shadowColor = "transparent";
     if (box) {
       ctx.fillStyle = box;
       roundRect(ctx, b.cx - b.width / 2 - b.padX, b.top - b.padY, b.width + b.padX * 2, b.height + b.padY * 2, b.px * 0.28);
       ctx.fill();
     } else {
-      ctx.shadowColor = ink === "#ffffff" ? "rgba(0, 0, 0, 0.55)" : "rgba(255, 255, 255, 0.5)";
+      ctx.shadowColor = b.color === "black" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.55)";
       ctx.shadowBlur = b.px * 0.4;
       ctx.shadowOffsetY = b.px * 0.04;
     }

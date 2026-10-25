@@ -509,6 +509,35 @@ input[type="radio"] {
   border-radius: 2px;
 }
 
+/* Cor do texto: bolinhas para tocar */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.swatch {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.swatch.on {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.swatch:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+@media (pointer: coarse), (max-width: 560px) {
+  .swatch {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 /* Fonte, fundo e tamanho de cada trecho do texto na foto */
 .part-controls {
   display: grid;

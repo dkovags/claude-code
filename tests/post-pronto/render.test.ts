@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, fitZoom, formatSpec, layoutOverlay, minZoom, overlayStyles, pan, pinch,
-  placePhoto, sharpness, snapZoom, textBoxes, textColors, upscale, wrapLines,
+  placePhoto, sameAsBox, sharpness, snapZoom, textBoxes, textColors, upscale, wrapLines,
 } from "../../src/post-pronto/render";
 
 // largura fictícia: cada caractere mede 0,5 do tamanho da fonte
@@ -128,12 +128,16 @@ describe("texto na foto", () => {
   });
 
   it("posiciona embaixo deixando livre a área dos botões nos Stories", () => {
-    const feed = layoutOverlay({ ...DEFAULT_OVERLAY, text: "Oi" }, 1080, 1350, measureWith);
+    const plain = { ...DEFAULT_OVERLAY, text: "Oi", bg: "none" as const };
+    const feed = layoutOverlay(plain, 1080, 1350, measureWith);
     expect(feed.top + feed.height).toBeCloseTo(1350 * 0.93);
-    const story = layoutOverlay({ ...DEFAULT_OVERLAY, text: "Oi" }, 1080, 1920, measureWith);
+    const story = layoutOverlay(plain, 1080, 1920, measureWith);
     expect(story.top + story.height).toBeCloseTo(1920 * 0.8);
-    const top = layoutOverlay({ ...DEFAULT_OVERLAY, text: "Oi", position: "top" }, 1080, 1920, measureWith);
+    const top = layoutOverlay({ ...plain, position: "top" }, 1080, 1920, measureWith);
     expect(top.top).toBeCloseTo(1920 * 0.14);
+    // com caixa (o padrão), é a borda da caixa que fica no limite
+    const boxed = layoutOverlay({ ...DEFAULT_OVERLAY, text: "Oi", position: "top" }, 1080, 1920, measureWith).blocks[0];
+    expect(boxed.top - boxed.padY).toBeCloseTo(1920 * 0.14);
   });
 
   it("estilo Impacto escreve em maiúsculas", () => {
@@ -142,7 +146,7 @@ describe("texto na foto", () => {
   });
 
   it("dois trechos: cada um com a sua fonte e o seu tamanho, o segundo logo abaixo do primeiro", () => {
-    const o = { ...DEFAULT_OVERLAY, position: "top" as const, text: "Cinco velinhas", style: "impact" as const, text2: "e um dinossauro", style2: "handwritten" as const, size2: 0.7 };
+    const o = { ...DEFAULT_OVERLAY, position: "top" as const, bg: "none" as const, text: "Cinco velinhas", style: "impact" as const, text2: "e um dinossauro", style2: "handwritten" as const, size2: 0.7 };
     const l = layoutOverlay(o, 1080, 1920, measureWith);
     const [first, second] = l.blocks;
     expect(l.blocks).toHaveLength(2);
@@ -222,11 +226,22 @@ describe("texto na foto", () => {
     expect(box2.x + box2.w / 2).toBeCloseTo(0.3);
   });
 
-  it("com fundo branco ou preto, o texto fica na cor oposta; sem fundo ou semitransparente, segue a cor escolhida", () => {
-    expect(textColors("white", "light")).toEqual({ ink: "#111111", box: "#ffffff" });
-    expect(textColors("black", "dark")).toEqual({ ink: "#ffffff", box: "#111111" });
-    expect(textColors("translucent", "light")).toEqual({ ink: "#ffffff", box: "rgba(12, 12, 14, 0.55)" });
-    expect(textColors("translucent", "dark")).toEqual({ ink: "#111111", box: "rgba(255, 255, 255, 0.78)" });
-    expect(textColors("none", "dark")).toEqual({ ink: "#111111", box: null });
+  it("cada caixa tem a sua cor de texto; a caixa semitransparente acompanha, e a mesma cor da caixa vira a oposta", () => {
+    expect(textColors("none", "yellow")).toEqual({ ink: "#ffd43b", box: null });
+    expect(textColors("translucent", "white")).toEqual({ ink: "#ffffff", box: "rgba(12, 12, 14, 0.55)" });
+    expect(textColors("translucent", "red")).toEqual({ ink: "#e5383b", box: "rgba(12, 12, 14, 0.55)" });
+    expect(textColors("translucent", "black")).toEqual({ ink: "#111111", box: "rgba(255, 255, 255, 0.78)" });
+    expect(textColors("white", "blue")).toEqual({ ink: "#3a86ff", box: "#ffffff" });
+    expect(textColors("white", "white")).toEqual({ ink: "#111111", box: "#ffffff" });
+    expect(textColors("black", "black")).toEqual({ ink: "#ffffff", box: "#111111" });
+    expect([sameAsBox("white", "white"), sameAsBox("translucent", "white"), sameAsBox("black", "yellow")]).toEqual([true, false, false]);
+    // por padrão, as cores se alternam: título branco numa caixa escura, explicação preta numa caixa clara
+    const d = DEFAULT_OVERLAY;
+    expect([d.color, d.bg, d.color2, d.bg2]).toEqual(["white", "translucent", "black", "translucent"]);
+    const blocks = layoutOverlay({ ...d, text: "Título", text2: "Explicação" }, 1080, 1920, measureWith).blocks;
+    expect(blocks.map((b) => textColors(b.bg, b.color))).toEqual([
+      { ink: "#ffffff", box: "rgba(12, 12, 14, 0.55)" },
+      { ink: "#111111", box: "rgba(255, 255, 255, 0.78)" },
+    ]);
   });
 });
