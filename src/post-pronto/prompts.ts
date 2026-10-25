@@ -54,6 +54,19 @@ function emojiPrompt(b: Brief): string {
 
 const NO_EM_DASH = "Nunca use travessão (—). Se precisar de um traço, use meia-risca (–).";
 
+/** Para o texto soar como a própria pessoa escreveria, e não como texto de IA (legendas e textos dos stories). */
+const HUMAN_VOICE = [
+  "- Escreva como a própria pessoa escreveria no Instagram dela, não como marca nem como assistente: palavras do dia a " +
+    "dia, frases de tamanhos diferentes (pode ter frase curta, até sem verbo) e, no tom leve, o português falado " +
+    '("pra", "tá", "a gente").',
+  "- Prefira um detalhe concreto (um nome, um lugar, algo que aparece na foto) a um adjetivo bonito.",
+  "- Evite o que denuncia texto de IA: expressões como \"momentos inesquecíveis\", \"memórias para a vida toda\", " +
+    '"a magia de", "cada detalhe", "jornada", "mergulhe", "descubra", "embarque", "prepare-se", "simplesmente", ' +
+    '"que tal", "é sobre isso" e "e tá tudo bem"; estruturas como "não é só X, é Y" e "O segredo? ..."; listas de três ' +
+    'adjetivos; frase de efeito no fim; perguntas genéricas como "E você, o que acha?".',
+  "- Pontuação simples: no máximo uma exclamação por texto, sem reticências de suspense e sem emojis de enfeite como ✨ e 💫.",
+];
+
 /** "2026-03-12T18:40:00" → "12/03/2026, 18h40". */
 export function formatTakenAt(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
@@ -180,6 +193,7 @@ function feedBody(L: string[], r: SuggestRequest) {
     "- A primeira linha é o gancho: precisa prender a atenção sozinha e ter no máximo 125 caracteres, que é o que " +
       "aparece no feed antes do \"mais\".",
     "- Fale do que aparece de fato nas fotos e do contexto informado; evite clichês e frases que serviriam para qualquer foto.",
+    ...HUMAN_VOICE,
     "- Use quebras de linha para facilitar a leitura e termine com uma chamada para ação coerente com o objetivo " +
       "(comentar, salvar, compartilhar, marcar alguém, mandar mensagem, link na bio).",
     "- No máximo 2.200 caracteres, o limite do Instagram; prefira legendas enxutas.",
@@ -256,6 +270,7 @@ function storiesBody(L: string[], r: SuggestRequest) {
       "Adicione o seu: o convite para outras pessoas postarem algo parecido. Use figurinhas onde fizerem sentido, sem pôr " +
       'em todas as telas: são elas que mais geram respostas nos stories. Com "nenhuma", deixe "texto" vazio e "opcoes" como [].',
     "- Fale do que aparece de fato na foto e do contexto informado; evite clichês e frases que serviriam para qualquer foto.",
+    ...HUMAN_VOICE,
     "- Não coloque hashtags nem menções no texto.",
     `- ${NO_EM_DASH}`,
     "- Não identifique ninguém pelo rosto; use só nomes que estejam no contexto.",
@@ -389,6 +404,7 @@ export function buildRefinePrompt(r: RefineRequest): string {
     "REGRAS",
     "- A primeira linha é o gancho, com no máximo 125 caracteres.",
     "- No máximo 2.200 caracteres.",
+    ...HUMAN_VOICE,
     `- Hashtags fora do texto, em "hashtags": de 3 a ${MAX_HASHTAGS} (o Instagram aceita no máximo ${MAX_HASHTAGS}). ` +
       "Mantenha as atuais, a menos que o pedido seja para mudá-las.",
     `- ${NO_EM_DASH}`,
@@ -446,6 +462,7 @@ export function buildStoryRefinePrompt(r: StoryRefineRequest): string {
     "- Mantenha as figurinhas, a menos que o pedido seja para mudá-las. Tipos: " +
       `${Object.values(STICKER_TYPES).join(", ")} ou "nenhuma" (com "texto" vazio e "opcoes" como []).`,
     "- Não coloque hashtags nem menções no texto.",
+    ...HUMAN_VOICE,
     `- ${NO_EM_DASH}`,
     "- Não invente fatos que não estejam no contexto.",
     "",
@@ -457,6 +474,12 @@ export function buildStoryRefinePrompt(r: StoryRefineRequest): string {
 
 /** Ajustes de um toque na legenda escolhida. */
 export const REFINE_PRESETS: { label: string; instruction: string }[] = [
+  {
+    label: "Mais natural",
+    instruction:
+      "Reescreva com cara de texto escrito pela própria pessoa: palavras simples, frases de tamanhos diferentes, um " +
+      "detalhe concreto no lugar de adjetivos e nenhuma fórmula pronta.",
+  },
   { label: "Mais curta", instruction: "Deixe a legenda bem mais curta, com no máximo 3 linhas." },
   { label: "Mais longa", instruction: "Desenvolva mais a legenda, contando um pouco mais da história." },
   { label: "Mais emotiva", instruction: "Deixe a legenda mais emotiva e pessoal." },
@@ -469,6 +492,12 @@ export const REFINE_PRESETS: { label: string; instruction: string }[] = [
 
 /** Ajustes de um toque nos textos dos stories. */
 export const STORY_REFINE_PRESETS: { label: string; instruction: string }[] = [
+  {
+    label: "Mais naturais",
+    instruction:
+      "Reescreva os textos com cara de escritos pela própria pessoa: palavras simples, um detalhe concreto no lugar de " +
+      "adjetivos e nenhuma fórmula pronta.",
+  },
   { label: "Mais curtos", instruction: "Deixe os textos de todas as telas mais curtos, com no máximo 6 palavras cada." },
   { label: "Mais divertidos", instruction: "Deixe os textos mais leves e divertidos, com humor." },
   { label: "Mais emotivos", instruction: "Deixe os textos mais emotivos e pessoais." },

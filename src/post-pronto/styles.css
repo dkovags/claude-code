@@ -1306,6 +1306,19 @@ label.btn {
   color: var(--ink-3);
 }
 
+/* Depois de baixar no celular: o caminho até o Instagram */
+.post-help {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--sheet-2);
+}
+.post-help p {
+  margin: 0;
+}
+
 /* Hashtags ocultas */
 .hidden-tags {
   display: flex;

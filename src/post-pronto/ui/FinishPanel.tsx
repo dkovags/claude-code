@@ -13,7 +13,7 @@ import {
   minZoom, type Overlay, snapZoom,
   OVERLAY_STYLES, type OverlayStyle, TEXT_BG_LABELS, type TextBg,
 } from "../render";
-import { touchScreen } from "../runtime";
+import { mobileKind, touchScreen } from "../runtime";
 import type { Saver } from "../save";
 import type { Destination, Draft, PlacePick, StoryFrame, Suggestions } from "../types";
 import { makeZip } from "../zip";
@@ -291,6 +291,8 @@ export function FinishPanel({
   onReset: () => void;
 }) {
   const [saving, setSaving] = useState<string | null>(null);
+  // no celular, depois de baixar as fotos: o caminho até o Instagram
+  const [postHelp, setPostHelp] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [prepared, setPrepared] = useState<File[] | null>(null);
   const textSection = useRef<HTMLElement>(null);
@@ -402,14 +404,24 @@ export function FinishPanel({
     if (!saver || (kind !== "text" && !prepared)) return;
     setSaving(kind);
     try {
+      if (kind === "photos" && (prepared!.length === 1 || phone)) {
+        // no celular, uma foto de cada vez: elas ficam no aparelho para escolher no Instagram, que não abre .zip
+        let saved = 0;
+        for (const f of prepared!) {
+          if ((await saver.save(f.name, f)) !== "saved") break;
+          saved++;
+        }
+        if (saved) {
+          notify(saved === 1 ? "Foto baixada." : `${saved} fotos baixadas.`);
+          if (phone) setPostHelp(true);
+        }
+        return;
+      }
       let name: string;
       let data: Blob;
       if (kind === "text") {
         name = names.text;
         data = new Blob([textFile()], { type: "text/plain;charset=utf-8" });
-      } else if (kind === "photos" && prepared!.length === 1) {
-        name = prepared![0].name;
-        data = prepared![0];
       } else {
         const entries = await Promise.all(
           prepared!.map(async (f) => ({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) })),
@@ -436,13 +448,10 @@ export function FinishPanel({
     }
   }
 
-  const photosLabel = stories
-    ? several
-      ? `Baixar as ${photos.length} telas (.zip)`
-      : "Baixar a foto"
-    : several
-      ? `Baixar as ${photos.length} fotos (.zip)`
-      : "Baixar a foto";
+  // no celular, as fotos saem uma a uma; no computador, juntas num .zip
+  const photosLabel = !several
+    ? "Baixar a foto"
+    : `Baixar as ${photos.length} ${stories ? "telas" : "fotos"}${phone ? "" : " (.zip)"}`;
   const copiedMsg = (ok: boolean) => notify(ok ? "Legenda copiada." : "Não deu para copiar. Selecione o texto e copie.");
 
   return (
@@ -472,7 +481,7 @@ export function FinishPanel({
             {!stories && <CopyButton text={caption} label="Copiar legenda" onResult={copiedMsg} />}
             {saver.share && (
               <button type="button" className="btn secondary" disabled={!prepared} onClick={share}>
-                <Share2 size={16} aria-hidden="true" /> {phone ? "Abrir no Instagram" : "Compartilhar"}
+                <Share2 size={16} aria-hidden="true" /> {phone ? "Mandar para o Instagram" : "Compartilhar"}
               </button>
             )}
           </div>
@@ -515,12 +524,36 @@ export function FinishPanel({
             </span>
           </p>
         )}
+        {postHelp && (
+          <div className="post-help" role="status">
+            <p>
+              <b>{several ? "Fotos salvas no celular." : "Foto salva no celular."}</b> Para postar, abra o Instagram,{" "}
+              {stories ? "deslize o feed para a direita (ou toque em + e escolha Story)" : "toque em + e escolha Publicação"}{" "}
+              e escolha {several ? "as fotos, na ordem dos números," : "a foto"} em Recentes.
+            </p>
+            <div className="actions">
+              <a className="btn secondary" href="https://www.instagram.com/" target="_blank" rel="noreferrer">
+                <ExternalLink size={16} aria-hidden="true" /> Abrir o Instagram
+              </a>
+              <button type="button" className="btn ghost small" onClick={() => setPostHelp(false)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        )}
+        {saver && !saver.share && phone && (
+          <p className="hint">
+            {mobileKind() === "ios-app"
+              ? "No app do Claude para iPhone, baixar abre o menu de compartilhar: dá para escolher o Instagram direto."
+              : "Aqui, o menu de compartilhar do celular não abre. Baixe as fotos: elas ficam no celular, e é só escolher no Instagram."}
+          </p>
+        )}
         {saver?.share && (
           <p className="hint">
             {phone
               ? stories
-                ? "Abrir no Instagram leva as fotos direto para o story: no menu, escolha Instagram (Stories) e adicione lá as figurinhas, a música e a localização."
-                : "Abrir no Instagram leva as fotos direto para o post: no menu, escolha Instagram (Feed) e cole a legenda, que não vai junto com as fotos."
+                ? "Mandar para o Instagram leva as fotos direto para o story: no menu, escolha Instagram (Stories) e adicione lá as figurinhas, a música e a localização."
+                : "Mandar para o Instagram leva as fotos direto para o post: no menu, escolha Instagram (Feed) e cole a legenda, que não vai junto com as fotos."
               : "Compartilhar envia as fotos para outro aplicativo, pelo menu do sistema."}
           </p>
         )}

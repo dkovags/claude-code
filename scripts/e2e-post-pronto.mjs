@@ -1050,7 +1050,8 @@ try {
   await a.getByRole("radiogroup", { name: "Fonte da explicação" }).waitFor();
   await a.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
   await a.getByRole("button", { name: "Baixar a foto" }).click();
-  await a.getByText("Download pronto.").waitFor();
+  await a.getByText("Foto baixada.", { exact: true }).waitFor();
+  expect((await a.locator(".post-help").count()) === 0, "no computador, sem o passo a passo do celular");
   await a.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }).click();
   await a.waitForFunction(() => window.__saved.length === 2);
   const saved = await a.evaluate(() => window.__saved);
@@ -1143,7 +1144,13 @@ try {
         };
         sample.json = async (input) => (input.includes("Antes de escrever") ? QUESTIONS_LOOSE : STORY_SUGGESTIONS);
         sample.limits = async () => ({ images: { maxCount: 5, maxInputBytes: 20e6, mediaTypes: ["image/jpeg"] } });
-        const downloads = { save: async () => ({ status: "saved" }) };
+        window.__saved = [];
+        const downloads = {
+          save: async ({ filename }) => {
+            window.__saved.push(filename);
+            return { status: "saved" };
+          },
+        };
         window.claude = { use: async (name) => (name === "sample" ? sample : name === "downloads" ? downloads : null) };
       },
       { QUESTIONS_LOOSE, STORY_SUGGESTIONS },
@@ -1170,8 +1177,16 @@ try {
     await sp.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
     await checkLayout(sp, `${size.name}, etapa final`, size.phone);
     if (size.phone) {
+      // no celular, as telas saem uma a uma (o Instagram não abre .zip), e depois vem o caminho até o Instagram
+      await sp.getByRole("button", { name: "Baixar as 2 telas", exact: true }).click();
+      await sp.waitForFunction(() => window.__saved?.length === 2);
+      const saved = await sp.evaluate(() => window.__saved);
+      expect(saved.join(",") === "story-1.jpg,story-2.jpg", `no celular, as telas saem uma a uma: ${saved}`);
+      await sp.getByText("Fotos salvas no celular.").waitFor();
+      const igLink = sp.getByRole("link", { name: "Abrir o Instagram" });
+      expect((await igLink.getAttribute("href")) === "https://www.instagram.com/", "link para abrir o Instagram");
       // dentro do Claude, no Chrome do Android: as fotos vão direto para o Instagram pelo menu de compartilhar
-      await sp.getByRole("button", { name: "Abrir no Instagram" }).click();
+      await sp.getByRole("button", { name: "Mandar para o Instagram" }).click();
       await sp.waitForFunction(() => window.__shared?.length === 2);
       const shared = await sp.evaluate(() => window.__shared);
       expect(shared.join(",") === "story-1.jpg,story-2.jpg", `fotos compartilhadas: ${shared}`);

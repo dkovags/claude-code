@@ -66,6 +66,20 @@ describe("buildSuggestPrompt", () => {
     for (const field of FEED_SCHEMA.required) expect(p).toContain(`"${field}"`);
   });
 
+  it("pede texto com cara de escrito pela pessoa, sem os vícios de texto de IA, em todos os pedidos", () => {
+    const prompts = [
+      buildSuggestPrompt(base),
+      buildSuggestPrompt(feed),
+      buildRefinePrompt({ brief: DEFAULT_BRIEF, analysis: "", draft: { text: "Oi", hashtags: [] }, instruction: "Mais curta" }),
+      buildStoryRefinePrompt({ brief: DEFAULT_BRIEF, analysis: "", frames: [{ text: "Oi", sticker: null }], instruction: "Mais curtos" }),
+    ];
+    for (const p of prompts) {
+      expect(p).toContain("Escreva como a própria pessoa escreveria no Instagram dela");
+      expect(p).toContain('"momentos inesquecíveis"');
+      expect(p).toContain("no máximo uma exclamação por texto");
+    }
+  });
+
   it("o objetivo muda conforme o destino", () => {
     expect(buildSuggestPrompt(base)).toContain("respostas por mensagem e votos e respostas nas figurinhas");
     expect(buildSuggestPrompt(feed)).toContain("puxar conversa e gerar comentários");

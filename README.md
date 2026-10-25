@@ -121,6 +121,11 @@ de *stories*; o de *feed* continua disponível.
   *hashtag* não vira *link* nem entra na busca; por isso a etapa final tem um botão para copiá-las e o passo a passo
   para colá-las no editor do Instagram e escondê-las (letra mínima, na cor do fundo ou embaixo de uma figurinha). No
   *feed*, elas ficam fora da legenda copiada, prontas para colar no primeiro comentário logo depois de publicar.
+- **Texto com cara de gente**: os pedidos ao Claude trazem regras contra os vícios de texto de IA: escrever como a
+  própria pessoa escreveria, com palavras do dia a dia e frases de tamanhos diferentes; preferir um detalhe concreto a
+  um adjetivo bonito; evitar expressões como "momentos inesquecíveis", "a magia de" e "jornada", estruturas como "não é
+  só X, é Y", listas de três adjetivos e frase de efeito no fim; no máximo uma exclamação e nada de emojis de enfeite.
+  Nos ajustes, **Mais natural** (legenda) e **Mais naturais** (stories) pedem uma reescrita nesse sentido.
 - **Na tela de escolha**: **Usar e editar** abre o editor dentro da opção escolhida, para mudar o texto à mão.
   **Gerar de novo** refaz todas as opções: se faltou alguma informação (ou alguma estava errada), escreva antes no
   campo opcional **Acrescente ou corrija uma informação**, ou edite o contexto inteiro, e o Claude leva isso em conta;
@@ -164,9 +169,12 @@ de *stories*; o de *feed* continua disponível.
   menos pixels que isso (foto recebida por mensagem, tirada com zoom do celular, zoom alto no enquadramento ou foto
   deitada recortada em pé), ela precisa ser ampliada e fica borrada: a página avisa ao escolher as fotos e na etapa
   final, com o que fazer (diminuir o zoom, usar Foto inteira ou a foto original), e marca a foto na tira.
-- **Direto para o Instagram**: no celular, **Abrir no Instagram** manda as fotos prontas pelo menu de compartilhar do
-  sistema; aí é escolher Instagram (Stories ou Feed) e adicionar as figurinhas, a música e a localização lá. Dentro do
-  Claude, o botão aparece quando o claude.ai deixa a página usar esse menu; senão, as fotos são baixadas. Publicar
+- **Direto para o Instagram**: no celular, **Mandar para o Instagram** manda as fotos prontas pelo menu de compartilhar
+  do sistema; aí é escolher Instagram (Stories ou Feed) e adicionar as figurinhas, a música e a localização lá. Dentro
+  do Claude, o botão aparece quando o claude.ai deixa a página usar esse menu (no app do Claude para iPhone, o próprio
+  download abre esse menu). Sem ele, no celular as fotos são baixadas uma a uma, não num .zip, porque o Instagram não
+  abre .zip, e um aviso logo abaixo leva ao Instagram, com o botão **Abrir o Instagram**, para escolher as fotos em
+  Recentes. Publicar
   sem abrir o Instagram exigiria a API da Meta, só para contas profissionais e com um servidor, e ela não põe
   figurinhas (enquete, perguntas, localização) nem música nos stories.
 - **Celular e computador**: no computador, a prévia fica ao lado dos controles; no celular, tudo vem numa coluna, com
