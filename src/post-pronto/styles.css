@@ -1653,6 +1653,28 @@ input.emoji-input {
   cursor: grabbing;
 }
 
+/* alças para arrastar os trechos do texto (o texto está desenhado no canvas, embaixo) */
+.text-handle {
+  position: absolute;
+  border-radius: 8px;
+  outline: 1.5px solid transparent;
+  outline-offset: 0;
+  cursor: grab;
+  touch-action: none;
+}
+.text-handle:hover,
+.text-handle:active,
+.text-handle:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.25);
+}
+.text-handle:active {
+  cursor: grabbing;
+}
+.text-handle:focus-visible {
+  outline: 2px solid var(--focus);
+}
+
 .story-top {
   position: absolute;
   inset: 0 0 auto;

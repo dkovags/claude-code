@@ -82,6 +82,12 @@ export const TEXT_BG_LABELS: Record<TextBg, string> = {
   black: "Preto",
 };
 
+/** Um ponto na foto, em fração da largura e da altura (0,5 e 0,5 é o centro). */
+export interface Spot {
+  x: number;
+  y: number;
+}
+
 export interface Overlay {
   text: string;
   style: OverlayStyle;
@@ -97,6 +103,9 @@ export interface Overlay {
   style2: OverlayStyle;
   size2: number;
   bg2: TextBg;
+  /** Centro da caixa de cada trecho arrastada na prévia (sem ele, o trecho fica na `position`). */
+  at?: Spot;
+  at2?: Spot;
 }
 
 export const DEFAULT_OVERLAY: Overlay = {
@@ -176,11 +185,15 @@ export function wrapLines(text: string, maxWidth: number, measure: (s: string) =
 
 /** Um trecho do texto já medido: fonte, linhas, lugar na foto e a caixa atrás dele. */
 export interface OverlayBlock {
+  /** Primeiro ou segundo trecho. */
+  part: 1 | 2;
   font: string;
   px: number;
   lines: string[];
   lineHeight: number;
   top: number;
+  /** Centro na horizontal. */
+  cx: number;
   width: number;
   height: number;
   bg: TextBg;
@@ -209,8 +222,8 @@ export function layoutOverlay(
   measureWith: (font: string, s: string) => number,
 ): OverlayLayout {
   const parts = [
-    { text: o.text, style: o.style, size: o.size, bg: o.bg },
-    { text: o.text2, style: o.style2, size: o.size2, bg: o.bg2 },
+    { part: 1 as const, text: o.text, style: o.style, size: o.size, bg: o.bg, at: o.at },
+    { part: 2 as const, text: o.text2, style: o.style2, size: o.size2, bg: o.bg2, at: o.at2 },
   ].filter((p) => p.text.trim());
   const two = parts.length > 1;
   const maxWidth = W * 0.84;
@@ -230,11 +243,13 @@ export function layoutOverlay(
       const lineHeight = px * style.lineHeight;
       const boxed = p.bg !== "none";
       return {
+        part: p.part,
         font,
         px,
         lines,
         lineHeight,
         top: 0,
+        cx: W / 2,
         width: Math.max(0, ...lines.map(measure)),
         height: lines.length * lineHeight,
         bg: p.bg,
@@ -268,7 +283,54 @@ export function layoutOverlay(
     b.top = y;
     y += b.height + gap;
   }
-  return { blocks, top, width: Math.max(0, ...blocks.map((b) => b.width)), height };
+  // trechos arrastados na prévia; o segundo acompanha o primeiro até ser arrastado também
+  const [first, second] = blocks;
+  const atOf = (i: number) => parts[i]?.at;
+  if (first && atOf(0)) placeAt(second && !atOf(1) ? [first, second] : [first], atOf(0)!, gap, W, H);
+  if (second && atOf(1)) placeAt([second], atOf(1)!, gap, W, H);
+  if (!blocks.length) return { blocks, top, width: 0, height };
+  const start = Math.min(...blocks.map((b) => b.top));
+  const end = Math.max(...blocks.map((b) => b.top + b.height));
+  return { blocks, top: start, width: Math.max(...blocks.map((b) => b.width)), height: end - start };
+}
+
+const within = (v: number, min: number, max: number) => (min > max ? (min + max) / 2 : Math.min(max, Math.max(min, v)));
+
+/** Põe um trecho (ou os dois, empilhados) com o centro do primeiro em `at`, sem que as caixas saiam da foto. */
+function placeAt(group: OverlayBlock[], at: Spot, gap: number, W: number, H: number) {
+  const halfW = Math.max(...group.map((b) => b.width / 2 + b.padX));
+  const cx = within(at.x * W, halfW, W - halfW);
+  const first = group[0];
+  const last = group[group.length - 1];
+  const stack = group.reduce((h, b) => h + b.height, gap * (group.length - 1));
+  let y = within(at.y * H - first.height / 2, first.padY, H - stack - last.padY);
+  for (const b of group) {
+    b.cx = cx;
+    b.top = y;
+    y += b.height + gap;
+  }
+}
+
+/** A caixa de cada trecho em fração da foto, para arrastar na prévia (com folga para pegar o texto sem fundo). */
+export interface TextBox {
+  part: 1 | 2;
+  /** Canto superior esquerdo, largura e altura. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Centro. */
+  center: Spot;
+}
+
+export function textBoxes(layout: OverlayLayout, W: number, H: number): TextBox[] {
+  return layout.blocks.map((b) => {
+    const grip = b.bg === "none" ? b.px * 0.3 : 0;
+    const w = b.width + 2 * (b.padX + grip);
+    const h = b.height + 2 * (b.padY + grip);
+    const cy = b.top + b.height / 2;
+    return { part: b.part, x: (b.cx - w / 2) / W, y: (cy - h / 2) / H, w: w / W, h: h / H, center: { x: b.cx / W, y: cy / H } };
+  });
 }
 
 type Source = CanvasImageSource;
@@ -318,12 +380,13 @@ export function textColors(bg: TextBg, color: Overlay["color"]): { ink: string; 
   }
 }
 
-export function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, W: number, H: number) {
+/** Escreve o texto na foto e devolve onde ficou cada trecho. */
+export function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, W: number, H: number): OverlayLayout {
   const layout = layoutOverlay(o, W, H, (font, s) => {
     ctx.font = font;
     return ctx.measureText(s).width;
   });
-  if (!layout.blocks.length) return;
+  if (!layout.blocks.length) return layout;
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -333,7 +396,7 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, W: number
     ctx.shadowColor = "transparent";
     if (box) {
       ctx.fillStyle = box;
-      roundRect(ctx, (W - b.width) / 2 - b.padX, b.top - b.padY, b.width + b.padX * 2, b.height + b.padY * 2, b.px * 0.28);
+      roundRect(ctx, b.cx - b.width / 2 - b.padX, b.top - b.padY, b.width + b.padX * 2, b.height + b.padY * 2, b.px * 0.28);
       ctx.fill();
     } else {
       ctx.shadowColor = ink === "#ffffff" ? "rgba(0, 0, 0, 0.55)" : "rgba(255, 255, 255, 0.5)";
@@ -342,12 +405,13 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, W: number
     }
     ctx.fillStyle = ink;
     ctx.font = b.font;
-    b.lines.forEach((line, i) => ctx.fillText(line, W / 2, b.top + b.lineHeight * (i + 0.5)));
+    b.lines.forEach((line, i) => ctx.fillText(line, b.cx, b.top + b.lineHeight * (i + 0.5)));
   }
   ctx.restore();
+  return layout;
 }
 
-/** Desenha a foto no quadro W×H com o enquadramento e, se houver, o texto. */
+/** Desenha a foto no quadro W×H com o enquadramento e, se houver, o texto (devolve onde ficou cada trecho). */
 export function drawPost(
   ctx: CanvasRenderingContext2D,
   img: Source,
@@ -357,7 +421,7 @@ export function drawPost(
   H: number,
   framing: Framing,
   overlay: Overlay | null,
-) {
+): OverlayLayout | null {
   ctx.fillStyle = "#ffffff"; // fundo para PNG com transparência (o JPEG não tem)
   ctx.fillRect(0, 0, W, H);
   ctx.imageSmoothingEnabled = true;
@@ -372,7 +436,7 @@ export function drawPost(
     const dh = imgH * s;
     ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
   }
-  if (overlay) drawOverlay(ctx, overlay, W, H);
+  return overlay ? drawOverlay(ctx, overlay, W, H) : null;
 }
 
 /** Gera o JPEG final (1080 px de largura) de uma foto. */

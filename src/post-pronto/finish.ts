@@ -36,10 +36,14 @@ export function overlaysFor(
 ): (Overlay | null)[] {
   return Array.from({ length: count }, (_, i) => {
     if (!finish.overlayOn) return null;
-    const source = destination === "stories" ? frames[i] : i === 0 ? finish.overlay : undefined;
+    const frame = destination === "stories" ? frames[i] : undefined;
+    const source = frame ?? (destination === "feed" && i === 0 ? finish.overlay : undefined);
     const text = source?.text ?? "";
     const text2 = finish.twoParts ? (source?.text2 ?? "") : "";
-    return text.trim() || text2.trim() ? { ...finish.overlay, text, text2 } : null;
+    // lugar de cada trecho arrastado na prévia: nos stories, o de cada tela; no feed, o da capa
+    const at = destination === "stories" ? frame?.textAt : finish.overlay.at;
+    const at2 = finish.twoParts ? (destination === "stories" ? frame?.text2At : finish.overlay.at2) : undefined;
+    return text.trim() || text2.trim() ? { ...finish.overlay, text, text2, at, at2 } : null;
   });
 }
 

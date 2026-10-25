@@ -628,6 +628,43 @@ try {
   expect(darkPixels[0] > 15000 && darkPixels[1] < 500, `caixa preta do trecho 2: ${darkPixels}`);
   await page.getByText("Escrever os textos nas fotos").click();
 
+  // arrastar o trecho 2 (a caixa preta) para baixo na prévia: a foto baixada sai igual
+  await page.getByText("Na prévia, dá para arrastar cada trecho para outro lugar.").waitFor();
+  const handle1 = page.getByRole("button", { name: "Trecho 1 na foto: arraste (ou use as setas) para mudar de lugar" });
+  const handle2 = page.getByRole("button", { name: "Trecho 2 na foto: arraste (ou use as setas) para mudar de lugar" });
+  const t1 = await settledBox(handle1);
+  const t2 = await settledBox(handle2);
+  const storyScreen = page.locator(".story-screen");
+  // posição dentro da prévia (clicar nos controles pode rolar a página)
+  const inScreen = async (loc) => (await settledBox(loc)).y - (await storyScreen.boundingBox()).y;
+  const t2InScreen = await inScreen(handle2);
+  const drop = (await storyScreen.boundingBox()).height * 0.4;
+  await page.mouse.move(t2.x + t2.width / 2, t2.y + t2.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(t2.x + t2.width / 2, t2.y + t2.height / 2 + drop, { steps: 8 });
+  await page.mouse.up();
+  const t2moved = await settledBox(handle2);
+  expect(Math.abs(t2moved.y - (t2.y + drop)) < 3, `o trecho 2 deveria descer: ${t2.y} → ${t2moved.y}`);
+  expect(Math.abs((await settledBox(handle1)).y - t1.y) < 1, "o trecho 1 fica onde estava");
+  await page.getByText("Você mudou o texto de lugar na prévia").waitFor();
+  await handle2.press("ArrowUp");
+  expect((await settledBox(handle2)).y < t2moved.y - 2, "a seta para cima sobe o trecho");
+  await download(page, page.getByRole("button", { name: "Baixar as 2 telas (.zip)" }), `${OUT}/downloads/stories-arrastado.zip`);
+  const darkSplit = python(
+    "import sys,zipfile,io\nfrom PIL import Image, ImageChops\n" +
+      "r,g,b=Image.open(io.BytesIO(zipfile.ZipFile(sys.argv[1]).read('story-1.jpg'))).convert('RGB').split()\n" +
+      "m=ImageChops.lighter(ImageChops.lighter(r,g),b)\n" +
+      "print(sum(m.crop((0,0,1080,1100)).histogram()[:40]), sum(m.crop((0,1100,1080,1920)).histogram()[:40]))",
+    `${OUT}/downloads/stories-arrastado.zip`,
+  ).split(" ").map(Number);
+  expect(darkSplit[0] < 2000 && darkSplit[1] > 15000, `a caixa preta deveria descer na foto baixada: ${darkSplit}`);
+  await shot(page, "06c-stories-texto-arrastado");
+  // escolher uma posição traz o texto de volta
+  await page.getByRole("radiogroup", { name: "Posição" }).getByRole("radio", { name: "Em cima" }).click();
+  const t2back = await inScreen(handle2);
+  expect(Math.abs(t2back - t2InScreen) < 2, `a posição escolhida traz o trecho 2 de volta: ${t2InScreen} → ${t2back}`);
+  await page.getByText("Na prévia, dá para arrastar cada trecho para outro lugar.").waitFor();
+
   await download(page, page.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }), `${OUT}/downloads/stories.txt`);
   const storiesTxt = readFileSync(`${OUT}/downloads/stories.txt`, "utf8");
   expect(
@@ -737,6 +774,12 @@ try {
   await page.mouse.down();
   await page.mouse.move(cbox.x + cbox.width / 2 - 80, cbox.y + cbox.height / 2 + 30, { steps: 6 });
   await page.mouse.up();
+  // o texto da capa também muda de lugar na prévia (aqui, pelas setas)
+  const coverText = page.getByRole("button", { name: "Texto na foto: arraste (ou use as setas) para mudar de lugar" });
+  const cover0 = await settledBox(coverText);
+  await coverText.press("Shift+ArrowDown");
+  expect((await settledBox(coverText)).y > cover0.y + 5, "shift + seta para baixo desce o texto da capa");
+  await page.getByText("Você mudou o texto de lugar na prévia").waitFor();
   await shot(page, "08-feed-pronto");
 
   expect(

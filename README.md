@@ -143,6 +143,10 @@ de *stories*; o de *feed* continua disponível.
 - **Fundo de cada trecho**: cada trecho (ou o texto todo, com um trecho só) pode ficar sem fundo, com sombra, ou ganhar
   uma caixa semitransparente, branca ou preta, do tamanho do próprio texto. Com caixa branca ou preta, o texto fica na
   cor oposta; sem fundo ou com caixa semitransparente, vale a **Cor do texto** escolhida.
+- **Arrastar o texto na prévia**: cada trecho pode ser arrastado (ou movido com as setas) para qualquer lugar da foto,
+  e a foto baixada sai igual. O segundo trecho acompanha o primeiro até ser arrastado também; as caixas não saem da
+  foto. Nos *stories*, o lugar vale para cada tela; no *feed*, para o texto da capa. Tocar numa opção de **Posição**
+  traz o texto de volta ao lugar padrão.
 - **Figurinha tracejada**: na prévia, dá para arrastar a figurinha (ou movê-la com as setas) para ver onde ela fica
   melhor em cada tela, e tirá-la pelo × no canto. Também dá para tirar pelo botão **Remover** na lista de figurinhas
   da etapa final ou no editor dos textos. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona

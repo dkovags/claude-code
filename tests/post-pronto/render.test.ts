@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, formatSpec, layoutOverlay, overlayStyles, pan, sharpness, textColors,
-  upscale, wrapLines,
+  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, formatSpec, layoutOverlay, overlayStyles, pan, sharpness, textBoxes,
+  textColors, upscale, wrapLines,
 } from "../../src/post-pronto/render";
 
 // largura fictícia: cada caractere mede 0,5 do tamanho da fonte
@@ -139,6 +139,37 @@ describe("texto na foto", () => {
     const plain = layoutOverlay({ ...o, bg: "none", bg2: "none", position: "top" }, 1080, 1920, measureWith);
     expect(plain.blocks.map((b) => b.padY)).toEqual([0, 0]);
     expect(plain.blocks[0].top).toBeCloseTo(1920 * 0.14);
+  });
+
+  it("trecho arrastado na prévia: fica onde foi solto, sem sair da foto; o segundo acompanha o primeiro", () => {
+    const o = { ...DEFAULT_OVERLAY, text: "Por que a bandeira está furada?", text2: "Em 1956", bg: "black" as const, bg2: "white" as const };
+    const preset = layoutOverlay(o, 1080, 1920, measureWith);
+    const gap = preset.blocks[1].top - (preset.blocks[0].top + preset.blocks[0].height);
+    // o primeiro arrastado leva o segundo junto, logo abaixo
+    const moved = layoutOverlay({ ...o, at: { x: 0.5, y: 0.6 } }, 1080, 1920, measureWith);
+    const [a, b] = moved.blocks;
+    expect(a.top + a.height / 2).toBeCloseTo(1920 * 0.6);
+    expect(b.top).toBeCloseTo(a.top + a.height + gap);
+    expect(b.cx).toBeCloseTo(a.cx);
+    expect(moved.top).toBeCloseTo(a.top);
+    expect(moved.height).toBeCloseTo(b.top + b.height - a.top);
+    // arrastado também, o segundo fica sozinho onde foi solto
+    const apart = layoutOverlay({ ...o, at: { x: 0.5, y: 0.6 }, at2: { x: 0.3, y: 0.2 } }, 1080, 1920, measureWith);
+    expect(apart.blocks[0].top).toBeCloseTo(a.top);
+    expect(apart.blocks[1].cx).toBeCloseTo(1080 * 0.3);
+    expect(apart.blocks[1].top + apart.blocks[1].height / 2).toBeCloseTo(1920 * 0.2);
+    // solto na borda, o conjunto para dentro da foto
+    const edge = layoutOverlay({ ...o, at: { x: 0, y: 1 } }, 1080, 1920, measureWith);
+    const [e1, e2] = edge.blocks;
+    const half = Math.max(e1.width / 2 + e1.padX, e2.width / 2 + e2.padX);
+    expect(e1.cx - half).toBeCloseTo(0);
+    expect(e2.top + e2.height + e2.padY).toBeCloseTo(1920);
+    // a alça para arrastar acompanha o trecho, em fração da foto
+    const [box1, box2] = textBoxes(apart, 1080, 1920);
+    expect(box1.part).toBe(1);
+    expect(box1.center.y).toBeCloseTo(0.6);
+    expect(box2.center.x).toBeCloseTo(0.3);
+    expect(box2.x + box2.w / 2).toBeCloseTo(0.3);
   });
 
   it("com fundo branco ou preto, o texto fica na cor oposta; sem fundo ou semitransparente, segue a cor escolhida", () => {

@@ -401,7 +401,9 @@ export default function App() {
       );
       if (!next) return false;
       setUndoFrames(current);
-      setFrames(finish.twoParts ? next.map((f) => withTwoParts(f, true)) : next);
+      // os textos reescritos ficam onde a pessoa os arrastou na prévia
+      const placed = next.map((f, i) => ({ ...f, textAt: current[i]?.textAt, text2At: current[i]?.text2At }));
+      setFrames(finish.twoParts ? placed.map((f) => withTwoParts(f, true)) : placed);
       return true;
     }
     const prompt = buildRefinePrompt({ brief, analysis: result.analysis, draft, instruction });
@@ -533,6 +535,16 @@ export default function App() {
                   ? (at) => setFrames(frames.map((f, i) => (i === previewIndex ? { ...f, stickerAt: at } : f)))
                   : undefined
               }
+              onTextMove={
+                picked && !isExample && overlay
+                  ? (part, at) =>
+                      setFrames(
+                        frames.map((f, i) =>
+                          i !== previewIndex ? f : part === 1 ? { ...f, textAt: at } : { ...f, text2At: at },
+                        ),
+                      )
+                  : undefined
+              }
               onStickerRemove={
                 picked && !isExample
                   ? () => {
@@ -543,7 +555,17 @@ export default function App() {
               }
             />
           ) : (
-            <PostPreview {...previewCommon} spec={spec} draft={isExample ? EXAMPLE_DRAFT : picked ? draft : null} />
+            <PostPreview
+              {...previewCommon}
+              spec={spec}
+              draft={isExample ? EXAMPLE_DRAFT : picked ? draft : null}
+              onTextMove={
+                atFinish && overlay && previewIndex === 0
+                  ? (part, at) =>
+                      setFinish((f) => ({ ...f, overlay: part === 1 ? { ...f.overlay, at } : { ...f.overlay, at2: at } }))
+                  : undefined
+              }
+            />
           )}
           {isExample && (
             <p className="stage-note">

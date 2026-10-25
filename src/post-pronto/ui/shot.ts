@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { drawPost, ensureOverlayFonts, type FormatSpec, type Framing, type Overlay, overlayStyles, pan } from "../render";
+import {
+  drawPost, ensureOverlayFonts, type FormatSpec, type Framing, type Overlay, overlayStyles, pan, type TextBox, textBoxes,
+} from "../render";
 
 export interface PreviewSource {
   img: CanvasImageSource;
@@ -9,7 +11,7 @@ export interface PreviewSource {
 
 /**
  * Canvas da prévia: desenha a foto com o enquadramento e o texto, e deixa arrastar a foto (ou usar as setas)
- * para enquadrar quando `onFraming` é passado.
+ * para enquadrar quando `onFraming` é passado. Devolve também onde ficou cada trecho do texto (`boxes`).
  */
 export function useShot({
   source,
@@ -30,6 +32,7 @@ export function useShot({
   const canvas = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ x: number; y: number; start: Framing } | null>(null);
   const [fontsReady, setFontsReady] = useState(0);
+  const [boxes, setBoxes] = useState<TextBox[]>([]);
   const H = Math.round((width * spec.h) / spec.w);
   const canPan = framing.mode === "fill" && !!onFraming;
 
@@ -49,7 +52,9 @@ export function useShot({
     if (!c) return;
     c.width = width;
     c.height = H;
-    drawPost(c.getContext("2d")!, source.img, source.width, source.height, width, H, framing, overlay);
+    const layout = drawPost(c.getContext("2d")!, source.img, source.width, source.height, width, H, framing, overlay);
+    const next = layout ? textBoxes(layout, width, H) : [];
+    setBoxes((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, [source, width, H, framing, overlay, fontsReady]);
 
   const move = (dx: number, dy: number, start = framing) =>
@@ -89,5 +94,5 @@ export function useShot({
     },
   };
 
-  return { canvas, canPan, handlers, tabIndex: canPan ? 0 : -1 };
+  return { canvas, canPan, handlers, tabIndex: canPan ? 0 : -1, boxes };
 }

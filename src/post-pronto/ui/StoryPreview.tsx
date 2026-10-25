@@ -1,13 +1,13 @@
 import { ChevronLeft, ChevronRight, Heart, Link2, MapPin, Music, Send, X } from "lucide-react";
 import { type KeyboardEvent, type PointerEvent, useRef } from "react";
 import { STICKER_LABELS } from "../caption";
-import { formatSpec, type Framing, type Overlay } from "../render";
+import { formatSpec, type Framing, type Overlay, type Spot } from "../render";
 import type { MusicPick, PlacePick, Sticker } from "../types";
 import { type PreviewSource, useShot } from "./shot";
+import { TextHandles } from "./TextHandles";
 
 const STORY = formatSpec("9:16");
 
-type Spot = { x: number; y: number };
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 /** Onde a figurinha pode ficar: sem sair da tela nem cobrir o perfil, no alto, e a barra de resposta, embaixo. */
 const spot = (x: number, y: number): Spot => ({ x: clamp(x, 0.3, 0.7), y: clamp(y, 0.12, 0.86) });
@@ -50,6 +50,7 @@ export function StoryPreview({
   stickerAt,
   onStickerMove,
   onStickerRemove,
+  onTextMove,
   handle,
   music,
   place,
@@ -70,6 +71,8 @@ export function StoryPreview({
   onStickerMove?: (at: Spot) => void;
   /** Tirar a figurinha da tela. */
   onStickerRemove?: () => void;
+  /** Arrastar um trecho do texto: muda o lugar dele na foto baixada. */
+  onTextMove?: (part: 1 | 2, at: Spot) => void;
   handle: string;
   music?: MusicPick;
   place?: PlacePick;
@@ -84,10 +87,15 @@ export function StoryPreview({
   const name = handle || "seu_perfil";
   const screen = useRef<HTMLDivElement>(null);
   const grab = useRef<{ dx: number; dy: number } | null>(null);
-  const textAt = overlay && (overlay.text.trim() || overlay.text2.trim()) ? overlay.position : null;
+  const textPosition = overlay && (overlay.text.trim() || overlay.text2.trim()) ? overlay.position : null;
   // figurinhas empilhadas na parte livre da tela: longe do texto, do topo e da barra de resposta
   const [top, bottom, justifyContent] =
-    textAt === "bottom" ? [15, 42, "center"] : textAt === "center" ? [63, 11, "flex-start"] : [34, 11, "center"];
+    textPosition === "bottom"
+      ? [15, 42, "center"]
+      : textPosition === "center"
+        ? [63, 11, "flex-start"]
+        : [34, 11, "center"];
+  const movableText = !!onTextMove && shot.boxes.length > 0;
   // a camada cobre a tela toda (a figurinha arrastada se posiciona nela); o espaçamento delimita a parte livre.
   // Espaçamento em % vale sobre a largura, e a tela é 9:16
   const area = { paddingTop: `${(top * 16) / 9}%`, paddingBottom: `${(bottom * 16) / 9}%`, justifyContent };
@@ -184,6 +192,7 @@ export function StoryPreview({
           tabIndex={shot.tabIndex}
           {...shot.handlers}
         />
+        {movableText && <TextHandles boxes={shot.boxes} frame={screen} onMove={onTextMove!} />}
         <div className="story-top" aria-hidden="true">
           <div className="story-bars">
             {Array.from({ length: Math.max(1, count) }, (_, i) => (
@@ -243,10 +252,11 @@ export function StoryPreview({
           </>
         )}
       </div>
-      {ghosts && (
+      {(ghosts || movableText) && (
         <figcaption className="story-note">
-          O que está tracejado você adiciona no Instagram, com as figurinhas. Não vai na foto baixada.
+          {ghosts && "O que está tracejado você adiciona no Instagram, com as figurinhas. Não vai na foto baixada."}
           {movable && " Arraste a figurinha para ver onde ela fica melhor."}
+          {movableText && " Arraste os textos para mudar o lugar deles na foto."}
         </figcaption>
       )}
     </figure>

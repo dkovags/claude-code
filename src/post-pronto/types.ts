@@ -78,6 +78,9 @@ export interface StoryFrame {
   sticker: Sticker | null;
   /** Onde a figurinha tracejada fica na prévia (centro, em fração da tela); só para planejar, não vai na foto. */
   stickerAt?: { x: number; y: number };
+  /** Centro de cada trecho do texto arrastado na prévia, em fração da tela (sem ele, vale a posição escolhida). */
+  textAt?: { x: number; y: number };
+  text2At?: { x: number; y: number };
 }
 
 export interface StoryVersion {

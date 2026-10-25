@@ -320,8 +320,8 @@ export function FinishPanel({
   const spec = formatSpec(stories ? "9:16" : finish.format);
   const photo = photos[Math.min(active, photos.length - 1)];
   const { overlayOn, twoParts, overlay } = finish;
-  // só os textos entram na foto: mexer na figurinha tracejada não refaz os arquivos
-  const frameTexts = frames.map((f) => `${f.text}\u0000${f.text2 ?? ""}`).join("\u0001");
+  // só os textos e o lugar deles entram na foto: mexer na figurinha tracejada não refaz os arquivos
+  const frameTexts = frames.map((f) => JSON.stringify([f.text, f.text2 ?? "", f.textAt, f.text2At])).join("\u0001");
   const overlays = useMemo(
     () => overlaysFor(destination, photos.length, { ...INITIAL_FINISH, overlayOn, twoParts, overlay }, frames),
     [destination, photos.length, overlayOn, twoParts, overlay, frameTexts],
@@ -339,6 +339,17 @@ export function FinishPanel({
   const setOverlay = (patch: Partial<Overlay>) => set({ overlay: { ...finish.overlay, ...patch } });
   // fundos em uso: o do texto todo ou o de cada trecho
   const bgs = twoParts ? [overlay.bg, overlay.bg2] : [overlay.bg];
+  // texto arrastado na prévia (nos stories, em alguma tela; no feed, na capa)
+  const moved = stories
+    ? frames.some((f) => f.textAt || (twoParts && f.text2At))
+    : !!(overlay.at || (twoParts && overlay.at2));
+  // escolher uma posição tira o texto do lugar para onde foi arrastado
+  const setPosition = (position: Overlay["position"]) => {
+    setOverlay({ position, at: undefined, at2: undefined });
+    if (stories && frames.some((f) => f.textAt || f.text2At)) {
+      setFrames(frames.map((f) => ({ ...f, textAt: undefined, text2At: undefined })));
+    }
+  };
   const frameText = (i: number, patch: Pick<StoryFrame, "text"> | Pick<StoryFrame, "text2">) =>
     setFrames(photos.map((_, k) => ({ ...(frames[k] ?? { text: "", sticker: null }), ...(k === i ? patch : {}) })));
   const styleOptions = (Object.keys(OVERLAY_STYLES) as OverlayStyle[]).map((id) => ({
@@ -636,7 +647,7 @@ export function FinishPanel({
                   { id: "bottom", label: "Embaixo" },
                 ]}
                 value={finish.overlay.position}
-                onChange={(position) => setOverlay({ position })}
+                onChange={setPosition}
               />
               {bgs.some((b) => b === "none" || b === "translucent") && (
                 <Segmented<Overlay["color"]>
@@ -652,6 +663,9 @@ export function FinishPanel({
             </div>
             <p className="hint">
               {[
+                moved
+                  ? "Você mudou o texto de lugar na prévia; para voltar ao lugar padrão, toque numa opção de Posição."
+                  : `Na prévia, dá para arrastar ${twoParts ? "cada trecho" : "o texto"} para outro lugar.`,
                 bgs.some((b) => b === "white" || b === "black") && "Com fundo branco ou preto, o texto fica na cor oposta.",
                 stories &&
                   `${twoParts ? "As mesmas fontes e fundos valem" : "O mesmo estilo e o mesmo fundo valem"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`,

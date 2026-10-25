@@ -1,9 +1,10 @@
 import { Bookmark, ChevronLeft, ChevronRight, Ellipsis, Heart, MessageCircle, Music, Send } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { feedExcerpt } from "../caption";
-import type { FormatSpec, Framing, Overlay } from "../render";
+import type { FormatSpec, Framing, Overlay, Spot } from "../render";
 import type { Draft, MusicPick, PlacePick } from "../types";
 import { type PreviewSource, useShot } from "./shot";
+import { TextHandles } from "./TextHandles";
 
 /** Legenda com as hashtags destacadas, como no app. */
 function CaptionBody({ text }: { text: string }) {
@@ -35,6 +36,7 @@ export function PostPreview({
   example,
   editable,
   onFraming,
+  onTextMove,
   index,
   count,
   onIndex,
@@ -51,11 +53,14 @@ export function PostPreview({
   /** Permite arrastar a foto para enquadrar. */
   editable?: boolean;
   onFraming?: (f: Framing) => void;
+  /** Arrastar um trecho do texto da capa: muda o lugar dele na foto baixada. */
+  onTextMove?: (part: 1 | 2, at: Spot) => void;
   index: number;
   count: number;
   onIndex: (i: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const frame = useRef<HTMLDivElement>(null);
   const shot = useShot({ source, spec, framing, overlay, width: 720, onFraming: editable ? onFraming : undefined });
   const name = handle || "seu_perfil";
   const caption = draft ? draft.text.trim() : "";
@@ -83,7 +88,7 @@ export function PostPreview({
         <Ellipsis size={18} aria-hidden="true" className="feed-more" />
       </header>
 
-      <div className={`shot${canPan ? " editing" : ""}`}>
+      <div className={`shot${canPan ? " editing" : ""}`} ref={frame}>
         <canvas
           ref={shot.canvas}
           role="img"
@@ -95,6 +100,7 @@ export function PostPreview({
           tabIndex={shot.tabIndex}
           {...shot.handlers}
         />
+        {onTextMove && <TextHandles boxes={shot.boxes} frame={frame} onMove={onTextMove} />}
         {canPan && (
           <>
             <i className="crop tl" aria-hidden="true" />
