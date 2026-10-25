@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, formatSpec, layoutOverlay, overlayStyles, pan, sharpness, upscale,
-  wrapLines,
+  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, formatSpec, layoutOverlay, overlayStyles, pan, sharpness, textColors,
+  upscale, wrapLines,
 } from "../../src/post-pronto/render";
 
 // largura fictícia: cada caractere mede 0,5 do tamanho da fonte
@@ -117,5 +117,35 @@ describe("texto na foto", () => {
     const onlySecond = layoutOverlay({ ...DEFAULT_OVERLAY, text: " ", text2: "Oi" }, 1080, 1920, measureWith);
     expect(onlySecond.blocks.map((b) => b.lines)).toEqual([["Oi"]]);
     expect(overlayStyles({ ...DEFAULT_OVERLAY, text: "Oi" })).toEqual(["modern"]);
+  });
+
+  it("cada trecho tem a sua caixa: as duas não se encostam e ficam fora das áreas dos botões", () => {
+    const o = { ...DEFAULT_OVERLAY, text: "Por que a bandeira está furada?", text2: "Em 1956", bg: "white" as const, bg2: "translucent" as const };
+    const top = layoutOverlay({ ...o, position: "top" }, 1080, 1920, measureWith);
+    const [first, second] = top.blocks;
+    expect([first.bg, second.bg]).toEqual(["white", "translucent"]);
+    expect(first.padY).toBeGreaterThan(0);
+    expect(first.top - first.padY).toBeCloseTo(1920 * 0.14);
+    const firstBoxEnd = first.top + first.height + first.padY;
+    expect(second.top - second.padY - firstBoxEnd).toBeCloseTo(Math.round(Math.min(first.px, second.px) * 0.35));
+    const bottom = layoutOverlay(o, 1080, 1920, measureWith);
+    const last = bottom.blocks[1];
+    expect(last.top + last.height + last.padY).toBeCloseTo(1920 * 0.8);
+    const middle = layoutOverlay({ ...o, position: "center" }, 1080, 1920, measureWith);
+    const boxTop = middle.blocks[0].top - middle.blocks[0].padY;
+    const boxEnd = middle.blocks[1].top + middle.blocks[1].height + middle.blocks[1].padY;
+    expect((boxTop + boxEnd) / 2).toBeCloseTo(960);
+    // sem fundo, nada muda: sem folga e o mesmo espaço entre os trechos de antes
+    const plain = layoutOverlay({ ...o, bg: "none", bg2: "none", position: "top" }, 1080, 1920, measureWith);
+    expect(plain.blocks.map((b) => b.padY)).toEqual([0, 0]);
+    expect(plain.blocks[0].top).toBeCloseTo(1920 * 0.14);
+  });
+
+  it("com fundo branco ou preto, o texto fica na cor oposta; sem fundo ou semitransparente, segue a cor escolhida", () => {
+    expect(textColors("white", "light")).toEqual({ ink: "#111111", box: "#ffffff" });
+    expect(textColors("black", "dark")).toEqual({ ink: "#ffffff", box: "#111111" });
+    expect(textColors("translucent", "light")).toEqual({ ink: "#ffffff", box: "rgba(12, 12, 14, 0.55)" });
+    expect(textColors("translucent", "dark")).toEqual({ ink: "#111111", box: "rgba(255, 255, 255, 0.78)" });
+    expect(textColors("none", "dark")).toEqual({ ink: "#111111", box: null });
   });
 });

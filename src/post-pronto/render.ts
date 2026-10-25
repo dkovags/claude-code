@@ -71,19 +71,32 @@ export function pan(f: Framing, dx: number, dy: number, imgW: number, imgH: numb
 
 export type OverlayStyle = "modern" | "editorial" | "handwritten" | "impact";
 
+/** Fundo de cada trecho: nenhum (o texto ganha sombra), caixa semitransparente, branca ou preta. */
+export type TextBg = "none" | "translucent" | "white" | "black";
+
+export const TEXT_BG_LABELS: Record<TextBg, string> = {
+  none: "Sem fundo",
+  // hífen opcional: na coluna estreita do celular, quebra em "Semi-" e "transparente"
+  translucent: "Semi\u00adtransparente",
+  white: "Branco",
+  black: "Preto",
+};
+
 export interface Overlay {
   text: string;
   style: OverlayStyle;
   position: "top" | "center" | "bottom";
   /** Multiplicador do tamanho da letra, de 0,6 a 1,6. */
   size: number;
+  /** Cor do texto sem fundo ou com fundo semitransparente (com fundo branco ou preto, o texto fica na cor oposta). */
   color: "light" | "dark";
-  /** Faixa semitransparente atrás do texto. */
-  band: boolean;
-  /** Segundo trecho, logo abaixo do primeiro, com fonte e tamanho próprios (vazio = só um trecho). */
+  /** Caixa atrás do primeiro trecho (ou do texto todo, quando há um trecho só). */
+  bg: TextBg;
+  /** Segundo trecho, logo abaixo do primeiro, com fonte, tamanho e caixa próprios (vazio = só um trecho). */
   text2: string;
   style2: OverlayStyle;
   size2: number;
+  bg2: TextBg;
 }
 
 export const DEFAULT_OVERLAY: Overlay = {
@@ -92,10 +105,11 @@ export const DEFAULT_OVERLAY: Overlay = {
   position: "bottom",
   size: 1,
   color: "light",
-  band: false,
+  bg: "none",
   text2: "",
   style2: "handwritten",
   size2: 1,
+  bg2: "none",
 };
 
 export const OVERLAY_STYLES: Record<
@@ -160,7 +174,7 @@ export function wrapLines(text: string, maxWidth: number, measure: (s: string) =
   return lines;
 }
 
-/** Um trecho do texto já medido: fonte, linhas e lugar na foto. */
+/** Um trecho do texto já medido: fonte, linhas, lugar na foto e a caixa atrás dele. */
 export interface OverlayBlock {
   font: string;
   px: number;
@@ -169,6 +183,10 @@ export interface OverlayBlock {
   top: number;
   width: number;
   height: number;
+  bg: TextBg;
+  /** Folga da caixa em volta do texto (zero sem fundo). */
+  padX: number;
+  padY: number;
 }
 
 export interface OverlayLayout {
@@ -191,8 +209,8 @@ export function layoutOverlay(
   measureWith: (font: string, s: string) => number,
 ): OverlayLayout {
   const parts = [
-    { text: o.text, style: o.style, size: o.size },
-    { text: o.text2, style: o.style2, size: o.size2 },
+    { text: o.text, style: o.style, size: o.size, bg: o.bg },
+    { text: o.text2, style: o.style2, size: o.size2, bg: o.bg2 },
   ].filter((p) => p.text.trim());
   const two = parts.length > 1;
   const maxWidth = W * 0.84;
@@ -210,9 +228,22 @@ export function layoutOverlay(
       const measure = (s: string) => measureWith(font, s);
       const lines = wrapLines(style.upper ? p.text.toLocaleUpperCase("pt-BR") : p.text, maxWidth, measure);
       const lineHeight = px * style.lineHeight;
-      return { font, px, lines, lineHeight, top: 0, width: Math.max(0, ...lines.map(measure)), height: lines.length * lineHeight };
+      const boxed = p.bg !== "none";
+      return {
+        font,
+        px,
+        lines,
+        lineHeight,
+        top: 0,
+        width: Math.max(0, ...lines.map(measure)),
+        height: lines.length * lineHeight,
+        bg: p.bg,
+        padX: boxed ? px * 0.5 : 0,
+        padY: boxed ? px * 0.3 : 0,
+      };
     });
-    gap = two ? Math.round(Math.min(...sizes) * 0.35) : 0;
+    // com caixa, o espaço entre os trechos fica entre as caixas
+    gap = two ? Math.round(Math.min(...sizes) * 0.35) + blocks[0].padY + blocks[1].padY : 0;
     const lines = blocks.reduce((n, b) => n + b.lines.length, 0);
     const height = blocks.reduce((h, b) => h + b.height, gap);
     const fits = blocks.every((b) => b.width <= maxWidth) && lines <= maxLines && height <= maxHeight;
@@ -223,7 +254,15 @@ export function layoutOverlay(
   const story = H / W > 1.7;
   const marginTop = H * (story ? 0.14 : 0.07);
   const marginBottom = H * (story ? 0.2 : 0.07);
-  const top = o.position === "top" ? marginTop : o.position === "center" ? (H - height) / 2 : H - marginBottom - height;
+  // as caixas também ficam fora das áreas dos botões, e no meio é o conjunto com as caixas que fica centralizado
+  const padTop = blocks[0]?.padY ?? 0;
+  const padBottom = blocks[blocks.length - 1]?.padY ?? 0;
+  const top =
+    o.position === "top"
+      ? marginTop + padTop
+      : o.position === "center"
+        ? (H - height + padTop - padBottom) / 2
+        : H - marginBottom - padBottom - height;
   let y = top;
   for (const b of blocks) {
     b.top = y;
@@ -264,33 +303,44 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
+/** Cores de um trecho: a do texto e a da caixa atrás dele (sem fundo, não há caixa e o texto ganha sombra). */
+export function textColors(bg: TextBg, color: Overlay["color"]): { ink: string; box: string | null } {
+  const light = color === "light";
+  switch (bg) {
+    case "white":
+      return { ink: "#111111", box: "#ffffff" };
+    case "black":
+      return { ink: "#ffffff", box: "#111111" };
+    case "translucent":
+      return { ink: light ? "#ffffff" : "#111111", box: light ? "rgba(12, 12, 14, 0.55)" : "rgba(255, 255, 255, 0.78)" };
+    default:
+      return { ink: light ? "#ffffff" : "#111111", box: null };
+  }
+}
+
 export function drawOverlay(ctx: CanvasRenderingContext2D, o: Overlay, W: number, H: number) {
   const layout = layoutOverlay(o, W, H, (font, s) => {
     ctx.font = font;
     return ctx.measureText(s).width;
   });
   if (!layout.blocks.length) return;
-  const light = o.color === "light";
-  const px = Math.max(...layout.blocks.map((b) => b.px));
   ctx.save();
-  if (o.band) {
-    // uma faixa só, atrás dos dois trechos
-    const padX = px * 0.55;
-    const padY = px * 0.35;
-    ctx.fillStyle = light ? "rgba(12, 12, 14, 0.55)" : "rgba(255, 255, 255, 0.78)";
-    roundRect(ctx, (W - layout.width) / 2 - padX, layout.top - padY, layout.width + padX * 2, layout.height + padY * 2, px * 0.28);
-    ctx.fill();
-  } else {
-    ctx.shadowColor = light ? "rgba(0, 0, 0, 0.55)" : "rgba(255, 255, 255, 0.5)";
-  }
-  ctx.fillStyle = light ? "#ffffff" : "#111111";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  // cada trecho com a sua caixa
   for (const b of layout.blocks) {
-    if (!o.band) {
+    const { ink, box } = textColors(b.bg, o.color);
+    ctx.shadowColor = "transparent";
+    if (box) {
+      ctx.fillStyle = box;
+      roundRect(ctx, (W - b.width) / 2 - b.padX, b.top - b.padY, b.width + b.padX * 2, b.height + b.padY * 2, b.px * 0.28);
+      ctx.fill();
+    } else {
+      ctx.shadowColor = ink === "#ffffff" ? "rgba(0, 0, 0, 0.55)" : "rgba(255, 255, 255, 0.5)";
       ctx.shadowBlur = b.px * 0.4;
       ctx.shadowOffsetY = b.px * 0.04;
     }
+    ctx.fillStyle = ink;
     ctx.font = b.font;
     b.lines.forEach((line, i) => ctx.fillText(line, W / 2, b.top + b.lineHeight * (i + 0.5)));
   }

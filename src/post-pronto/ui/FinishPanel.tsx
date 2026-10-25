@@ -2,7 +2,7 @@ import {
   ArrowLeft, Crop, Download, ExternalLink, FileText, Hash, Images, Lightbulb, ListOrdered, MapPin, Move, Share2,
   Sticker as StickerIcon, Trash2, TriangleAlert, Type,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { bothParts, musicLabel, postText, stickerSummary, storiesText } from "../caption";
 import { fileNames, type FinishState, INITIAL_FINISH, overlaysFor } from "../finish";
 import { mapsPoint, mapsSearch } from "../links";
@@ -11,7 +11,7 @@ import { formatTakenAt } from "../prompts";
 import {
   DEFAULT_FRAMING, ensureOverlayFonts, exportJpeg, FORMATS, type FormatId, formatSpec, type FormatSpec, type Framing,
   type Overlay,
-  OVERLAY_STYLES, type OverlayStyle,
+  OVERLAY_STYLES, type OverlayStyle, TEXT_BG_LABELS, type TextBg,
 } from "../render";
 import { touchScreen } from "../runtime";
 import type { Saver } from "../save";
@@ -104,6 +104,66 @@ function PlaceSection({
         <p className="hint">O Claude não sugeriu lugares desta vez.</p>
       )}
     </section>
+  );
+}
+
+const BG_OPTIONS = (Object.keys(TEXT_BG_LABELS) as TextBg[]).map((id) => ({
+  id,
+  label: (
+    <>
+      <span className={`bg-swatch ${id}`} aria-hidden="true" />
+      {TEXT_BG_LABELS[id]}
+    </>
+  ),
+}));
+
+/** Fonte, fundo e tamanho de um trecho do texto na foto (sem `part`, do texto todo). */
+function PartControls({
+  part,
+  style,
+  bg,
+  size,
+  styleOptions,
+  onStyle,
+  onBg,
+  onSize,
+}: {
+  part?: 1 | 2;
+  style: OverlayStyle;
+  bg: TextBg;
+  size: number;
+  styleOptions: { id: OverlayStyle; label: ReactNode }[];
+  onStyle: (s: OverlayStyle) => void;
+  onBg: (b: TextBg) => void;
+  onSize: (n: number) => void;
+}) {
+  const of = part ? ` do trecho ${part}` : "";
+  const sizeId = part === 2 ? "pp-overlay-size2" : "pp-overlay-size";
+  return (
+    <div className={part ? "part-controls" : "part-controls single"}>
+      <Segmented<OverlayStyle>
+        label={part ? `Fonte${of}` : "Estilo"}
+        options={styleOptions}
+        narrowColumns={2}
+        value={style}
+        onChange={onStyle}
+      />
+      <Segmented<TextBg> label={`Fundo${of}`} options={BG_OPTIONS} narrowColumns={2} value={bg} onChange={onBg} />
+      <div className="field">
+        <label className="label" htmlFor={sizeId}>
+          Tamanho{of}
+        </label>
+        <input
+          id={sizeId}
+          type="range"
+          min={0.6}
+          max={1.6}
+          step={0.05}
+          value={size}
+          onChange={(e) => onSize(Number(e.target.value))}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -277,6 +337,8 @@ export function FinishPanel({
   const several = photos.length > 1;
   const set = (patch: Partial<FinishState>) => setFinish({ ...finish, ...patch });
   const setOverlay = (patch: Partial<Overlay>) => set({ overlay: { ...finish.overlay, ...patch } });
+  // fundos em uso: o do texto todo ou o de cada trecho
+  const bgs = twoParts ? [overlay.bg, overlay.bg2] : [overlay.bg];
   const frameText = (i: number, patch: Pick<StoryFrame, "text"> | Pick<StoryFrame, "text2">) =>
     setFrames(photos.map((_, k) => ({ ...(frames[k] ?? { text: "", sticker: null }), ...(k === i ? patch : {}) })));
   const styleOptions = (Object.keys(OVERLAY_STYLES) as OverlayStyle[]).map((id) => ({
@@ -543,20 +605,26 @@ export function FinishPanel({
         )}
         {finish.overlayOn && (
           <>
-            <Segmented<OverlayStyle>
-              label={twoParts ? "Fonte do trecho 1" : "Estilo"}
-              options={styleOptions}
-              narrowColumns={2}
-              value={finish.overlay.style}
-              onChange={(style) => setOverlay({ style })}
+            <PartControls
+              part={twoParts ? 1 : undefined}
+              style={overlay.style}
+              bg={overlay.bg}
+              size={overlay.size}
+              styleOptions={styleOptions}
+              onStyle={(style) => setOverlay({ style })}
+              onBg={(bg) => setOverlay({ bg })}
+              onSize={(size) => setOverlay({ size })}
             />
             {twoParts && (
-              <Segmented<OverlayStyle>
-                label="Fonte do trecho 2"
-                options={styleOptions}
-                narrowColumns={2}
-                value={finish.overlay.style2}
-                onChange={(style2) => setOverlay({ style2 })}
+              <PartControls
+                part={2}
+                style={overlay.style2}
+                bg={overlay.bg2}
+                size={overlay.size2}
+                styleOptions={styleOptions}
+                onStyle={(style2) => setOverlay({ style2 })}
+                onBg={(bg2) => setOverlay({ bg2 })}
+                onSize={(size2) => setOverlay({ size2 })}
               />
             )}
             <div className="field-row controls">
@@ -570,55 +638,27 @@ export function FinishPanel({
                 value={finish.overlay.position}
                 onChange={(position) => setOverlay({ position })}
               />
-              <Segmented<Overlay["color"]>
-                label="Cor"
-                options={[
-                  { id: "light", label: "Branco" },
-                  { id: "dark", label: "Preto" },
-                ]}
-                value={finish.overlay.color}
-                onChange={(color) => setOverlay({ color })}
-              />
-            </div>
-            <div className={twoParts ? "field-row controls" : undefined}>
-              <div className="field">
-                <label className="label" htmlFor="pp-overlay-size">
-                  {twoParts ? "Tamanho do trecho 1" : "Tamanho"}
-                </label>
-                <input
-                  id="pp-overlay-size"
-                  type="range"
-                  min={0.6}
-                  max={1.6}
-                  step={0.05}
-                  value={finish.overlay.size}
-                  onChange={(e) => setOverlay({ size: Number(e.target.value) })}
+              {bgs.some((b) => b === "none" || b === "translucent") && (
+                <Segmented<Overlay["color"]>
+                  label="Cor do texto"
+                  options={[
+                    { id: "light", label: "Branco" },
+                    { id: "dark", label: "Preto" },
+                  ]}
+                  value={overlay.color}
+                  onChange={(color) => setOverlay({ color })}
                 />
-              </div>
-              {twoParts && (
-                <div className="field">
-                  <label className="label" htmlFor="pp-overlay-size2">
-                    Tamanho do trecho 2
-                  </label>
-                  <input
-                    id="pp-overlay-size2"
-                    type="range"
-                    min={0.6}
-                    max={1.6}
-                    step={0.05}
-                    value={finish.overlay.size2}
-                    onChange={(e) => setOverlay({ size2: Number(e.target.value) })}
-                  />
-                </div>
               )}
             </div>
-            <Toggle checked={finish.overlay.band} onChange={(band) => setOverlay({ band })} label="Faixa atrás do texto" />
             <p className="hint">
-              {stories
-                ? `${twoParts ? "As mesmas fontes valem" : "O mesmo estilo vale"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`
-                : several
-                  ? "O texto vai só na capa (foto 1)."
-                  : ""}
+              {[
+                bgs.some((b) => b === "white" || b === "black") && "Com fundo branco ou preto, o texto fica na cor oposta.",
+                stories &&
+                  `${twoParts ? "As mesmas fontes e fundos valem" : "O mesmo estilo e o mesmo fundo valem"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`,
+                !stories && several && "O texto vai só na capa (foto 1).",
+              ]
+                .filter(Boolean)
+                .join(" ")}
             </p>
           </>
         )}

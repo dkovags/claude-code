@@ -557,7 +557,7 @@ try {
   expect((await page.locator(".how").innerText()).includes("cole as hashtags e esconda como mostra Hashtags ocultas"), "passo das hashtags");
   expect((await page.locator(".hide-steps").innerText()).includes("o conta-gotas pega a cor exata"), "como esconder as hashtags");
   await page.getByRole("radio", { name: "Moderno" }).click();
-  await page.getByText("Faixa atrás do texto").click();
+  await page.getByRole("radiogroup", { name: "Fundo", exact: true }).getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).click();
   // dois trechos com fontes diferentes: o texto de cada tela é dividido num ponto natural
   await page.getByText("Dois trechos com fontes diferentes").click();
   expect((await page.getByLabel("Trecho 1 da tela 1").inputValue()) === "Cinco velinhas", "trecho 1 da tela 1");
@@ -566,6 +566,18 @@ try {
   expect((await font2.getByRole("radio", { name: "Manuscrito" }).getAttribute("aria-checked")) === "true", "o trecho 2 começa manuscrito");
   await font2.getByRole("radio", { name: "Editorial" }).click();
   await page.getByLabel("Tamanho do trecho 2").fill("0.8");
+  // cada trecho com a sua caixa: o 1 continua semitransparente e o 2 ganha fundo preto
+  const bg1 = page.getByRole("radiogroup", { name: "Fundo do trecho 1" });
+  const bg2 = page.getByRole("radiogroup", { name: "Fundo do trecho 2" });
+  expect((await bg1.getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).getAttribute("aria-checked")) === "true", "o fundo do trecho 1 continua");
+  expect((await bg2.getByRole("radio", { name: "Sem fundo" }).getAttribute("aria-checked")) === "true", "o trecho 2 começa sem fundo");
+  await bg2.getByRole("radio", { name: "Preto" }).click();
+  await page.getByText("Com fundo branco ou preto, o texto fica na cor oposta.").waitFor();
+  const textColor = page.getByRole("radiogroup", { name: "Cor do texto" });
+  expect((await textColor.count()) === 1, "com o trecho 1 semitransparente, a cor do texto ainda vale");
+  await bg1.getByRole("radio", { name: "Branco" }).click();
+  expect((await textColor.count()) === 0, "com fundo branco e preto, a cor do texto some");
+  await bg1.getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).click();
   await shot(page, "06-stories-pronto");
 
   // a figurinha tracejada pode ser arrastada na prévia (só para planejar) e fica no lugar em cada tela
@@ -604,6 +616,16 @@ try {
   );
   const box = diff === "None" ? null : diff.replace(/[()\s]/g, "").split(",").map(Number);
   expect(box && box[1] > 1920 * 0.1 && box[3] < 1920 * 0.5, `o texto deveria estar na parte de cima da tela 1: ${diff}`);
+  // a caixa preta do trecho 2 está na foto (a foto de teste não tem preto na parte de cima)
+  const darkPixels = python(
+    "import sys,zipfile,io\nfrom PIL import Image, ImageChops\n" +
+      "for p in sys.argv[1:3]:\n" +
+      "  r,g,b=Image.open(io.BytesIO(zipfile.ZipFile(p).read('story-1.jpg'))).convert('RGB').crop((0,0,1080,1100)).split()\n" +
+      "  print(sum(ImageChops.lighter(ImageChops.lighter(r,g),b).histogram()[:40]))",
+    `${OUT}/downloads/stories.zip`,
+    `${OUT}/downloads/stories-sem-texto.zip`,
+  ).split("\n").map(Number);
+  expect(darkPixels[0] > 15000 && darkPixels[1] < 500, `caixa preta do trecho 2: ${darkPixels}`);
   await page.getByText("Escrever os textos nas fotos").click();
 
   await download(page, page.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }), `${OUT}/downloads/stories.txt`);

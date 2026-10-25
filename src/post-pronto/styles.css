@@ -509,6 +509,38 @@ input[type="radio"] {
   border-radius: 2px;
 }
 
+/* Fonte, fundo e tamanho de cada trecho do texto na foto */
+.part-controls {
+  display: grid;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.part-controls.single {
+  padding: 0;
+  border: 0;
+}
+.bg-swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+}
+.bg-swatch.none {
+  border-style: dashed;
+}
+.bg-swatch.translucent {
+  background: color-mix(in srgb, currentColor 45%, transparent);
+}
+.bg-swatch.white {
+  background: #ffffff;
+}
+.bg-swatch.black {
+  background: #111111;
+}
+
 .toggle {
   position: relative;
   display: flex;
@@ -2094,7 +2126,15 @@ input.emoji-input {
     grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
   }
   .segmented[data-cols] button {
+    min-width: 0;
     justify-content: center;
+    text-align: center;
+  }
+  /* os trechos separados só por uma linha, para as opções de fundo caberem lado a lado */
+  .part-controls {
+    padding: 12px 0 0;
+    border-width: 1px 0 0;
+    border-radius: 0;
   }
   .alert {
     margin: 14px 14px 0;

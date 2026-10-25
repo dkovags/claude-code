@@ -136,10 +136,13 @@ de *stories*; o de *feed* continua disponível.
   inteira com fundo desfocado; *download* da foto (ou de um .zip com todas), dos textos em .txt ou de tudo junto;
   dicas e o passo a passo para publicar. O perfil, o @ e as preferências ficam guardados no aparelho.
 - **Dois trechos com fontes diferentes**: na tela de escolha ou na etapa final, o texto escrito na foto pode ter dois
-  trechos, um embaixo do outro, cada um com a sua fonte e o seu tamanho. Ao ligar, a página divide o texto de cada
-  tela (ou da capa) num ponto natural, depois de uma pontuação ou num travessão, e dá para editar os dois; ao desligar,
-  junta de novo. As fontes ficam em **Texto nas fotos**, logo abaixo dos botões de baixar; no celular, uma prévia
-  pequena no canto acompanha os ajustes.
+  trechos, um embaixo do outro, cada um com a sua fonte, o seu tamanho e a sua caixa. Ao ligar, a página divide o texto
+  de cada tela (ou da capa) num ponto natural, depois de uma pontuação ou num travessão, e dá para editar os dois; ao
+  desligar, junta de novo. As fontes ficam em **Texto nas fotos**, logo abaixo dos botões de baixar; no celular, uma
+  prévia pequena no canto acompanha os ajustes.
+- **Fundo de cada trecho**: cada trecho (ou o texto todo, com um trecho só) pode ficar sem fundo, com sombra, ou ganhar
+  uma caixa semitransparente, branca ou preta, do tamanho do próprio texto. Com caixa branca ou preta, o texto fica na
+  cor oposta; sem fundo ou com caixa semitransparente, vale a **Cor do texto** escolhida.
 - **Figurinha tracejada**: na prévia, dá para arrastar a figurinha (ou movê-la com as setas) para ver onde ela fica
   melhor em cada tela, e tirá-la pelo × no canto. Também dá para tirar pelo botão **Remover** na lista de figurinhas
   da etapa final ou no editor dos textos. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona
