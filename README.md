@@ -140,6 +140,11 @@ de *stories*; o de *feed* continua disponível.
   melhor em cada tela, e tirá-la pelo × no canto. Também dá para tirar pelo botão **Remover** na lista de figurinhas
   da etapa final ou no editor dos textos. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona
   arrastando com o dedo.
+- **Direto para o Instagram**: no celular, **Abrir no Instagram** manda as fotos prontas pelo menu de compartilhar do
+  sistema; aí é escolher Instagram (Stories ou Feed) e adicionar as figurinhas, a música e a localização lá. Dentro do
+  Claude, o botão aparece quando o claude.ai deixa a página usar esse menu; senão, as fotos são baixadas. Publicar
+  sem abrir o Instagram exigiria a API da Meta, só para contas profissionais e com um servidor, e ela não põe
+  figurinhas (enquete, perguntas, localização) nem música nos stories.
 - **Celular e computador**: no computador, a prévia fica ao lado dos controles; no celular, tudo vem numa coluna, com
   controles do tamanho do dedo (pelo menos 40 px), opções em grade e o editor dos textos na largura toda. O teste de
   ponta a ponta confere as etapas em 360, 412, 1024 e 1440 px de largura.

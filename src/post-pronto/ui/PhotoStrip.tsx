@@ -7,11 +7,11 @@ import { CopyButton } from "./parts";
 
 /**
  * No celular, dentro do app do Claude, o seletor de fotos pode não abrir (acontece no app do Android). O mesmo link
- * aberto no navegador funciona, com a mesma conta.
+ * aberto no navegador funciona, com a mesma conta. Quem já está no navegador não precisa do aviso.
  */
 function OpenInBrowser() {
   const kind = mobileKind();
-  if (!inClaude() || !kind) return null;
+  if (!inClaude() || (kind !== "android-app" && kind !== "ios-app")) return null;
   return (
     <div className={`open-browser${kind === "android-app" ? " strong" : ""}`}>
       <p>

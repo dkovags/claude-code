@@ -958,8 +958,27 @@ try {
       hasTouch: size.phone,
       locale: "pt-BR",
       reducedMotion: "reduce",
+      // no celular, o Chrome do Android (não o app do Claude), com o menu de compartilhar
+      ...(size.phone
+        ? {
+            userAgent:
+              "Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
+          }
+        : {}),
     });
     await hermetic(sized);
+    if (size.phone) {
+      await sized.addInitScript(() => {
+        navigator.canShare = () => true;
+        navigator.share = async ({ files }) => {
+          window.__shared = files.map((f) => f.name);
+        };
+        // o Chromium do teste (Linux) não tem o menu de compartilhar; o Chrome do Android tem e libera
+        const allows = { allowsFeature: (feature) => feature === "web-share" };
+        Object.defineProperty(Document.prototype, "featurePolicy", { configurable: true, get: () => allows });
+        Object.defineProperty(Document.prototype, "permissionsPolicy", { configurable: true, get: () => allows });
+      });
+    }
     await sized.route("https://artefato.teste/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: skeleton }));
     await sized.addInitScript(
       ({ QUESTIONS_LOOSE, STORY_SUGGESTIONS }) => {
@@ -978,6 +997,7 @@ try {
     await sp.goto("https://artefato.teste/");
     await sp.getByRole("heading", { name: "Post Pronto" }).waitFor();
     await checkLayout(sp, `${size.name}, início`, size.phone);
+    expect((await sp.locator(".open-browser").count()) === 0, `${size.name}: no navegador, sem o aviso de abrir no navegador`);
     await sp.locator('input[type="file"]').setInputFiles([
       { name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA },
       { name: "bolo.jpg", mimeType: "image/jpeg", buffer: photoB },
@@ -993,6 +1013,14 @@ try {
     await sp.getByRole("button", { name: "Confirmar textos" }).click();
     await sp.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
     await checkLayout(sp, `${size.name}, etapa final`, size.phone);
+    if (size.phone) {
+      // dentro do Claude, no Chrome do Android: as fotos vão direto para o Instagram pelo menu de compartilhar
+      await sp.getByRole("button", { name: "Abrir no Instagram" }).click();
+      await sp.waitForFunction(() => window.__shared?.length === 2);
+      const shared = await sp.evaluate(() => window.__shared);
+      expect(shared.join(",") === "story-1.jpg,story-2.jpg", `fotos compartilhadas: ${shared}`);
+      await sp.getByText("no menu, escolha Instagram (Stories)").waitFor();
+    }
     await shot(sp, `30-tamanho-${size.name}`, true);
     await sized.close();
   }

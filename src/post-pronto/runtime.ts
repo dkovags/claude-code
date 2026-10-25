@@ -18,10 +18,13 @@ export function inClaude(): boolean {
 /** Endereço do artefato publicado, para abrir no navegador quando o app não deixa escolher fotos. */
 export const ARTIFACT_URL = "https://claude.ai/artifact/QgwA6tj19x3bCCBwy4Cywv";
 
-/** Celular: "android" dentro de um app (WebView), "android" no navegador e "ios" valem como celular. */
+/**
+ * Celular: no navegador ("android", "ios") ou dentro de um app ("android-app", "ios-app"), como o app do Claude.
+ * No iPhone, o navegador se identifica com "Safari/"; um app que abre páginas por dentro, não.
+ */
 export function mobileKind(ua = typeof navigator === "undefined" ? "" : navigator.userAgent) {
   if (/Android/i.test(ua)) return /; wv\)/.test(ua) ? "android-app" : "android";
-  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
+  if (/iPhone|iPad|iPod/i.test(ua)) return /Safari\//.test(ua) ? "ios" : "ios-app";
   return null;
 }
 

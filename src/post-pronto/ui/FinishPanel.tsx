@@ -13,6 +13,7 @@ import {
   type Overlay,
   OVERLAY_STYLES, type OverlayStyle,
 } from "../render";
+import { touchScreen } from "../runtime";
 import type { Saver } from "../save";
 import type { Destination, Draft, PlacePick, StoryFrame, Suggestions } from "../types";
 import { makeZip } from "../zip";
@@ -232,6 +233,7 @@ export function FinishPanel({
     return () => watcher.disconnect();
   }, []);
   const stories = destination === "stories";
+  const phone = touchScreen();
   const spec = formatSpec(stories ? "9:16" : finish.format);
   const photo = photos[Math.min(active, photos.length - 1)];
   const { overlayOn, twoParts, overlay } = finish;
@@ -365,7 +367,7 @@ export function FinishPanel({
             {!stories && <CopyButton text={caption} label="Copiar legenda" onResult={copiedMsg} />}
             {saver.share && (
               <button type="button" className="btn secondary" disabled={!prepared} onClick={share}>
-                <Share2 size={16} aria-hidden="true" /> {stories ? "Abrir no Instagram" : "Compartilhar"}
+                <Share2 size={16} aria-hidden="true" /> {phone ? "Abrir no Instagram" : "Compartilhar"}
               </button>
             )}
           </div>
@@ -393,9 +395,11 @@ export function FinishPanel({
         )}
         {saver?.share && (
           <p className="hint">
-            {stories
-              ? "No celular, Abrir no Instagram leva as fotos direto para o story."
-              : "Ao compartilhar, cole a legenda no Instagram: ela não vai junto com as fotos."}
+            {phone
+              ? stories
+                ? "Abrir no Instagram leva as fotos direto para o story: no menu, escolha Instagram (Stories) e adicione lá as figurinhas, a música e a localização."
+                : "Abrir no Instagram leva as fotos direto para o post: no menu, escolha Instagram (Feed) e cole a legenda, que não vai junto com as fotos."
+              : "Compartilhar envia as fotos para outro aplicativo, pelo menu do sistema."}
           </p>
         )}
       </section>

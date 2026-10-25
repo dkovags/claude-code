@@ -1,12 +1,13 @@
 // Entregar os arquivos prontos: dentro do Claude pelo recurso "downloads" (a pessoa confirma o download);
-// fora dele, pelo download comum do navegador e, no celular, pelo menu de compartilhar.
+// fora dele, pelo download comum do navegador. No celular, também pelo menu de compartilhar, que leva as fotos direto
+// para o Instagram (dentro do Claude, quando o claude.ai deixa a página usar esse menu).
 import { getCapability, inClaude } from "./runtime";
 
 export type SaveResult = "saved" | "declined";
 
 export interface Saver {
   save(filename: string, data: Blob): Promise<SaveResult>;
-  /** Menu de compartilhar do celular (abre o Instagram direto); só fora do Claude. */
+  /** Menu de compartilhar do celular (leva as fotos direto para o Instagram). */
   share?: (files: File[]) => Promise<boolean>;
 }
 
@@ -22,6 +23,29 @@ function canShareFiles(): boolean {
     );
   } catch {
     return false;
+  }
+}
+
+type PolicyApi = { allowsFeature(feature: string): boolean };
+
+/** A página pode abrir o menu de compartilhar? Dentro de outra página (como no claude.ai), depende dela liberar. */
+function shareAllowed(): boolean {
+  const d = document as Document & { permissionsPolicy?: PolicyApi; featurePolicy?: PolicyApi };
+  try {
+    const policy = d.permissionsPolicy ?? d.featurePolicy;
+    return policy ? policy.allowsFeature("web-share") : true;
+  } catch {
+    return true;
+  }
+}
+
+async function shareFiles(files: File[]): Promise<boolean> {
+  try {
+    await navigator.share({ files });
+    return true;
+  } catch (e) {
+    if ((e as Error).name === "AbortError") return false;
+    throw new Error("Não foi possível abrir o menu de compartilhar. Baixe as fotos e escolha no Instagram.");
   }
 }
 
@@ -44,6 +68,7 @@ export async function connectSaver(): Promise<Saver | null> {
           throw new Error("Não foi possível baixar o arquivo nesta tela.");
         }
       },
+      share: canShareFiles() && shareAllowed() ? shareFiles : undefined,
     };
   }
   return {
@@ -57,17 +82,7 @@ export async function connectSaver(): Promise<Saver | null> {
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       return "saved";
     },
-    share: canShareFiles()
-      ? async (files) => {
-          try {
-            await navigator.share({ files });
-            return true;
-          } catch (e) {
-            if ((e as Error).name === "AbortError") return false;
-            throw new Error("Não foi possível abrir o menu de compartilhar.");
-          }
-        }
-      : undefined,
+    share: canShareFiles() ? shareFiles : undefined,
   };
 }
 
