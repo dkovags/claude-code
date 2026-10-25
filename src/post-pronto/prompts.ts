@@ -65,7 +65,13 @@ const HUMAN_VOICE = [
   "- Escreva com naturalidade, como se escreve no Instagram, e não como marca nem como assistente: palavras do dia a " +
     "dia, frases de tamanhos diferentes (pode ter frase curta, até sem verbo) e, no tom leve, o português falado " +
     '("pra", "tá").',
-  "- Prefira um detalhe concreto (um nome, um lugar, algo que aparece na foto) a um adjetivo bonito.",
+  "- Não qualifique: nada de adjetivos de valor ou opinião (lindo, incrível, especial, emocionante, inesquecível, " +
+    "perfeito, maravilhoso, icônico, épico, único) nem reforços como muito, super e extremamente. Em vez de dizer " +
+    "como algo é, diga o que é: o nome, a data, o que aconteceu, o que significa. Mesmo no tom emotivo ou " +
+    "inspirador, a emoção vem dos fatos, não dos adjetivos.",
+  "- Traga fatos: quando a foto mostrar um lugar, monumento, símbolo, bandeira, obra, objeto, inscrição, tradição ou " +
+    "data comemorativa, conte um fato histórico ou o que aquilo significa. Afirme só o que você sabe com segurança; " +
+    "na dúvida, deixe de fora.",
   "- Evite o que denuncia texto de IA: expressões como \"momentos inesquecíveis\", \"memórias para a vida toda\", " +
     '"a magia de", "cada detalhe", "jornada", "mergulhe", "descubra", "embarque", "prepare-se", "simplesmente", ' +
     '"que tal", "é sobre isso" e "e tá tudo bem"; estruturas como "não é só X, é Y" e "O segredo? ..."; listas de três ' +
@@ -198,8 +204,8 @@ function feedBody(L: string[], r: SuggestRequest) {
     "",
     "LEGENDAS",
     `Escreva ${SUGGESTION_COUNT} opções com abordagens diferentes entre si (por exemplo: uma pequena história, uma ` +
-      "curta e marcante, uma que puxe conversa com um convite direto, uma com humor e uma que conte um bastidor ou um " +
-      'detalhe curioso) e dê a cada uma um nome curto em "estilo". Em todas:',
+      "curta e marcante, uma que puxe conversa com um convite direto, uma com humor e uma que conte um fato histórico " +
+      'ou o significado de algo da foto) e dê a cada uma um nome curto em "estilo". Em todas:',
     "- A primeira linha é o gancho: precisa prender a atenção sozinha e ter no máximo 125 caracteres, que é o que " +
       "aparece no feed antes do \"mais\".",
     "- Fale do que aparece de fato nas fotos e do contexto informado; evite clichês e frases que serviriam para qualquer foto.",
@@ -212,7 +218,8 @@ function feedBody(L: string[], r: SuggestRequest) {
       "como #instagood, #love ou #reels.",
     `- ${NO_EM_DASH}`,
     "- Não identifique ninguém pelo rosto; use só nomes que estejam no contexto.",
-    "- Não invente fatos (nomes, datas, lugares, preços) que não estejam no contexto nem visíveis nas fotos.",
+    "- Sobre as pessoas e o momento (nomes, datas, lugares, preços), use só o que está no contexto ou visível nas " +
+      "fotos. Fatos históricos e significados de conhecimento geral podem entrar quando você tiver certeza.",
   );
   avoidLines(L, r.avoid, "opções");
   L.push(
@@ -267,8 +274,9 @@ function storiesBody(L: string[], r: SuggestRequest) {
     "TEXTOS DOS STORIES",
     "Nos stories não há legenda: o texto vai escrito sobre a foto, que ocupa a tela inteira (9:16), e quem assiste fica " +
       `uns 5 segundos em cada tela. Escreva ${SUGGESTION_COUNT} versões com abordagens diferentes entre si (por exemplo: ` +
-      "narrativa, direta e marcante, com um convite para quem assiste, bem-humorada e de bastidor) e dê a cada uma um " +
-      `nome curto em "estilo". Cada versão tem ${screens}, em "telas". Em cada tela:`,
+      "narrativa, direta e marcante, com um convite para quem assiste, bem-humorada e uma que conte um fato histórico " +
+      `ou o significado de algo da foto) e dê a cada uma um nome curto em "estilo". Cada versão tem ${screens}, em ` +
+      '"telas". Em cada tela:',
     `- "texto": o que vai escrito sobre a foto, ${storyWordsRule(r.brief.storyLength)}. ` +
       (n > 1
         ? "A primeira tela prende a atenção e a última chama para a ação (mandar mensagem, compartilhar, tocar no link)."
@@ -287,7 +295,8 @@ function storiesBody(L: string[], r: SuggestRequest) {
     "- Não coloque hashtags nem menções no texto.",
     `- ${NO_EM_DASH}`,
     "- Não identifique ninguém pelo rosto; use só nomes que estejam no contexto.",
-    "- Não invente fatos (nomes, datas, lugares, preços) que não estejam no contexto nem visíveis nas fotos.",
+    "- Sobre as pessoas e o momento (nomes, datas, lugares, preços), use só o que está no contexto ou visível nas " +
+      "fotos. Fatos históricos e significados de conhecimento geral podem entrar quando você tiver certeza.",
   );
   avoidLines(L, r.avoid, "versões");
   L.push(
@@ -421,7 +430,8 @@ export function buildRefinePrompt(r: RefineRequest): string {
     `- Hashtags fora do texto, em "hashtags": de 3 a ${MAX_HASHTAGS} (o Instagram aceita no máximo ${MAX_HASHTAGS}). ` +
       "Mantenha as atuais, a menos que o pedido seja para mudá-las.",
     `- ${NO_EM_DASH}`,
-    "- Não invente fatos que não estejam no contexto.",
+    "- Sobre as pessoas e o momento, não invente nada que não esteja no contexto; fatos históricos e significados, só " +
+      "quando você tiver certeza.",
     "",
     "FORMATO DA RESPOSTA",
     "Responda só com um objeto JSON, sem texto antes ou depois:",
@@ -477,7 +487,8 @@ export function buildStoryRefinePrompt(r: StoryRefineRequest): string {
     "- Não coloque hashtags nem menções no texto.",
     ...HUMAN_VOICE,
     `- ${NO_EM_DASH}`,
-    "- Não invente fatos que não estejam no contexto.",
+    "- Sobre as pessoas e o momento, não invente nada que não esteja no contexto; fatos históricos e significados, só " +
+      "quando você tiver certeza.",
     "",
     "FORMATO DA RESPOSTA",
     "Responda só com um objeto JSON, sem texto antes ou depois, no mesmo formato das telas atuais:",
@@ -492,6 +503,12 @@ export const REFINE_PRESETS: { label: string; instruction: string }[] = [
     instruction:
       "Reescreva com mais naturalidade, sem primeira pessoa: palavras simples, frases de tamanhos diferentes, um " +
       "detalhe concreto no lugar de adjetivos e nenhuma fórmula pronta.",
+  },
+  {
+    label: "Mais fatos",
+    instruction:
+      "Troque adjetivos e opiniões por fatos: o que é, o que aconteceu, o que significa (fatos históricos ou " +
+      "significados que você conheça com segurança).",
   },
   { label: "Mais curta", instruction: "Deixe a legenda bem mais curta, com no máximo 3 linhas." },
   { label: "Mais longa", instruction: "Desenvolva mais a legenda, contando um pouco mais da história." },
@@ -513,6 +530,12 @@ export const STORY_REFINE_PRESETS: { label: string; instruction: string }[] = [
     instruction:
       "Reescreva os textos com mais naturalidade, sem primeira pessoa: palavras simples, um detalhe concreto no lugar " +
       "de adjetivos e nenhuma fórmula pronta.",
+  },
+  {
+    label: "Mais fatos",
+    instruction:
+      "Troque adjetivos e opiniões por fatos: o que é, o que aconteceu, o que significa (fatos históricos ou " +
+      "significados que você conheça com segurança).",
   },
   { label: "Mais curtos", instruction: "Deixe os textos de todas as telas mais curtos, com no máximo 6 palavras cada." },
   { label: "Mais divertidos", instruction: "Deixe os textos mais leves e divertidos, com humor." },

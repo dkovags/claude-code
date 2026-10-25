@@ -83,6 +83,16 @@ describe("buildSuggestPrompt", () => {
       expect(p).toContain("no máximo uma exclamação por texto");
       expect(p).toContain("Não faça perguntas: nem no gancho, nem no meio, nem para chamar para a ação.");
       expect(p).toContain("Pergunta só se a pessoa pedir um quiz");
+      // fatos no lugar de qualificações, sem inventar nada sobre as pessoas e o momento
+      expect(p).toContain("Não qualifique: nada de adjetivos de valor ou opinião");
+      expect(p).toContain("Em vez de dizer como algo é, diga o que é");
+      expect(p).toContain("Sobre as pessoas e o momento");
+      expect(p).not.toContain("Não invente fatos");
+    }
+    for (const p of prompts.slice(0, 2)) {
+      expect(p).toContain("Traga fatos: quando a foto mostrar um lugar, monumento, símbolo, bandeira");
+      expect(p).toContain("Afirme só o que você sabe com segurança");
+      expect(p).toContain("uma que conte um fato histórico ou o significado de algo da foto");
     }
     // nos stories, figurinhas com pergunta só a pedido; o exemplo de resposta não puxa para a enquete
     const stories = buildSuggestPrompt(base);
