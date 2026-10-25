@@ -66,7 +66,7 @@ describe("buildSuggestPrompt", () => {
     for (const field of FEED_SCHEMA.required) expect(p).toContain(`"${field}"`);
   });
 
-  it("pede texto com cara de escrito pela pessoa, sem os vícios de texto de IA, em todos os pedidos", () => {
+  it("pede texto natural, sem primeira pessoa e sem os vícios de texto de IA, em todos os pedidos", () => {
     const prompts = [
       buildSuggestPrompt(base),
       buildSuggestPrompt(feed),
@@ -74,7 +74,9 @@ describe("buildSuggestPrompt", () => {
       buildStoryRefinePrompt({ brief: DEFAULT_BRIEF, analysis: "", frames: [{ text: "Oi", sticker: null }], instruction: "Mais curtos" }),
     ];
     for (const p of prompts) {
-      expect(p).toContain("Escreva como a própria pessoa escreveria no Instagram dela");
+      expect(p).toContain('Não escreva em primeira pessoa: nada de "eu", "meu", "minha", "nós", "nosso", "a gente"');
+      expect(p).toContain("Escreva com naturalidade, como se escreve no Instagram");
+      expect(p).not.toContain('"a gente").');
       expect(p).toContain('"momentos inesquecíveis"');
       expect(p).toContain("no máximo uma exclamação por texto");
     }

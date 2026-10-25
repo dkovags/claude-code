@@ -54,11 +54,14 @@ function emojiPrompt(b: Brief): string {
 
 const NO_EM_DASH = "Nunca use travessão (—). Se precisar de um traço, use meia-risca (–).";
 
-/** Para o texto soar como a própria pessoa escreveria, e não como texto de IA (legendas e textos dos stories). */
+/** Para o texto soar natural, e não como texto de IA, e sem primeira pessoa (legendas e textos dos stories). */
 const HUMAN_VOICE = [
-  "- Escreva como a própria pessoa escreveria no Instagram dela, não como marca nem como assistente: palavras do dia a " +
+  '- Não escreva em primeira pessoa: nada de "eu", "meu", "minha", "nós", "nosso", "a gente" nem verbos como "fui", ' +
+    '"fomos" ou "estou". Fale do que aparece na foto e de quem está nela (pelo nome, se estiver no contexto), em ' +
+    'frases impessoais ou em terceira pessoa, ou fale com quem assiste ("você").',
+  "- Escreva com naturalidade, como se escreve no Instagram, e não como marca nem como assistente: palavras do dia a " +
     "dia, frases de tamanhos diferentes (pode ter frase curta, até sem verbo) e, no tom leve, o português falado " +
-    '("pra", "tá", "a gente").',
+    '("pra", "tá").',
   "- Prefira um detalhe concreto (um nome, um lugar, algo que aparece na foto) a um adjetivo bonito.",
   "- Evite o que denuncia texto de IA: expressões como \"momentos inesquecíveis\", \"memórias para a vida toda\", " +
     '"a magia de", "cada detalhe", "jornada", "mergulhe", "descubra", "embarque", "prepare-se", "simplesmente", ' +
@@ -477,12 +480,12 @@ export const REFINE_PRESETS: { label: string; instruction: string }[] = [
   {
     label: "Mais natural",
     instruction:
-      "Reescreva com cara de texto escrito pela própria pessoa: palavras simples, frases de tamanhos diferentes, um " +
+      "Reescreva com mais naturalidade, sem primeira pessoa: palavras simples, frases de tamanhos diferentes, um " +
       "detalhe concreto no lugar de adjetivos e nenhuma fórmula pronta.",
   },
   { label: "Mais curta", instruction: "Deixe a legenda bem mais curta, com no máximo 3 linhas." },
   { label: "Mais longa", instruction: "Desenvolva mais a legenda, contando um pouco mais da história." },
-  { label: "Mais emotiva", instruction: "Deixe a legenda mais emotiva e pessoal." },
+  { label: "Mais emotiva", instruction: "Deixe a legenda mais emotiva, sem passar para a primeira pessoa." },
   { label: "Mais divertida", instruction: "Deixe a legenda mais leve e divertida, com humor." },
   { label: "Mais profissional", instruction: "Deixe a legenda mais profissional e objetiva." },
   { label: "Sem emojis", instruction: "Remova todos os emojis." },
@@ -495,12 +498,12 @@ export const STORY_REFINE_PRESETS: { label: string; instruction: string }[] = [
   {
     label: "Mais naturais",
     instruction:
-      "Reescreva os textos com cara de escritos pela própria pessoa: palavras simples, um detalhe concreto no lugar de " +
-      "adjetivos e nenhuma fórmula pronta.",
+      "Reescreva os textos com mais naturalidade, sem primeira pessoa: palavras simples, um detalhe concreto no lugar " +
+      "de adjetivos e nenhuma fórmula pronta.",
   },
   { label: "Mais curtos", instruction: "Deixe os textos de todas as telas mais curtos, com no máximo 6 palavras cada." },
   { label: "Mais divertidos", instruction: "Deixe os textos mais leves e divertidos, com humor." },
-  { label: "Mais emotivos", instruction: "Deixe os textos mais emotivos e pessoais." },
+  { label: "Mais emotivos", instruction: "Deixe os textos mais emotivos, sem passar para a primeira pessoa." },
   { label: "Mais diretos para vender", instruction: "Deixe os textos mais diretos, com foco em levar à compra ou ao contato." },
   { label: "Com emojis", instruction: "Acrescente um emoji que combine em cada texto." },
   { label: "Sem emojis", instruction: "Remova todos os emojis dos textos." },

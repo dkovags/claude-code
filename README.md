@@ -121,11 +121,13 @@ de *stories*; o de *feed* continua disponível.
   *hashtag* não vira *link* nem entra na busca; por isso a etapa final tem um botão para copiá-las e o passo a passo
   para colá-las no editor do Instagram e escondê-las (letra mínima, na cor do fundo ou embaixo de uma figurinha). No
   *feed*, elas ficam fora da legenda copiada, prontas para colar no primeiro comentário logo depois de publicar.
-- **Texto com cara de gente**: os pedidos ao Claude trazem regras contra os vícios de texto de IA: escrever como a
-  própria pessoa escreveria, com palavras do dia a dia e frases de tamanhos diferentes; preferir um detalhe concreto a
-  um adjetivo bonito; evitar expressões como "momentos inesquecíveis", "a magia de" e "jornada", estruturas como "não é
-  só X, é Y", listas de três adjetivos e frase de efeito no fim; no máximo uma exclamação e nada de emojis de enfeite.
-  Nos ajustes, **Mais natural** (legenda) e **Mais naturais** (stories) pedem uma reescrita nesse sentido.
+- **Texto com cara de gente, sem primeira pessoa**: os pedidos ao Claude trazem regras contra os vícios de texto de
+  IA. Nada de primeira pessoa ("eu", "nós", "a gente"): os textos falam do que aparece na foto e de quem está nela, em
+  frases impessoais ou em terceira pessoa, ou falam com quem assiste. Palavras do dia a dia e frases de tamanhos
+  diferentes; um detalhe concreto no lugar de um adjetivo bonito; nada de expressões como "momentos inesquecíveis", "a
+  magia de" e "jornada", estruturas como "não é só X, é Y", listas de três adjetivos e frase de efeito no fim; no máximo
+  uma exclamação e nada de emojis de enfeite. Nos ajustes, **Mais natural** (legenda) e **Mais naturais** (stories)
+  pedem uma reescrita nesse sentido.
 - **Na tela de escolha**: **Usar e editar** abre o editor dentro da opção escolhida, para mudar o texto à mão.
   **Gerar de novo** refaz todas as opções: se faltou alguma informação (ou alguma estava errada), escreva antes no
   campo opcional **Acrescente ou corrija uma informação**, ou edite o contexto inteiro, e o Claude leva isso em conta;
