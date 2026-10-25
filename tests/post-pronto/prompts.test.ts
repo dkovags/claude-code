@@ -25,6 +25,7 @@ describe("buildSuggestPrompt", () => {
     expect(p).toContain("Prepare stories do Instagram, uma tela para cada foto");
     expect(p).toContain("TEXTOS DOS STORIES");
     expect(p).toContain("exatamente 2 telas, uma para cada foto, na mesma ordem");
+    expect(p).toContain("Escreva 5 versões com abordagens diferentes entre si");
     expect(p).toContain("A primeira tela prende a atenção e a última chama para a ação");
     expect(p).toContain('"enquete", "caixa de perguntas", "quiz"');
     expect(p).toContain("figurinha de música");
@@ -60,6 +61,7 @@ describe("buildSuggestPrompt", () => {
     expect(p).not.toContain("Foto 2:");
     expect(p).toContain("no máximo 125 caracteres");
     expect(p).toContain("o Instagram aceita no máximo 5");
+    expect(p).toContain("Escreva 5 opções com abordagens diferentes entre si");
     expect(p).toContain("elas ficam ocultas, fora da legenda, no primeiro comentário");
     expect(p).toContain('responda com status "perguntas"');
     expect(p).not.toContain("TEXTOS DOS STORIES");

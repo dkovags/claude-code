@@ -108,7 +108,7 @@ o que faltar (só quando falta algo essencial, e dá para pular) e sugere os tex
 o Post Pronto entrega as fotos prontas para baixar, com as sugestões de música e de localização. O modo principal é o
 de *stories*; o de *feed* continua disponível.
 
-- **Stories** (o padrão): uma tela 9:16 para cada foto, até 10 em sequência. O Claude sugere três versões da
+- **Stories** (o padrão): uma tela 9:16 para cada foto, até 10 em sequência. O Claude sugere cinco versões da
   sequência, com um texto curto para escrever em cada foto (a primeira tela prende a atenção, a última chama para a
   ação) e a figurinha interativa que combina com cada tela: contagem regressiva, *link* ou "Adicione o seu"; as que
   são perguntas (enquete, caixa de perguntas, *quiz* e *slider* de emoji) só entram quando você pede, no contexto ou num
@@ -134,7 +134,7 @@ de *stories*; o de *feed* continua disponível.
   **Gerar de novo** refaz todas as opções: se faltou alguma informação (ou alguma estava errada), escreva antes no
   campo opcional **Acrescente ou corrija uma informação**, ou edite o contexto inteiro, e o Claude leva isso em conta;
   com o campo em branco, ele traz opções diferentes com o mesmo contexto.
-- **Feed**: três legendas com gancho na primeira linha (o que aparece antes do "mais"), chamada para ação e até 5
+- **Feed**: cinco legendas com gancho na primeira linha (o que aparece antes do "mais"), chamada para ação e até 5
   *hashtags* ocultas (o limite atual do Instagram), fora da legenda; a foto em 4:5, 3:4, 1:1, 9:16 ou 1,91:1, com texto
   opcional na capa; botões para copiar a legenda e as *hashtags* e texto alternativo para acessibilidade.
 - **Nos dois modos**: objetivo (mais interação, mais alcance, divulgar ou vender, registrar um momento), tom, idioma e

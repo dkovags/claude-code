@@ -54,6 +54,9 @@ function emojiPrompt(b: Brief): string {
 
 const NO_EM_DASH = "Nunca use travessão (—). Se precisar de um traço, use meia-risca (–).";
 
+/** Quantas opções de texto o Claude escreve: legendas no feed, versões da sequência nos stories. */
+export const SUGGESTION_COUNT = 5;
+
 /** Para o texto soar natural, e não como texto de IA, e sem primeira pessoa (legendas e textos dos stories). */
 const HUMAN_VOICE = [
   '- Não escreva em primeira pessoa: nada de "eu", "meu", "minha", "nós", "nosso", "a gente" nem verbos como "fui", ' +
@@ -194,8 +197,9 @@ function feedBody(L: string[], r: SuggestRequest) {
   L.push(
     "",
     "LEGENDAS",
-    "Escreva 3 opções com abordagens diferentes entre si (por exemplo: uma pequena história, uma curta e marcante, uma " +
-      "que puxe conversa com um convite direto) e dê a cada uma um nome curto em \"estilo\". Em todas:",
+    `Escreva ${SUGGESTION_COUNT} opções com abordagens diferentes entre si (por exemplo: uma pequena história, uma ` +
+      "curta e marcante, uma que puxe conversa com um convite direto, uma com humor e uma que conte um bastidor ou um " +
+      'detalhe curioso) e dê a cada uma um nome curto em "estilo". Em todas:',
     "- A primeira linha é o gancho: precisa prender a atenção sozinha e ter no máximo 125 caracteres, que é o que " +
       "aparece no feed antes do \"mais\".",
     "- Fale do que aparece de fato nas fotos e do contexto informado; evite clichês e frases que serviriam para qualquer foto.",
@@ -262,9 +266,9 @@ function storiesBody(L: string[], r: SuggestRequest) {
     "",
     "TEXTOS DOS STORIES",
     "Nos stories não há legenda: o texto vai escrito sobre a foto, que ocupa a tela inteira (9:16), e quem assiste fica " +
-      "uns 5 segundos em cada tela. Escreva 3 versões com abordagens diferentes entre si (por exemplo: narrativa, direta " +
-      `e marcante, com um convite para quem assiste) e dê a cada uma um nome curto em "estilo". Cada versão tem ${screens}, ` +
-      'em "telas". Em cada tela:',
+      `uns 5 segundos em cada tela. Escreva ${SUGGESTION_COUNT} versões com abordagens diferentes entre si (por exemplo: ` +
+      "narrativa, direta e marcante, com um convite para quem assiste, bem-humorada e de bastidor) e dê a cada uma um " +
+      `nome curto em "estilo". Cada versão tem ${screens}, em "telas". Em cada tela:`,
     `- "texto": o que vai escrito sobre a foto, ${storyWordsRule(r.brief.storyLength)}. ` +
       (n > 1
         ? "A primeira tela prende a atenção e a última chama para a ação (mandar mensagem, compartilhar, tocar no link)."

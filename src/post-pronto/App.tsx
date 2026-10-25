@@ -293,7 +293,8 @@ export default function App() {
                 ? "Escrevendo os textos"
                 : "Escrevendo as legendas",
         writingLabel: "Escrevendo as sugestões",
-        expected: stories ? 2500 + 700 * count : 4500,
+        // tamanho esperado da resposta, para a barra de progresso (com as opções de texto e cada tela delas)
+        expected: stories ? 2500 + 1150 * count : 6300,
       },
       async ({ signal, onProgress }) => {
         const images = await Promise.all(attached.map(photoForAi));
