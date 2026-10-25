@@ -505,8 +505,8 @@ export default function App() {
     music: isExample ? EXAMPLE_MUSIC : atFinish ? result?.music[finish.music] : undefined,
     place: isExample ? EXAMPLE_PLACE : atFinish ? result?.places[finish.place] : undefined,
     example: isExample,
-    // enquadrar na prévia vale desde a escolha dos textos (ou da legenda)
-    editable: picked && !isExample,
+    // enquadrar na prévia vale desde a primeira página, assim que há uma foto
+    editable: !isExample,
     onFraming: (f: Framing) => setFraming(previewIndex, f),
     index: previewIndex,
     count: photos.length,
@@ -574,6 +574,10 @@ export default function App() {
                 ? "Assim fica o resultado: a foto em tela cheia com o texto escrito nela e, tracejadas, as figurinhas que você adiciona no Instagram."
                 : "Assim fica o resultado: a foto no formato do feed, a legenda com o gancho na primeira linha, a música e o local."}
             </p>
+          )}
+          {/* nos stories, a dica fica na legenda da própria prévia */}
+          {!isExample && !stories && (
+            <p className="stage-note">Arraste a foto para enquadrar e faça pinça com dois dedos para o zoom.</p>
           )}
         </section>
 

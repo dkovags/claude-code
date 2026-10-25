@@ -857,6 +857,24 @@ try {
   const phoneItunes = await mockItunes(phone, { cors: false });
   const m = (current = await phone.newPage());
   watch(m, /itunes\.apple\.com/);
+  // toques de verdade (um ou dois dedos ao mesmo tempo), pelo protocolo do Chrome
+  const touch = await phone.newCDPSession(m);
+  const touchPreview = async (steps) => {
+    for (const [type, points] of steps) await touch.send("Input.dispatchTouchEvent", { type, touchPoints: points });
+  };
+  const previewPoint = async (fx, fy) => {
+    const b = await m.locator(".story-screen").boundingBox();
+    return { x: b.x + b.width * fx, y: b.y + b.height * fy };
+  };
+  const pinchPreview = async (from, to) => {
+    const c = await previewPoint(0.5, 0.62);
+    const points = (gap) => [{ x: c.x - gap / 2, y: c.y, id: 0 }, { x: c.x + gap / 2, y: c.y, id: 1 }];
+    await touchPreview([
+      ["touchStart", points(from)],
+      ...Array.from({ length: 6 }, (_, i) => ["touchMove", points(from + ((to - from) * (i + 1)) / 6)]),
+      ["touchEnd", []],
+    ]);
+  };
   await m.goto(URL);
   await m.getByRole("heading", { name: "Post Pronto" }).waitFor();
   await shot(m, "10-celular-inicio");
@@ -866,6 +884,23 @@ try {
   await m.locator('input[type="file"]').setInputFiles([{ name: "velas.jpg", mimeType: "image/jpeg", buffer: photoA }]);
   await m.locator(".film .frame:not(.add)").first().waitFor();
   expect((await m.locator(".upload-error").count()) === 0, "o aviso some quando a foto entra");
+  // já na primeira página, a foto se enquadra na prévia: um dedo arrasta
+  await m.locator(".story-screen").scrollIntoViewIfNeeded();
+  await m.getByText("Arraste a foto para enquadrar e faça pinça com dois dedos para o zoom.").waitFor();
+  const previewPixels = () => m.locator(".story-screen canvas").evaluate((c) => c.toDataURL("image/png").slice(-200));
+  const firstLook = await previewPixels();
+  const start = await previewPoint(0.5, 0.62);
+  await touchPreview([
+    ["touchStart", [{ ...start, id: 0 }]],
+    ...Array.from({ length: 6 }, (_, i) => ["touchMove", [{ x: start.x + 10 * (i + 1), y: start.y, id: 0 }]]),
+    ["touchEnd", []],
+  ]);
+  let draggedLook = await previewPixels();
+  for (let i = 0; i < 20 && draggedLook === firstLook; i++) {
+    await m.waitForTimeout(50);
+    draggedLook = await previewPixels();
+  }
+  expect(draggedLook !== firstLook, "na primeira página, arrastar com o dedo enquadra a foto");
   // só a foto, sem contar nada: o texto complementar é opcional
   await m.getByText("Só as fotos são obrigatórias.").waitFor();
   expect((await m.getByLabel("O que está acontecendo (opcional)").inputValue()) === "", "o contexto começa vazio");
@@ -882,18 +917,6 @@ try {
   expect((await m.getByLabel("Figurinha (você adiciona no Instagram)").inputValue()) === "", "o editor fica sem figurinha");
   expect((await m.locator(".story-screen .sticker-ghost").count()) === 0, "a prévia fica sem figurinha");
   // pinça com dois dedos na prévia: afasta os dedos para aproximar e junta para mostrar a foto inteira (e menor)
-  const touch = await phone.newCDPSession(m);
-  const pinchPreview = async (from, to) => {
-    const b = await m.locator(".story-screen").boundingBox();
-    const cx = b.x + b.width / 2;
-    const cy = b.y + b.height * 0.62;
-    const points = (gap) => [{ x: cx - gap / 2, y: cy, id: 0 }, { x: cx + gap / 2, y: cy, id: 1 }];
-    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points(from) });
-    for (let i = 1; i <= 6; i++) {
-      await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: points(from + ((to - from) * i) / 6) });
-    }
-    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  };
   await m.locator(".story-screen").scrollIntoViewIfNeeded();
   await m.getByText("Arraste a foto para enquadrar e faça pinça com dois dedos para o zoom.").waitFor();
   await pinchPreview(80, 160);

@@ -1395,6 +1395,11 @@ label.btn {
   width: 100%;
   height: 100%;
 }
+/* no quadro todo (foto, textos e figurinha), os dedos enquadram a foto em vez de rolar ou ampliar a página */
+.shot.editing,
+.story-screen.editing {
+  touch-action: none;
+}
 .shot.editing canvas {
   cursor: grab;
   touch-action: none;
