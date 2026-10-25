@@ -1,6 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import type { Photo } from "../photos";
-import { type FormatSpec, type Framing, sharpness, upscale } from "../render";
+import { fitZoom, type FormatSpec, type Framing, sharpness, upscale } from "../render";
 
 /** "1 e 2", "1, 2 e 3". */
 export const andList = (items: (string | number)[]) =>
@@ -25,10 +25,12 @@ export function SharpnessNote({ photo, spec, label }: { photo: Photo; spec: Form
       </p>
     );
   }
-  const fill = photo.framing.mode === "fill";
+  const whole = fitZoom(photo.width, photo.height, spec.w, spec.h);
   const tips = [
-    ...(fill && photo.framing.zoom > 1.05 ? ["diminua o zoom"] : []),
-    ...(fill && photoSharpness(photo, spec, { ...photo.framing, mode: "fit" }).level === "ok" ? ["escolha Foto inteira"] : []),
+    ...(photo.framing.zoom > 1.05 ? ["diminua o zoom"] : []),
+    ...(photo.framing.zoom > whole + 0.01 && photoSharpness(photo, spec, { ...photo.framing, zoom: whole }).level === "ok"
+      ? ["escolha Foto inteira"]
+      : []),
     "use a foto original (não a recebida por mensagem nem uma tirada com zoom do celular)",
   ];
   return (

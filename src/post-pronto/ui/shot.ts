@@ -34,7 +34,7 @@ export function useShot({
   const [fontsReady, setFontsReady] = useState(0);
   const [boxes, setBoxes] = useState<TextBox[]>([]);
   const H = Math.round((width * spec.h) / spec.w);
-  const canPan = framing.mode === "fill" && !!onFraming;
+  const canPan = !!onFraming;
 
   const fonts = overlay ? overlayStyles(overlay).join(" ") : "";
   useEffect(() => {

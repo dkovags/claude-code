@@ -20,23 +20,48 @@ export const FORMATS: FormatSpec[] = [
 
 export const formatSpec = (id: FormatId): FormatSpec => FORMATS.find((f) => f.id === id) ?? FORMATS[0];
 
-/** Como a foto entra no quadro: recortando as sobras ou inteira, com fundo desfocado. */
+/**
+ * Como a foto entra no quadro. Com zoom 1, ela preenche o quadro e as sobras ficam de fora; acima de 1, aproxima;
+ * abaixo de 1, mostra mais da foto, até ela inteira (`fitZoom`) e um pouco menor, e o espaço que falta é preenchido
+ * com a própria foto, desfocada.
+ */
 export interface Framing {
-  mode: "fill" | "fit";
-  /** 1 a 3, só no modo "fill". */
   zoom: number;
-  /** -1 a 1: posição do recorte (0 = centro). */
+  /**
+   * -1 a 1 (0 = centro). Na direção em que a foto sobra, escolhe a parte que aparece; na direção em que ela não ocupa o
+   * quadro todo, onde ela fica.
+   */
   x: number;
   y: number;
 }
 
-export const DEFAULT_FRAMING: Framing = { mode: "fill", zoom: 1, x: 0, y: 0 };
+export const DEFAULT_FRAMING: Framing = { zoom: 1, x: 0, y: 0 };
+export const MAX_ZOOM = 3;
 
 const clamp = (v: number, min = -1, max = 1) => Math.min(max, Math.max(min, v));
 
-/** Parte da foto (em pixels da foto) que aparece no quadro no modo "fill". */
+/** O zoom em que a foto aparece inteira no quadro (1 quando ela tem o mesmo formato do quadro). */
+export function fitZoom(imgW: number, imgH: number, outW: number, outH: number): number {
+  return Math.min(outW / imgW, outH / imgH) / Math.max(outW / imgW, outH / imgH);
+}
+
+/** O menor zoom: a foto inteira e um pouco menor, para sobrar espaço para o texto em volta. */
+export function minZoom(imgW: number, imgH: number, outW: number, outH: number): number {
+  return fitZoom(imgW, imgH, outW, outH) * 0.6;
+}
+
+/** Onde a foto fica no quadro, em pixels do quadro, e quantos pixels do quadro cada pixel da foto ocupa. */
+export function placePhoto(imgW: number, imgH: number, outW: number, outH: number, f: Framing) {
+  const zoom = clamp(f.zoom, minZoom(imgW, imgH, outW, outH), MAX_ZOOM);
+  const scale = Math.max(outW / imgW, outH / imgH) * zoom;
+  const dw = imgW * scale;
+  const dh = imgH * scale;
+  return { scale, dx: ((outW - dw) * (clamp(f.x) + 1)) / 2, dy: ((outH - dh) * (clamp(f.y) + 1)) / 2, dw, dh };
+}
+
+/** Parte da foto (em pixels da foto) que aparece no quadro quando ela o preenche (zoom de 1 a 3). */
 export function cropRect(imgW: number, imgH: number, outW: number, outH: number, f: Framing) {
-  const scale = Math.max(outW / imgW, outH / imgH) * clamp(f.zoom, 1, 3);
+  const scale = Math.max(outW / imgW, outH / imgH) * clamp(f.zoom, 1, MAX_ZOOM);
   const sw = outW / scale;
   const sh = outH / scale;
   return { sx: ((imgW - sw) * (clamp(f.x) + 1)) / 2, sy: ((imgH - sh) * (clamp(f.y) + 1)) / 2, sw, sh };
@@ -48,8 +73,7 @@ export function cropRect(imgW: number, imgH: number, outW: number, outH: number,
  * recortada em pé) e perde nitidez.
  */
 export function upscale(imgW: number, imgH: number, spec: { w: number; h: number }, f: Framing): number {
-  if (f.mode === "fit") return Math.min(spec.w / imgW, spec.h / imgH);
-  return spec.w / cropRect(imgW, imgH, spec.w, spec.h, f).sw;
+  return placePhoto(imgW, imgH, spec.w, spec.h, f).scale;
 }
 
 /** Nitidez esperada da foto na imagem baixada, pelo quanto ela é ampliada. */
@@ -57,15 +81,19 @@ export function sharpness(factor: number): "ok" | "soft" | "blurry" {
   return factor > 1.6 ? "blurry" : factor > 1.15 ? "soft" : "ok";
 }
 
-/** Arrastar a foto: dx e dy em fração do quadro (0,1 = 10% da largura ou da altura). */
+/**
+ * Arrastar a foto: dx e dy em fração do quadro (0,1 = 10% da largura ou da altura). A foto acompanha o dedo, tanto
+ * quando sobra (muda a parte que aparece) quanto quando não ocupa o quadro todo (muda onde ela fica).
+ */
 export function pan(f: Framing, dx: number, dy: number, imgW: number, imgH: number, outW: number, outH: number): Framing {
-  const { sw, sh } = cropRect(imgW, imgH, outW, outH, f);
-  const slackX = imgW - sw;
-  const slackY = imgH - sh;
+  const p = placePhoto(imgW, imgH, outW, outH, f);
+  // negativo: a foto sobra; positivo: falta foto
+  const slackX = outW - p.dw;
+  const slackY = outH - p.dh;
   return {
     ...f,
-    x: slackX > 0.5 ? clamp(f.x - (2 * dx * sw) / slackX) : 0,
-    y: slackY > 0.5 ? clamp(f.y - (2 * dy * sh) / slackY) : 0,
+    x: Math.abs(slackX) > 0.5 ? clamp(f.x + (2 * dx * outW) / slackX) : 0,
+    y: Math.abs(slackY) > 0.5 ? clamp(f.y + (2 * dy * outH) / slackY) : 0,
   };
 }
 
@@ -427,15 +455,17 @@ export function drawPost(
   ctx.fillRect(0, 0, W, H);
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  if (framing.mode === "fill") {
-    const r = cropRect(imgW, imgH, W, H, framing);
-    ctx.drawImage(img, r.sx, r.sy, r.sw, r.sh, 0, 0, W, H);
-  } else {
-    drawBlurredBackground(ctx, img, imgW, imgH, W, H);
-    const s = Math.min(W / imgW, H / imgH);
-    const dw = imgW * s;
-    const dh = imgH * s;
-    ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  const p = placePhoto(imgW, imgH, W, H, framing);
+  // só a parte da foto que cai no quadro; se ela não ocupa o quadro todo, o resto fica com a foto desfocada
+  const x0 = Math.max(0, p.dx);
+  const y0 = Math.max(0, p.dy);
+  const x1 = Math.min(W, p.dx + p.dw);
+  const y1 = Math.min(H, p.dy + p.dh);
+  if (x0 > 0.5 || y0 > 0.5 || x1 < W - 0.5 || y1 < H - 0.5) drawBlurredBackground(ctx, img, imgW, imgH, W, H);
+  if (x1 > x0 && y1 > y0) {
+    const sx = (x0 - p.dx) / p.scale;
+    const sy = (y0 - p.dy) / p.scale;
+    ctx.drawImage(img, sx, sy, (x1 - x0) / p.scale, (y1 - y0) / p.scale, x0, y0, x1 - x0, y1 - y0);
   }
   return overlay ? drawOverlay(ctx, overlay, W, H) : null;
 }

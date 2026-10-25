@@ -9,8 +9,8 @@ import { mapsPoint, mapsSearch } from "../links";
 import type { Photo } from "../photos";
 import { formatTakenAt } from "../prompts";
 import {
-  DEFAULT_FRAMING, ensureOverlayFonts, exportJpeg, FORMATS, type FormatId, formatSpec, type FormatSpec, type Framing,
-  type Overlay,
+  ensureOverlayFonts, exportJpeg, fitZoom, FORMATS, type FormatId, formatSpec, type FormatSpec, type Framing, MAX_ZOOM,
+  minZoom, type Overlay,
   OVERLAY_STYLES, type OverlayStyle, TEXT_BG_LABELS, type TextBg,
 } from "../render";
 import { touchScreen } from "../runtime";
@@ -319,6 +319,11 @@ export function FinishPanel({
   const phone = touchScreen();
   const spec = formatSpec(stories ? "9:16" : finish.format);
   const photo = photos[Math.min(active, photos.length - 1)];
+  // zoom da foto que está sendo ajustada: de um pouco menor que a foto inteira até 3 vezes o que preenche a tela
+  const wholeZoom = fitZoom(photo.width, photo.height, spec.w, spec.h);
+  const smallestZoom = minZoom(photo.width, photo.height, spec.w, spec.h);
+  const zoom = Math.min(MAX_ZOOM, Math.max(smallestZoom, photo.framing.zoom));
+  const framingPreset = zoom >= 0.995 ? "fill" : Math.abs(zoom - wholeZoom) < 0.005 ? "fit" : null;
   const { overlayOn, twoParts, overlay } = finish;
   // só os textos e o lugar deles entram na foto: mexer na figurinha tracejada não refaz os arquivos
   const frameTexts = frames.map((f) => JSON.stringify([f.text, f.text2 ?? "", f.textAt, f.text2At])).join("\u0001");
@@ -713,43 +718,47 @@ export function FinishPanel({
             <PhotoStrip photos={photos} destination={destination} active={active} onActive={setActive} lowRes={lowRes} />
           </div>
         )}
-        <Segmented<Framing["mode"]>
+        <Segmented<"fill" | "fit">
           label="Enquadramento"
           options={[
             { id: "fill", label: "Preencher a tela" },
             { id: "fit", label: "Foto inteira" },
           ]}
-          value={photo.framing.mode}
-          onChange={(mode) => setFraming(active, { ...photo.framing, mode })}
+          value={framingPreset}
+          onChange={(preset) => setFraming(active, { ...photo.framing, zoom: preset === "fill" ? 1 : wholeZoom })}
         />
         <SharpnessNote photo={photo} spec={spec} label={photoLabel(active)} />
-        {photo.framing.mode === "fill" ? (
-          <>
-            <div className="field">
-              <label className="label" htmlFor="pp-zoom">
-                Zoom
-              </label>
-              <input
-                id="pp-zoom"
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={photo.framing.zoom}
-                onChange={(e) => setFraming(active, { ...photo.framing, zoom: Number(e.target.value) })}
-              />
-            </div>
-            <p className="hint with-icon">
-              <Move size={15} aria-hidden="true" /> Arraste a foto na prévia (ou use as setas do teclado) para escolher o
-              enquadramento.
-            </p>
-            <button type="button" className="btn ghost small" onClick={() => setFraming(active, { ...DEFAULT_FRAMING })}>
-              Centralizar de novo
-            </button>
-          </>
-        ) : (
-          <p className="hint">A foto aparece inteira, e o espaço que sobra é preenchido com ela mesma, desfocada.</p>
-        )}
+        <div className="field">
+          <label className="label" htmlFor="pp-zoom">
+            Zoom
+          </label>
+          <input
+            id="pp-zoom"
+            type="range"
+            // no passo de 0,01 a partir de um número redondo, o zoom 1 (preencher a tela) cai num ponto do controle
+            min={Math.floor(smallestZoom * 100) / 100}
+            max={MAX_ZOOM}
+            step={0.01}
+            value={zoom}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              // perto de preencher a tela ou da foto inteira, encaixa no ponto exato (sem fiapos de fundo desfocado)
+              const snapped = Math.abs(v - 1) < 0.006 ? 1 : Math.abs(v - wholeZoom) < 0.006 ? wholeZoom : v;
+              setFraming(active, { ...photo.framing, zoom: snapped });
+            }}
+          />
+        </div>
+        <p className="hint with-icon">
+          <Move size={15} aria-hidden="true" />
+          <span>
+            Diminua o zoom para mostrar mais da foto, até ela inteira ou menor. Arraste a foto na prévia (ou use as setas
+            do teclado) para escolher o que aparece e onde ela fica.
+            {zoom < 0.995 && " O espaço que sobra fica com a própria foto, desfocada."}
+          </span>
+        </p>
+        <button type="button" className="btn ghost small" onClick={() => setFraming(active, { ...photo.framing, x: 0, y: 0 })}>
+          Centralizar de novo
+        </button>
       </section>
 
       {stories && (

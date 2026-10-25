@@ -781,6 +781,29 @@ try {
   await coverText.press("Shift+ArrowDown");
   expect((await settledBox(coverText)).y > cover0.y + 5, "shift + seta para baixo desce o texto da capa");
   await page.getByText("Você mudou o texto de lugar na prévia").waitFor();
+  // diminuir o zoom mostra mais da foto: inteira (3:4 no 4:5) e, no mínimo, menor; ela continua arrastável
+  const framingGroup = page.getByRole("radiogroup", { name: "Enquadramento" });
+  await framingGroup.getByRole("radio", { name: "Foto inteira" }).click();
+  expect(Math.abs(Number(await zoom.inputValue()) - 0.9375) < 0.006, `zoom da foto inteira: ${await zoom.inputValue()}`);
+  expect((await framingGroup.getByRole("radio", { name: "Foto inteira" }).getAttribute("aria-checked")) === "true", "Foto inteira marcada");
+  await zoom.press("Home");
+  expect(Math.abs(Number(await zoom.inputValue()) - 0.5625) < 0.006, `zoom mínimo: ${await zoom.inputValue()}`);
+  expect((await framingGroup.locator('[aria-checked="true"]').count()) === 0, "no meio do caminho, nenhum dos dois fica marcado");
+  await page.getByText("O espaço que sobra fica com a própria foto, desfocada.").waitFor();
+  const pixels = () => canvas.evaluate((c) => c.toDataURL("image/png").length + ":" + c.toDataURL("image/png").slice(-64));
+  const beforeDrag = await pixels();
+  await page.mouse.move(cbox.x + cbox.width / 2, cbox.y + cbox.height * 0.6);
+  await page.mouse.down();
+  await page.mouse.move(cbox.x + cbox.width / 2 - 60, cbox.y + cbox.height * 0.6 - 40, { steps: 6 });
+  await page.mouse.up();
+  let afterDrag = await pixels();
+  for (let i = 0; i < 20 && afterDrag === beforeDrag; i++) {
+    await page.waitForTimeout(50);
+    afterDrag = await pixels();
+  }
+  expect(afterDrag !== beforeDrag, "a foto menor que a tela também se arrasta");
+  await framingGroup.getByRole("radio", { name: "Preencher a tela" }).click();
+  expect(Number(await zoom.inputValue()) === 1, "Preencher a tela volta ao zoom 1");
   await shot(page, "08-feed-pronto");
 
   expect(

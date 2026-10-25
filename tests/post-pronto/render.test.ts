@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, formatSpec, layoutOverlay, overlayStyles, pan, sharpness, textBoxes,
-  textColors, upscale, wrapLines,
+  cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, fitZoom, formatSpec, layoutOverlay, minZoom, overlayStyles, pan,
+  placePhoto, sharpness, textBoxes, textColors, upscale, wrapLines,
 } from "../../src/post-pronto/render";
 
 // largura fictícia: cada caractere mede 0,5 do tamanho da fonte
@@ -36,6 +36,34 @@ describe("enquadramento", () => {
     expect(r.sw).toBeCloseTo(1500);
     expect(r.sx).toBeCloseTo(750);
   });
+
+  it("diminuir o zoom mostra mais da foto: inteira e, no mínimo, um pouco menor", () => {
+    // foto deitada no story: inteira, ocupa a largura e fica no meio da altura
+    const whole = fitZoom(4000, 3000, 1080, 1920);
+    expect(whole).toBeCloseTo(0.421875);
+    const fit = placePhoto(4000, 3000, 1080, 1920, { ...DEFAULT_FRAMING, zoom: whole });
+    expect([fit.dx, fit.dw, fit.dh]).toEqual([0, 1080, 810]);
+    expect(fit.dy).toBeCloseTo(555);
+    // no mínimo, 60% da foto inteira; abaixo disso, não diminui mais
+    expect(minZoom(4000, 3000, 1080, 1920)).toBeCloseTo(whole * 0.6);
+    expect(placePhoto(4000, 3000, 1080, 1920, { ...DEFAULT_FRAMING, zoom: 0.01 }).dw).toBeCloseTo(1080 * 0.6);
+    // a mesma foto preenchendo a tela: sobra na largura
+    expect(placePhoto(4000, 3000, 1080, 1920, DEFAULT_FRAMING).dh).toBeCloseTo(1920);
+    // foto no mesmo formato do quadro: inteira é o mesmo que preencher
+    expect(fitZoom(1080, 1920, 1080, 1920)).toBe(1);
+  });
+
+  it("com a foto menor que a tela, arrastar muda onde ela fica, sem sair da tela", () => {
+    const f = { ...DEFAULT_FRAMING, zoom: fitZoom(4000, 3000, 1080, 1920) };
+    const down = pan(f, 0, 0.1, 4000, 3000, 1080, 1920);
+    expect(placePhoto(4000, 3000, 1080, 1920, down).dy).toBeCloseTo(555 + 192);
+    expect(down.x).toBe(0); // na largura ela ocupa a tela toda: não há para onde ir
+    const top = pan(f, 0, -10, 4000, 3000, 1080, 1920);
+    expect(placePhoto(4000, 3000, 1080, 1920, top).dy).toBeCloseTo(0);
+    // menor que a foto inteira, ela anda nas duas direções
+    const small = pan({ ...f, zoom: 0.01 }, 0.1, 0, 4000, 3000, 1080, 1920);
+    expect(placePhoto(4000, 3000, 1080, 1920, small).dx).toBeCloseTo((1080 - 648) / 2 + 108);
+  });
 });
 
 describe("nitidez da foto baixada", () => {
@@ -50,7 +78,7 @@ describe("nitidez da foto baixada", () => {
   it("foto pequena e deitada (como as de mensagem) recortada em pé fica borrada; inteira, não", () => {
     expect(upscale(1280, 960, story, DEFAULT_FRAMING)).toBeCloseTo(2);
     expect(sharpness(upscale(1280, 960, story, DEFAULT_FRAMING))).toBe("blurry");
-    expect(sharpness(upscale(1280, 960, story, { ...DEFAULT_FRAMING, mode: "fit" }))).toBe("ok");
+    expect(sharpness(upscale(1280, 960, story, { ...DEFAULT_FRAMING, zoom: fitZoom(1280, 960, 1080, 1920) }))).toBe("ok");
   });
 
   it("o zoom amplia a foto", () => {

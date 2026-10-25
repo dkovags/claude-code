@@ -47,7 +47,8 @@ export function Segmented<K extends string>({
 }: {
   label: string;
   options: { id: K; label: ReactNode; title?: string }[];
-  value: K;
+  /** null: nenhuma opção marcada (o valor atual fica entre elas). */
+  value: K | null;
   onChange: (v: K) => void;
   hideLabel?: boolean;
   /** No celular, as opções em uma grade com este número de colunas. */
