@@ -227,6 +227,11 @@ function storyWordsRule(length: StoryLength): string {
     : `curto, para ler num relance: de ${w.from} a ${w.to} palavras, no máximo ${w.max}`;
 }
 
+/** No texto mais longo, o título na primeira linha: a página separa o título da explicação nessa quebra. */
+const TITLE_LINE =
+  "- No texto mais longo, comece com um título curto (até 6 palavras) e, depois de uma quebra de linha (\\n), escreva " +
+  "a explicação: a pessoa pode escrever o título e a explicação com fontes diferentes.";
+
 function storiesBody(L: string[], r: SuggestRequest) {
   const n = r.photoCount;
   const screens = n === 1 ? "exatamente 1 tela" : `exatamente ${n} telas, uma para cada foto, na mesma ordem`;
@@ -243,6 +248,7 @@ function storiesBody(L: string[], r: SuggestRequest) {
       (n > 1
         ? "A primeira tela prende a atenção e a última chama para a ação (responder, votar, mandar mensagem, tocar no link)."
         : "Prenda a atenção e, se fizer sentido, chame para a ação (responder, votar, mandar mensagem, tocar no link)."),
+    ...(r.brief.storyLength === "long" ? [TITLE_LINE] : []),
     `- "figurinha": a figurinha interativa que combina com a tela, ou tipo "nenhuma". Tipos: ${types}. Enquete: ` +
       'pergunta em "texto" e de 2 a 4 opções curtas em "opcoes". Caixa de perguntas: o convite para as pessoas mandarem ' +
       "perguntas ou respostas. Quiz: pergunta e de 2 a 4 opções, a primeira é a correta. Slider: pergunta e um emoji em " +
@@ -397,8 +403,8 @@ export function buildRefinePrompt(r: RefineRequest): string {
 /** As telas no formato combinado com o Claude. */
 function framesForPrompt(frames: StoryFrame[]) {
   return frames.map((f) => ({
-    // com dois trechos, o Claude vê o texto inteiro (a página divide de novo depois do ajuste)
-    texto: bothParts(f),
+    // com título e explicação, o título vai na primeira linha (a página separa os dois de novo depois do ajuste)
+    texto: bothParts(f, "\n"),
     figurinha: f.sticker ? { tipo: STICKER_TYPES[f.sticker.kind], texto: f.sticker.text, opcoes: f.sticker.options } : NO_STICKER,
   }));
 }
@@ -429,6 +435,14 @@ export function buildStoryRefinePrompt(r: StoryRefineRequest): string {
     "REGRAS",
     `- Devolva exatamente ${n} ${n === 1 ? "tela" : "telas"}, na mesma ordem.`,
     `- Em cada tela, texto ${storyWordsRule(r.brief.storyLength)}. Mude o tamanho só se o pedido for para isso.`,
+    ...(r.frames.some((f) => f.text2?.trim())
+      ? [
+          "- Nos textos com quebra de linha, a primeira linha é o título e o resto é a explicação: mantenha um título " +
+            "curto na primeira linha e a explicação depois da quebra de linha (\\n).",
+        ]
+      : r.brief.storyLength === "long"
+        ? [TITLE_LINE]
+        : []),
     "- Mantenha as figurinhas, a menos que o pedido seja para mudá-las. Tipos: " +
       `${Object.values(STICKER_TYPES).join(", ")} ou "nenhuma" (com "texto" vazio e "opcoes" como []).`,
     "- Não coloque hashtags nem menções no texto.",

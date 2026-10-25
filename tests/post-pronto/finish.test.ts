@@ -50,6 +50,23 @@ describe("textos dos stories", () => {
     expect(stickerSummary({ kind: "question", text: "Me conta", options: [] })).toBe("Caixa de perguntas: Me conta");
   });
 
+  it("separa o título da explicação: a primeira frase curta, ou o começo até dois-pontos ou travessão", () => {
+    const bandeira =
+      "Respondendo à pergunta: por que a bandeira está furada? Em 1956, na Revolução Húngara, o povo cortou do " +
+      "centro o emblema comunista. O buraco virou símbolo de resistência.";
+    expect(splitInTwo(bandeira)).toEqual([
+      "Respondendo à pergunta: por que a bandeira está furada?",
+      "Em 1956, na Revolução Húngara, o povo cortou do centro o emblema comunista. O buraco virou símbolo de resistência.",
+    ]);
+    expect(splitInTwo("Cardápio de hoje: arroz, feijão, farofa e salada")).toEqual(["Cardápio de hoje", "arroz, feijão, farofa e salada"]);
+    // primeira frase longa demais para título: divide num ponto natural perto do meio
+    expect(splitInTwo("Foi uma tarde com bolo, balões, primos e avós por todo lado. Obrigada!")).toEqual([
+      "Foi uma tarde com bolo, balões",
+      "primos e avós por todo lado. Obrigada!",
+    ]);
+    expect(splitInTwo("Título curto\nE a explicação, em uma ou mais linhas")).toEqual(["Título curto", "E a explicação, em uma ou mais linhas"]);
+  });
+
   it("divide o texto em dois trechos num ponto natural", () => {
     expect(splitInTwo("Cinco velinhas – e um dinossauro de chantilly")).toEqual(["Cinco velinhas", "e um dinossauro de chantilly"]);
     expect(splitInTwo("Feliz aniversário, Ana!")).toEqual(["Feliz aniversário", "Ana!"]);
@@ -89,7 +106,7 @@ describe("textos dos stories", () => {
     );
     expect(txt).not.toContain("—");
     expect(storiesText({ frames: [{ text: "Cinco velinhas", text2: "e um bolo", sticker: null }], hashtags: [] })).toBe(
-      "STORIES\nTela 1: Cinco velinhas\n  Trecho 2: e um bolo\n",
+      "STORIES\nTela 1: Cinco velinhas\n  Explicação: e um bolo\n",
     );
   });
 });

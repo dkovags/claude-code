@@ -40,6 +40,9 @@ describe("buildSuggestPrompt", () => {
     const long = buildSuggestPrompt({ ...base, brief: { ...base.brief, storyLength: "long" } });
     expect(long).toContain("mais longo, para contar mais: de 12 a 25 palavras, no máximo 30");
     expect(long).toContain("quem assiste pode segurar a tela para ler com calma");
+    // no texto mais longo, título curto na primeira linha e a explicação depois
+    expect(long).toContain("comece com um título curto (até 6 palavras) e, depois de uma quebra de linha (\\n), escreva a explicação");
+    expect(buildSuggestPrompt(base)).not.toContain("comece com um título curto");
     expect(long).not.toContain("no máximo 12");
   });
 
@@ -135,6 +138,16 @@ describe("pedidos de ajuste", () => {
       instruction: "Mais emotivos",
     });
     expect(long).toContain("Em cada tela, texto mais longo, para contar mais: de 12 a 25 palavras, no máximo 30");
+    expect(long).toContain("comece com um título curto");
+    // com título e explicação, o Claude recebe o título na primeira linha e mantém esse formato
+    const titled = buildStoryRefinePrompt({
+      brief: DEFAULT_BRIEF,
+      analysis: "",
+      frames: [{ text: "Por que a bandeira está furada?", text2: "Em 1956, o povo cortou o emblema comunista.", sticker: null }],
+      instruction: "Mais emotivos",
+    });
+    expect(titled).toContain(JSON.stringify("Por que a bandeira está furada?\nEm 1956, o povo cortou o emblema comunista."));
+    expect(titled).toContain("a primeira linha é o título e o resto é a explicação");
   });
 });
 

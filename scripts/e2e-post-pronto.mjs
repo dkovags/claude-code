@@ -559,22 +559,23 @@ try {
   await page.getByRole("radio", { name: "Moderno" }).click();
   await page.getByRole("radiogroup", { name: "Fundo", exact: true }).getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).click();
   // dois trechos com fontes diferentes: o texto de cada tela é dividido num ponto natural
-  await page.getByText("Dois trechos com fontes diferentes").click();
-  expect((await page.getByLabel("Trecho 1 da tela 1").inputValue()) === "Cinco velinhas", "trecho 1 da tela 1");
-  expect((await page.getByLabel("Trecho 2 da tela 1").inputValue()) === "e um dinossauro de chantilly", "trecho 2 da tela 1");
-  const font2 = page.getByRole("radiogroup", { name: "Fonte do trecho 2" });
-  expect((await font2.getByRole("radio", { name: "Manuscrito" }).getAttribute("aria-checked")) === "true", "o trecho 2 começa manuscrito");
+  await page.getByText("Título e explicação, com fontes diferentes").click();
+  expect((await page.getByLabel("Título da tela 1").inputValue()) === "Cinco velinhas", "título da tela 1");
+  expect((await page.getByLabel("Explicação da tela 1").inputValue()) === "e um dinossauro de chantilly", "explicação da tela 1");
+  const font2 = page.getByRole("radiogroup", { name: "Fonte da explicação" });
+  expect((await font2.getByRole("radio", { name: "Editorial" }).getAttribute("aria-checked")) === "true", "a explicação começa em Editorial");
+  expect((await page.getByLabel("Tamanho da explicação").inputValue()) === "0.8", "a explicação começa menor que o título");
   await font2.getByRole("radio", { name: "Editorial" }).click();
-  await page.getByLabel("Tamanho do trecho 2").fill("0.8");
-  // cada trecho com a sua caixa: o 1 continua semitransparente e o 2 ganha fundo preto
-  const bg1 = page.getByRole("radiogroup", { name: "Fundo do trecho 1" });
-  const bg2 = page.getByRole("radiogroup", { name: "Fundo do trecho 2" });
-  expect((await bg1.getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).getAttribute("aria-checked")) === "true", "o fundo do trecho 1 continua");
-  expect((await bg2.getByRole("radio", { name: "Sem fundo" }).getAttribute("aria-checked")) === "true", "o trecho 2 começa sem fundo");
+  await page.getByLabel("Tamanho da explicação").fill("0.8");
+  // cada um com a sua caixa: o título continua semitransparente e a explicação ganha fundo preto
+  const bg1 = page.getByRole("radiogroup", { name: "Fundo do título" });
+  const bg2 = page.getByRole("radiogroup", { name: "Fundo da explicação" });
+  expect((await bg1.getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).getAttribute("aria-checked")) === "true", "o fundo do título continua");
+  expect((await bg2.getByRole("radio", { name: "Sem fundo" }).getAttribute("aria-checked")) === "true", "a explicação começa sem fundo");
   await bg2.getByRole("radio", { name: "Preto" }).click();
   await page.getByText("Com fundo branco ou preto, o texto fica na cor oposta.").waitFor();
   const textColor = page.getByRole("radiogroup", { name: "Cor do texto" });
-  expect((await textColor.count()) === 1, "com o trecho 1 semitransparente, a cor do texto ainda vale");
+  expect((await textColor.count()) === 1, "com o título semitransparente, a cor do texto ainda vale");
   await bg1.getByRole("radio", { name: "Branco" }).click();
   expect((await textColor.count()) === 0, "com fundo branco e preto, a cor do texto some");
   await bg1.getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).click();
@@ -616,7 +617,7 @@ try {
   );
   const box = diff === "None" ? null : diff.replace(/[()\s]/g, "").split(",").map(Number);
   expect(box && box[1] > 1920 * 0.1 && box[3] < 1920 * 0.5, `o texto deveria estar na parte de cima da tela 1: ${diff}`);
-  // a caixa preta do trecho 2 está na foto (a foto de teste não tem preto na parte de cima)
+  // a caixa preta da explicação está na foto (a foto de teste não tem preto na parte de cima)
   const darkPixels = python(
     "import sys,zipfile,io\nfrom PIL import Image, ImageChops\n" +
       "for p in sys.argv[1:3]:\n" +
@@ -625,13 +626,13 @@ try {
     `${OUT}/downloads/stories.zip`,
     `${OUT}/downloads/stories-sem-texto.zip`,
   ).split("\n").map(Number);
-  expect(darkPixels[0] > 15000 && darkPixels[1] < 500, `caixa preta do trecho 2: ${darkPixels}`);
+  expect(darkPixels[0] > 15000 && darkPixels[1] < 500, `caixa preta da explicação: ${darkPixels}`);
   await page.getByText("Escrever os textos nas fotos").click();
 
-  // arrastar o trecho 2 (a caixa preta) para baixo na prévia: a foto baixada sai igual
-  await page.getByText("Na prévia, dá para arrastar cada trecho para outro lugar.").waitFor();
-  const handle1 = page.getByRole("button", { name: "Trecho 1 na foto: arraste (ou use as setas) para mudar de lugar" });
-  const handle2 = page.getByRole("button", { name: "Trecho 2 na foto: arraste (ou use as setas) para mudar de lugar" });
+  // arrastar a explicação (a caixa preta) para baixo na prévia: a foto baixada sai igual
+  await page.getByText("Na prévia, dá para arrastar o título e a explicação para outro lugar.").waitFor();
+  const handle1 = page.getByRole("button", { name: "Título na foto: arraste (ou use as setas) para mudar de lugar" });
+  const handle2 = page.getByRole("button", { name: "Explicação na foto: arraste (ou use as setas) para mudar de lugar" });
   const t1 = await settledBox(handle1);
   const t2 = await settledBox(handle2);
   const storyScreen = page.locator(".story-screen");
@@ -644,8 +645,8 @@ try {
   await page.mouse.move(t2.x + t2.width / 2, t2.y + t2.height / 2 + drop, { steps: 8 });
   await page.mouse.up();
   const t2moved = await settledBox(handle2);
-  expect(Math.abs(t2moved.y - (t2.y + drop)) < 3, `o trecho 2 deveria descer: ${t2.y} → ${t2moved.y}`);
-  expect(Math.abs((await settledBox(handle1)).y - t1.y) < 1, "o trecho 1 fica onde estava");
+  expect(Math.abs(t2moved.y - (t2.y + drop)) < 3, `a explicação deveria descer: ${t2.y} → ${t2moved.y}`);
+  expect(Math.abs((await settledBox(handle1)).y - t1.y) < 1, "o título fica onde estava");
   await page.getByText("Você mudou o texto de lugar na prévia").waitFor();
   await handle2.press("ArrowUp");
   expect((await settledBox(handle2)).y < t2moved.y - 2, "a seta para cima sobe o trecho");
@@ -662,14 +663,14 @@ try {
   // escolher uma posição traz o texto de volta
   await page.getByRole("radiogroup", { name: "Posição" }).getByRole("radio", { name: "Em cima" }).click();
   const t2back = await inScreen(handle2);
-  expect(Math.abs(t2back - t2InScreen) < 2, `a posição escolhida traz o trecho 2 de volta: ${t2InScreen} → ${t2back}`);
-  await page.getByText("Na prévia, dá para arrastar cada trecho para outro lugar.").waitFor();
+  expect(Math.abs(t2back - t2InScreen) < 2, `a posição escolhida traz a explicação de volta: ${t2InScreen} → ${t2back}`);
+  await page.getByText("Na prévia, dá para arrastar o título e a explicação para outro lugar.").waitFor();
 
   await download(page, page.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }), `${OUT}/downloads/stories.txt`);
   const storiesTxt = readFileSync(`${OUT}/downloads/stories.txt`, "utf8");
   expect(
     storiesTxt.startsWith(
-      "STORIES\nTela 1: Cinco velinhas\n  Trecho 2: e um dinossauro de chantilly\n  Figurinha – Caixa de perguntas: Mande um recado para a Ana",
+      "STORIES\nTela 1: Cinco velinhas\n  Explicação: e um dinossauro de chantilly\n  Figurinha – Caixa de perguntas: Mande um recado para a Ana",
     ),
     `txt: ${storiesTxt}`,
   );
@@ -713,7 +714,7 @@ try {
     (await page.getByLabel("Figurinha (você adiciona no Instagram)").nth(1).inputValue()) === "",
     "a tela 2 fica sem figurinha",
   );
-  expect((await page.getByLabel("Trecho 2 da tela 1 (outra fonte)").inputValue()) === "e um dinossauro de chantilly", "trecho 2 no editor");
+  expect((await page.getByLabel("Explicação da tela 1").inputValue()) === "e um dinossauro de chantilly", "explicação no editor");
   await page.getByRole("button", { name: "Confirmar textos" }).click();
   await page.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
 
@@ -760,10 +761,10 @@ try {
   expect((await page.getByLabel("Texto", { exact: true }).inputValue()) === "5 anos de Ana", "deveria sugerir o texto da capa");
   await page.getByRole("radio", { name: "Impacto" }).click();
   // na capa também: ligar divide o texto, desligar junta de novo
-  await page.getByText("Dois trechos com fontes diferentes").click();
-  expect((await page.getByLabel("Trecho 1", { exact: true }).inputValue()) === "5 anos", "trecho 1 da capa");
-  expect((await page.getByLabel("Trecho 2", { exact: true }).inputValue()) === "de Ana", "trecho 2 da capa");
-  await page.getByText("Dois trechos com fontes diferentes").click();
+  await page.getByText("Título e explicação, com fontes diferentes").click();
+  expect((await page.getByLabel("Título", { exact: true }).inputValue()) === "5 anos", "título da capa");
+  expect((await page.getByLabel("Explicação", { exact: true }).inputValue()) === "de Ana", "explicação da capa");
+  await page.getByText("Título e explicação, com fontes diferentes").click();
   expect((await page.getByLabel("Texto", { exact: true }).inputValue()) === "5 anos de Ana", "desligar junta os trechos");
   const zoom = page.getByLabel("Zoom");
   await zoom.focus();
@@ -960,16 +961,16 @@ try {
   expect(edited.images === 1 && edited.cache === false && !edited.input.includes("INFORMAÇÃO NOVA"), "gerar de novo reenvia a foto");
   await a.getByRole("button", { name: "Usar e editar" }).nth(1).click();
   // dois trechos também pela tela de escolha
-  await a.getByText("Dois trechos com fontes diferentes").click();
-  expect(await a.getByRole("checkbox", { name: "Dois trechos com fontes diferentes" }).isChecked(), "a chave liga na escolha");
-  expect((await a.getByLabel("Trecho 1", { exact: true }).inputValue()) === "5 anos", "trecho 1 na escolha");
-  expect((await a.getByLabel("Trecho 2 (outra fonte)").inputValue()) === "de Ana", "trecho 2 na escolha");
+  await a.getByText("Título e explicação, com fontes diferentes").click();
+  expect(await a.getByRole("checkbox", { name: "Título e explicação, com fontes diferentes" }).isChecked(), "a chave liga na escolha");
+  expect((await a.getByLabel("Título", { exact: true }).inputValue()) === "5 anos", "título na escolha");
+  expect((await a.getByLabel("Explicação", { exact: true }).inputValue()) === "de Ana", "explicação na escolha");
   await a.getByText("As fontes de cada um você escolhe na etapa final").waitFor();
   await a.getByRole("button", { name: "Confirmar textos" }).click();
   await a.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
-  expect(await a.getByRole("checkbox", { name: "Dois trechos com fontes diferentes" }).isChecked(), "a escolha vale na etapa final");
-  expect((await a.getByLabel("Trecho 2", { exact: true }).inputValue()) === "de Ana", "trecho 2 na etapa final");
-  await a.getByRole("radiogroup", { name: "Fonte do trecho 2" }).waitFor();
+  expect(await a.getByRole("checkbox", { name: "Título e explicação, com fontes diferentes" }).isChecked(), "a escolha vale na etapa final");
+  expect((await a.getByLabel("Explicação", { exact: true }).inputValue()) === "de Ana", "explicação na etapa final");
+  await a.getByRole("radiogroup", { name: "Fonte da explicação" }).waitFor();
   await a.getByRole("heading", { name: "Pronto para os stories" }).waitFor();
   await a.getByRole("button", { name: "Baixar a foto" }).click();
   await a.getByText("Download pronto.").waitFor();
@@ -1086,7 +1087,7 @@ try {
     await sp.getByRole("button", { name: "Pular e gerar assim mesmo" }).click();
     await sp.getByRole("heading", { name: "Escolha os textos dos stories" }).waitFor();
     await sp.getByRole("button", { name: "Usar e editar" }).first().click();
-    await sp.getByText("Dois trechos com fontes diferentes").click();
+    await sp.getByText("Título e explicação, com fontes diferentes").click();
     await checkLayout(sp, `${size.name}, escolha`, size.phone);
     await sp.getByRole("button", { name: "Confirmar textos" }).click();
     await sp.getByRole("heading", { name: "Pronto para os stories" }).waitFor();

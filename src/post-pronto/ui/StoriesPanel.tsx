@@ -136,7 +136,7 @@ export function StoriesPanel({
   setHashtags: (h: string[]) => void;
   /** Tamanho escolhido para os textos (decide a partir de quantas palavras o contador avisa). */
   storyLength: StoryLength;
-  /** Texto de cada tela em dois trechos, com fontes diferentes. */
+  /** Texto de cada tela em título e explicação, com fontes diferentes. */
   twoParts: boolean;
   onTwoParts: (on: boolean) => void;
   /** Pede um ajuste ao Claude; true se deu certo. */
@@ -214,11 +214,11 @@ export function StoriesPanel({
               <section className="editor" ref={editor} aria-labelledby="pp-editor-title">
                 <h3 id="pp-editor-title">Ajuste os textos</h3>
                 <div className="field">
-                  <Toggle checked={twoParts} onChange={onTwoParts} label="Dois trechos com fontes diferentes" />
+                  <Toggle checked={twoParts} onChange={onTwoParts} label="Título e explicação, com fontes diferentes" />
                   <p className="hint">
                     {twoParts
-                      ? "Cada tela tem agora dois trechos. As fontes de cada um você escolhe na etapa final, vendo a prévia."
-                      : "Divide o texto de cada tela em dois, para escrever cada parte com uma fonte."}
+                      ? "Cada tela tem agora um título e uma explicação. As fontes de cada um você escolhe na etapa final, vendo a prévia."
+                      : "Separa o título (a primeira frase) da explicação, para escrever cada um com uma fonte."}
                   </p>
                 </div>
                 {frames.map((f, j) => {
@@ -230,7 +230,7 @@ export function StoriesPanel({
                       <div className="frame-editor-body">
                         <div className="field">
                           <label className="label" htmlFor={`pp-frame-${j}`}>
-                            {twoParts ? `Trecho 1${screen}` : several ? `Texto${screen}` : "Texto na foto"}
+                            {twoParts ? `Título${screen}` : several ? `Texto${screen}` : "Texto na foto"}
                           </label>
                           <textarea
                             id={`pp-frame-${j}`}
@@ -241,7 +241,7 @@ export function StoriesPanel({
                           {twoParts && (
                             <>
                               <label className="label" htmlFor={`pp-frame2-${j}`}>
-                                Trecho 2{screen} (outra fonte)
+                                Explicação{screen}
                               </label>
                               <textarea
                                 id={`pp-frame2-${j}`}

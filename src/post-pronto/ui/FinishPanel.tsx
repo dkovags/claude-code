@@ -117,7 +117,7 @@ const BG_OPTIONS = (Object.keys(TEXT_BG_LABELS) as TextBg[]).map((id) => ({
   ),
 }));
 
-/** Fonte, fundo e tamanho de um trecho do texto na foto (sem `part`, do texto todo). */
+/** Fonte, fundo e tamanho do título (`part` 1) ou da explicação (`part` 2); sem `part`, do texto todo. */
 function PartControls({
   part,
   style,
@@ -137,7 +137,7 @@ function PartControls({
   onBg: (b: TextBg) => void;
   onSize: (n: number) => void;
 }) {
-  const of = part ? ` do trecho ${part}` : "";
+  const of = part === 1 ? " do título" : part === 2 ? " da explicação" : "";
   const sizeId = part === 2 ? "pp-overlay-size2" : "pp-overlay-size";
   return (
     <div className={part ? "part-controls" : "part-controls single"}>
@@ -285,7 +285,7 @@ export function FinishPanel({
   useMeta: boolean;
   saver: Saver | null;
   notify: (message: string) => void;
-  /** Liga ou desliga os dois trechos com fontes diferentes (divide ou junta os textos). */
+  /** Liga ou desliga título e explicação com fontes diferentes (divide ou junta os textos). */
   onTwoParts: (on: boolean) => void;
   onBack: () => void;
   onReset: () => void;
@@ -337,7 +337,7 @@ export function FinishPanel({
   const several = photos.length > 1;
   const set = (patch: Partial<FinishState>) => setFinish({ ...finish, ...patch });
   const setOverlay = (patch: Partial<Overlay>) => set({ overlay: { ...finish.overlay, ...patch } });
-  // fundos em uso: o do texto todo ou o de cada trecho
+  // fundos em uso: o do texto todo ou o do título e o da explicação
   const bgs = twoParts ? [overlay.bg, overlay.bg2] : [overlay.bg];
   // texto arrastado na prévia (nos stories, em alguma tela; no feed, na capa)
   const moved = stories
@@ -531,12 +531,12 @@ export function FinishPanel({
           label={stories ? "Escrever os textos nas fotos" : "Escrever um texto na capa"}
         />
         {finish.overlayOn && (
-          <Toggle checked={twoParts} onChange={onTwoParts} label="Dois trechos com fontes diferentes" />
+          <Toggle checked={twoParts} onChange={onTwoParts} label="Título e explicação, com fontes diferentes" />
         )}
         {stories && (
           <div className="field">
             <label className="label" htmlFor="pp-frame-text">
-              {overlayOn && twoParts ? `Trecho 1${screen}` : several ? `Texto${screen}` : "Texto"}
+              {overlayOn && twoParts ? `Título${screen}` : several ? `Texto${screen}` : "Texto"}
             </label>
             <textarea
               id="pp-frame-text"
@@ -547,14 +547,14 @@ export function FinishPanel({
             {overlayOn && twoParts && (
               <>
                 <label className="label" htmlFor="pp-frame-text2">
-                  Trecho 2{screen}
+                  Explicação{screen}
                 </label>
                 <textarea
                   id="pp-frame-text2"
                   rows={2}
                   value={frames[active]?.text2 ?? ""}
                   onChange={(e) => frameText(active, { text2: e.target.value })}
-                  placeholder="Escrito com a fonte do trecho 2, logo abaixo"
+                  placeholder="Logo abaixo do título, com a fonte da explicação"
                 />
               </>
             )}
@@ -574,7 +574,7 @@ export function FinishPanel({
           <>
             <div className="field">
               <label className="label" htmlFor="pp-overlay-text">
-                {twoParts ? "Trecho 1" : "Texto"}
+                {twoParts ? "Título" : "Texto"}
               </label>
               <textarea
                 id="pp-overlay-text"
@@ -586,14 +586,14 @@ export function FinishPanel({
               {twoParts && (
                 <>
                   <label className="label" htmlFor="pp-overlay-text2">
-                    Trecho 2
+                    Explicação
                   </label>
                   <textarea
                     id="pp-overlay-text2"
                     rows={2}
                     value={finish.overlay.text2}
                     onChange={(e) => setOverlay({ text2: e.target.value })}
-                    placeholder="Escrito com a fonte do trecho 2, logo abaixo"
+                    placeholder="Logo abaixo do título, com a fonte da explicação"
                   />
                 </>
               )}
@@ -665,7 +665,7 @@ export function FinishPanel({
               {[
                 moved
                   ? "Você mudou o texto de lugar na prévia; para voltar ao lugar padrão, toque numa opção de Posição."
-                  : `Na prévia, dá para arrastar ${twoParts ? "cada trecho" : "o texto"} para outro lugar.`,
+                  : `Na prévia, dá para arrastar ${twoParts ? "o título e a explicação" : "o texto"} para outro lugar.`,
                 bgs.some((b) => b === "white" || b === "black") && "Com fundo branco ou preto, o texto fica na cor oposta.",
                 stories &&
                   `${twoParts ? "As mesmas fontes e fundos valem" : "O mesmo estilo e o mesmo fundo valem"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`,

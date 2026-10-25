@@ -135,18 +135,20 @@ de *stories*; o de *feed* continua disponível.
   data e o GPS gravados na foto quando existem (dá para desligar); enquadramento arrastando a foto e *zoom*, ou a foto
   inteira com fundo desfocado; *download* da foto (ou de um .zip com todas), dos textos em .txt ou de tudo junto;
   dicas e o passo a passo para publicar. O perfil, o @ e as preferências ficam guardados no aparelho.
-- **Dois trechos com fontes diferentes**: na tela de escolha ou na etapa final, o texto escrito na foto pode ter dois
-  trechos, um embaixo do outro, cada um com a sua fonte, o seu tamanho e a sua caixa. Ao ligar, a página divide o texto
-  de cada tela (ou da capa) num ponto natural, depois de uma pontuação ou num travessão, e dá para editar os dois; ao
-  desligar, junta de novo. As fontes ficam em **Texto nas fotos**, logo abaixo dos botões de baixar; no celular, uma
-  prévia pequena no canto acompanha os ajustes.
-- **Fundo de cada trecho**: cada trecho (ou o texto todo, com um trecho só) pode ficar sem fundo, com sombra, ou ganhar
-  uma caixa semitransparente, branca ou preta, do tamanho do próprio texto. Com caixa branca ou preta, o texto fica na
-  cor oposta; sem fundo ou com caixa semitransparente, vale a **Cor do texto** escolhida.
-- **Arrastar o texto na prévia**: cada trecho pode ser arrastado (ou movido com as setas) para qualquer lugar da foto,
-  e a foto baixada sai igual. O segundo trecho acompanha o primeiro até ser arrastado também; as caixas não saem da
-  foto. Nos *stories*, o lugar vale para cada tela; no *feed*, para o texto da capa. Tocar numa opção de **Posição**
-  traz o texto de volta ao lugar padrão.
+- **Título e explicação**: na tela de escolha ou na etapa final, o texto escrito na foto pode ser dividido em título
+  e explicação, um embaixo do outro, cada um com a sua fonte, o seu tamanho e a sua caixa. Ao ligar, a página separa o
+  título: a primeira linha, a primeira frase (se for curta) ou o começo até dois-pontos ou um travessão; sem nada
+  disso, divide num ponto natural perto do meio. Dá para editar os dois; ao desligar, junta de novo. A explicação começa
+  na fonte Editorial, um pouco menor que o título. No texto mais longo, o Claude já escreve o título na primeira linha,
+  e nos ajustes ele mantém essa divisão. As fontes ficam em **Texto nas fotos**, logo abaixo dos botões de baixar; no
+  celular, uma prévia pequena no canto acompanha os ajustes.
+- **Fundo do título e da explicação**: cada um (ou o texto todo, sem explicação) pode ficar sem fundo, com sombra, ou
+  ganhar uma caixa semitransparente, branca ou preta, do tamanho do próprio texto. Com caixa branca ou preta, o texto
+  fica na cor oposta; sem fundo ou com caixa semitransparente, vale a **Cor do texto** escolhida.
+- **Arrastar o texto na prévia**: o título e a explicação podem ser arrastados (ou movidos com as setas) para qualquer
+  lugar da foto, e a foto baixada sai igual. A explicação acompanha o título até ser arrastada também; as caixas não
+  saem da foto. Nos *stories*, o lugar vale para cada tela; no *feed*, para o texto da capa. Tocar numa opção de
+  **Posição** traz o texto de volta ao lugar padrão.
 - **Figurinha tracejada**: na prévia, dá para arrastar a figurinha (ou movê-la com as setas) para ver onde ela fica
   melhor em cada tela, e tirá-la pelo × no canto. Também dá para tirar pelo botão **Remover** na lista de figurinhas
   da etapa final ou no editor dos textos. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona

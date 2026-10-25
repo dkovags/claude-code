@@ -380,7 +380,7 @@ export default function App() {
     }
   }
 
-  /** Liga ou desliga os dois trechos com fontes diferentes: divide (ou junta) o texto de cada tela e o da capa. */
+  /** Liga ou desliga título e explicação: divide (ou junta) o texto de cada tela e o da capa. */
   function setTwoParts(on: boolean) {
     if (stories) setFrames(photos.map((_, i) => withTwoParts(frames[i] ?? { text: "", sticker: null }, on)));
     setFinish((f) => ({ ...f, twoParts: on, overlay: withTwoParts(f.overlay, on) }));

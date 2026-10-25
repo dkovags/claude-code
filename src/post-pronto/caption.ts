@@ -85,17 +85,21 @@ export function stickerSummary(s: Sticker): string {
   return `${STICKER_LABELS[s.kind]}: ${s.text}${options.length ? ` (${options.join(" / ")})` : ""}`;
 }
 
-// ===== Dois trechos com fontes diferentes =====
+// ===== Título e explicação (dois trechos com fontes diferentes) =====
 
-// palavras que não ficam bem no fim do primeiro trecho
+// palavras que não ficam bem no fim do título
 const LINKING_WORDS = new Set(
   "a o as os um uma uns umas de da do das dos na no nas nos em e ou com sem para pra por pelo pela que se".split(" "),
 );
 const DASH = /^[–—-]$/;
+/** Até quantas palavras o começo do texto ainda serve de título. */
+const TITLE_WORDS = 12;
 
 /**
- * Divide o texto em dois trechos num ponto natural perto do meio: depois de uma pontuação ou num travessão; sem
- * nenhum, no meio, sem deixar "de", "e" etc. no fim do primeiro trecho. Texto curto sem pontuação fica inteiro.
+ * Divide o texto em título e explicação. O título é a primeira linha; sem quebra de linha, é a primeira frase, se for
+ * curta e vier mais texto depois, ou o começo até dois-pontos ou um travessão. Sem nada disso, divide num ponto natural
+ * perto do meio (depois de uma vírgula, por exemplo) ou no meio, sem deixar "de", "e" etc. no fim do título. Texto
+ * curto sem pontuação fica inteiro.
  */
 export function splitInTwo(text: string): [string, string] {
   const t = text.trim();
@@ -104,11 +108,20 @@ export function splitInTwo(text: string): [string, string] {
     return [first.trim(), rest.join(" ").replace(/\s+/g, " ").trim()];
   }
   const words = t.split(/\s+/).filter(Boolean);
+  const dashAt = (i: number) => DASH.test(words[i - 1]) || DASH.test(words[i]);
+  // a primeira frase, se for curta e não for quase o texto todo
+  const sentence = words.findIndex((w) => /[.!?…]$/.test(w)) + 1;
+  let cut = sentence > 0 && sentence < words.length && sentence <= Math.min(TITLE_WORDS, words.length * 0.6) ? sentence : 0;
+  // ou o começo até dois-pontos ou um travessão
+  for (let i = 1; !cut && i < Math.min(words.length, TITLE_WORDS + 1); i++) {
+    if (/:$/.test(words[i - 1]) || dashAt(i)) cut = i;
+  }
   const target = words.length / 2;
-  let cut = 0;
-  for (let i = 1; i < words.length; i++) {
-    const natural = /[.!?…:;,]$/.test(words[i - 1]) || DASH.test(words[i - 1]) || DASH.test(words[i]);
-    if (natural && (!cut || Math.abs(i - target) < Math.abs(cut - target))) cut = i;
+  if (!cut) {
+    for (let i = 1; i < words.length; i++) {
+      const natural = /[.!?…:;,]$/.test(words[i - 1]) || dashAt(i);
+      if (natural && (!cut || Math.abs(i - target) < Math.abs(cut - target))) cut = i;
+    }
   }
   if (!cut && words.length >= 4) {
     cut = Math.ceil(target);
@@ -120,12 +133,12 @@ export function splitInTwo(text: string): [string, string] {
   return [first.join(" ").replace(/[,;:]$/, ""), second.join(" ")];
 }
 
-/** Os dois trechos juntos, como um texto só. */
+/** O título e a explicação juntos, como um texto só. */
 export function bothParts(f: { text: string; text2?: string }, separator = " "): string {
   return [f.text.trim(), f.text2?.trim() ?? ""].filter(Boolean).join(separator);
 }
 
-/** Liga ou desliga os dois trechos: ao ligar, divide o texto (se ainda não houver segundo trecho); ao desligar, junta. */
+/** Liga ou desliga título e explicação: ao ligar, divide o texto (se ainda não houver explicação); ao desligar, junta. */
 export function withTwoParts<T extends { text: string; text2?: string }>(item: T, on: boolean): T & { text2: string } {
   if (!on) return { ...item, text: bothParts(item), text2: "" };
   if (item.text2?.trim()) return { ...item, text2: item.text2 };
@@ -145,7 +158,7 @@ export function storiesText(p: StoriesSummary): string {
   const parts: string[] = ["STORIES"];
   p.frames.forEach((f, i) => {
     parts.push(`Tela ${i + 1}: ${f.text.trim() || "(sem texto)"}`);
-    if (f.text2?.trim()) parts.push(`  Trecho 2: ${f.text2.trim()}`);
+    if (f.text2?.trim()) parts.push(`  Explicação: ${f.text2.trim()}`);
     if (f.sticker) parts.push(`  Figurinha – ${stickerSummary(f.sticker)}`);
   });
   if (p.music) parts.push("", "MÚSICA", musicLabel(p.music) + (p.music.part ? ` (${p.music.part})` : ""));

@@ -7,7 +7,7 @@ export interface FinishState {
   format: FormatId;
   /** Escrever texto nas fotos: nos stories, o de cada tela; no feed, um texto na capa. */
   overlayOn: boolean;
-  /** Texto em dois trechos, cada um com a sua fonte (o segundo fica no `text2` de cada tela ou do overlay). */
+  /** Texto em título e explicação, cada um com a sua fonte (a explicação fica no `text2` de cada tela ou do overlay). */
   twoParts: boolean;
   overlay: Overlay;
   /** Música e localização escolhidas (-1 = nenhuma). */

@@ -96,14 +96,14 @@ export interface Overlay {
   size: number;
   /** Cor do texto sem fundo ou com fundo semitransparente (com fundo branco ou preto, o texto fica na cor oposta). */
   color: "light" | "dark";
-  /** Caixa atrás do primeiro trecho (ou do texto todo, quando há um trecho só). */
+  /** Caixa atrás do título (ou do texto todo, quando não há explicação). */
   bg: TextBg;
-  /** Segundo trecho, logo abaixo do primeiro, com fonte, tamanho e caixa próprios (vazio = só um trecho). */
+  /** Explicação, logo abaixo do título, com fonte, tamanho e caixa próprios (vazio = só um trecho). */
   text2: string;
   style2: OverlayStyle;
   size2: number;
   bg2: TextBg;
-  /** Centro da caixa de cada trecho arrastada na prévia (sem ele, o trecho fica na `position`). */
+  /** Centro da caixa do título e da explicação arrastadas na prévia (sem ele, o trecho fica na `position`). */
   at?: Spot;
   at2?: Spot;
 }
@@ -116,8 +116,9 @@ export const DEFAULT_OVERLAY: Overlay = {
   color: "light",
   bg: "none",
   text2: "",
-  style2: "handwritten",
-  size2: 1,
+  // a explicação, mais longa, numa fonte fácil de ler e um pouco menor que o título
+  style2: "editorial",
+  size2: 0.8,
   bg2: "none",
 };
 
@@ -185,7 +186,7 @@ export function wrapLines(text: string, maxWidth: number, measure: (s: string) =
 
 /** Um trecho do texto já medido: fonte, linhas, lugar na foto e a caixa atrás dele. */
 export interface OverlayBlock {
-  /** Primeiro ou segundo trecho. */
+  /** Título (1) ou explicação (2). */
   part: 1 | 2;
   font: string;
   px: number;

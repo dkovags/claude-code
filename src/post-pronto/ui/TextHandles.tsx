@@ -8,8 +8,8 @@ const keepIn = (b: TextBox, at: Spot): Spot => ({
 });
 
 /**
- * Alças transparentes sobre os trechos do texto na prévia: arrastar (ou usar as setas) muda o lugar do trecho, e a
- * foto baixada sai igual. O texto em si é desenhado no canvas, embaixo delas.
+ * Alças transparentes sobre o título e a explicação na prévia: arrastar (ou usar as setas) muda o lugar de cada um, e
+ * a foto baixada sai igual. O texto em si é desenhado no canvas, embaixo delas.
  */
 export function TextHandles({
   boxes,
@@ -40,7 +40,7 @@ export function TextHandles({
           className="text-handle"
           role="button"
           tabIndex={0}
-          aria-label={`${boxes.length > 1 ? `Trecho ${b.part}` : "Texto"} na foto: arraste (ou use as setas) para mudar de lugar`}
+          aria-label={`${boxes.length < 2 ? "Texto" : b.part === 1 ? "Título" : "Explicação"} na foto: arraste (ou use as setas) para mudar de lugar`}
           style={{ left: `${b.x * 100}%`, top: `${b.y * 100}%`, width: `${b.w * 100}%`, height: `${b.h * 100}%` }}
           onPointerDown={(e) => {
             e.preventDefault();
