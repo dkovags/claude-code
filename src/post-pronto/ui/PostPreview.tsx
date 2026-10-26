@@ -37,6 +37,8 @@ export function PostPreview({
   editable,
   onFraming,
   onTextMove,
+  textSizes,
+  onTextSize,
   index,
   count,
   onIndex,
@@ -55,12 +57,24 @@ export function PostPreview({
   onFraming?: (f: Framing) => void;
   /** Arrastar um trecho do texto da capa: muda o lugar dele na foto baixada. */
   onTextMove?: (part: 1 | 2, at: Spot) => void;
+  /** Tamanho do título e da explicação, que a pinça ou a bolinha do canto mudam. */
+  textSizes?: [number, number];
+  onTextSize?: (part: 1 | 2, size: number) => void;
   index: number;
   count: number;
   onIndex: (i: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const shot = useShot({ source, spec, framing, overlay, width: 720, onFraming: editable ? onFraming : undefined });
+  const shot = useShot({
+    source,
+    spec,
+    framing,
+    overlay,
+    width: 720,
+    onFraming: editable ? onFraming : undefined,
+    textSizes: onTextMove ? textSizes : undefined,
+    onTextSize: onTextMove ? onTextSize : undefined,
+  });
   const name = handle || "seu_perfil";
   const caption = draft ? draft.text.trim() : "";
   const excerpt = feedExcerpt(caption);
@@ -99,7 +113,16 @@ export function PostPreview({
           tabIndex={shot.tabIndex}
           {...shot.handlers}
         />
-        {onTextMove && <TextHandles boxes={shot.boxes} frame={shot.surface} pinching={shot.pinching} onMove={onTextMove} />}
+        {onTextMove && (
+          <TextHandles
+            boxes={shot.boxes}
+            frame={shot.surface}
+            pinching={shot.pinching}
+            sizes={textSizes}
+            onMove={onTextMove}
+            onResize={onTextSize}
+          />
+        )}
         {canPan && (
           <>
             <i className="crop tl" aria-hidden="true" />

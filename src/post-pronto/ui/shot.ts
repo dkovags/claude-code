@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
   drawPost, ensureOverlayFonts, fitZoom, type FormatSpec, type Framing, MAX_ZOOM, minZoom, type Overlay, overlayStyles,
-  pan, pinch, snapZoom, type Spot, type TextBox, textBoxes,
+  pan, pinch, snapZoom, type Spot, type TextBox, textBoxes, textSize,
 } from "../render";
 
 export interface PreviewSource {
@@ -11,7 +11,14 @@ export interface PreviewSource {
 }
 
 type Point = { x: number; y: number };
+/** Um dedo (ou o mouse) no quadro, e o trecho do texto em que ele começou, se for o caso. */
+type Finger = Point & { part?: 1 | 2 };
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+/** Em qual trecho do texto (título 1, explicação 2) o dedo ou o cursor está, pela alça sobre ele. */
+const partOf = (target: EventTarget | null): 1 | 2 | undefined => {
+  const part = (target as Element | null)?.closest?.(".text-handle")?.getAttribute("data-part");
+  return part === "1" ? 1 : part === "2" ? 2 : undefined;
+};
 
 /**
  * Canvas da prévia: desenha a foto com o enquadramento e o texto. Quando `onFraming` é passado, dá para enquadrar na
@@ -26,6 +33,8 @@ export function useShot({
   overlay,
   width,
   onFraming,
+  textSizes,
+  onTextSize,
 }: {
   source: PreviewSource;
   spec: FormatSpec;
@@ -34,17 +43,20 @@ export function useShot({
   /** Largura inicial do canvas em pixels (a altura segue o formato); depois, segue a tela. */
   width: number;
   onFraming?: (f: Framing) => void;
+  /** Tamanho do título e da explicação: a pinça (ou Ctrl + roda) em cima de um deles muda o dele, não o zoom. */
+  textSizes?: [number, number];
+  onTextSize?: (part: 1 | 2, size: number) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const surface = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; start: Framing } | null>(null);
   // dedos (ou o mouse) no quadro, e o começo da pinça
-  const pointers = useRef(new Map<number, Point>());
-  const pinchStart = useRef<{ d: number; mid: Spot; start: Framing } | null>(null);
+  const pointers = useRef(new Map<number, Finger>());
+  const pinchStart = useRef<{ d: number; mid: Spot; start: Framing; part?: 1 | 2; size?: number } | null>(null);
   const pinching = useRef(false);
   // o enquadramento e o callback mais recentes, para o gesto e a roda do mouse não usarem valores velhos
-  const latest = useRef({ framing, onFraming });
-  latest.current = { framing, onFraming };
+  const latest = useRef({ framing, onFraming, textSizes, onTextSize });
+  latest.current = { framing, onFraming, textSizes, onTextSize };
   const [fontsReady, setFontsReady] = useState(0);
   const [boxes, setBoxes] = useState<TextBox[]>([]);
   // a prévia com os pixels de verdade da tela (até a largura da foto final): em 1/3 deles, ela parece borrada no celular
@@ -95,12 +107,19 @@ export function useShot({
     const el = surface.current;
     if (!el || !canPan) return;
     const onWheel = (e: WheelEvent) => {
-      const { framing: f, onFraming: set } = latest.current;
+      const { framing: f, onFraming: set, textSizes: sizes, onTextSize: setSize } = latest.current;
       if (!e.ctrlKey || !set) return;
       e.preventDefault();
+      const factor = Math.exp(-Math.max(-50, Math.min(50, e.deltaY)) * 0.01);
+      // em cima de um texto, muda o tamanho dele
+      const part = partOf(e.target);
+      if (part && sizes && setSize) {
+        setSize(part, textSize(sizes[part - 1] * factor));
+        return;
+      }
       const r = el.getBoundingClientRect();
       const at = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
-      set(zoomAround(f, zoomOf(f) * Math.exp(-Math.max(-50, Math.min(50, e.deltaY)) * 0.01), at, at));
+      set(zoomAround(f, zoomOf(f) * factor, at, at));
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -117,9 +136,9 @@ export function useShot({
     pointers.current.delete(e.pointerId);
     if (pinchStart.current && pointers.current.size < 2) {
       pinchStart.current = null;
-      // o dedo que ficou continua arrastando a foto, a partir de onde ela está
+      // o dedo que ficou continua arrastando a foto, a partir de onde ela está (se estava na foto)
       const rest = [...pointers.current.values()][0];
-      drag.current = rest ? { ...rest, start: latest.current.framing } : null;
+      drag.current = rest && !rest.part ? { x: rest.x, y: rest.y, start: latest.current.framing } : null;
     }
     if (!pointers.current.size) {
       drag.current = null;
@@ -130,7 +149,7 @@ export function useShot({
   const surfaceHandlers = {
     onPointerDown: (e: PointerEvent<HTMLDivElement>) => {
       if (!canPan || (e.target as Element).closest("button")) return;
-      const p = { x: e.clientX, y: e.clientY };
+      const p: Finger = { x: e.clientX, y: e.clientY, part: partOf(e.target) };
       pointers.current.set(e.pointerId, p);
       const capture = () => {
         try {
@@ -145,12 +164,20 @@ export function useShot({
         drag.current = { ...p, start: framing };
         return;
       }
-      // segundo dedo: começa a pinça, e o arraste de um dedo (da foto, do texto ou da figurinha) para
+      // segundo dedo: começa a pinça, e o arraste de um dedo (da foto, do texto ou da figurinha) para. Se o primeiro
+      // dedo estava num texto, a pinça muda o tamanho dele; senão, o zoom da foto
       capture();
       const [a, b] = [...pointers.current.values()];
       drag.current = null;
       pinching.current = true;
-      pinchStart.current = { d: Math.max(1, distance(a, b)), mid: spotIn(e.currentTarget.getBoundingClientRect(), midOf(a, b)), start: framing };
+      const part = textSizes && onTextSize ? a.part : undefined;
+      pinchStart.current = {
+        d: Math.max(1, distance(a, b)),
+        mid: spotIn(e.currentTarget.getBoundingClientRect(), midOf(a, b)),
+        start: framing,
+        part,
+        size: part ? textSizes![part - 1] : undefined,
+      };
     },
     onPointerMove: (e: PointerEvent<HTMLDivElement>) => {
       const p = pointers.current.get(e.pointerId);
@@ -161,7 +188,9 @@ export function useShot({
       const s = pinchStart.current;
       if (s && pointers.current.size >= 2) {
         const [a, b] = [...pointers.current.values()];
-        onFraming?.(zoomAround(s.start, zoomOf(s.start) * (distance(a, b) / s.d), s.mid, spotIn(r, midOf(a, b))));
+        const ratio = distance(a, b) / s.d;
+        if (s.part && s.size !== undefined) onTextSize?.(s.part, textSize(s.size * ratio));
+        else onFraming?.(zoomAround(s.start, zoomOf(s.start) * ratio, s.mid, spotIn(r, midOf(a, b))));
         return;
       }
       const d = drag.current;

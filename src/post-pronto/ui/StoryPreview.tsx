@@ -51,6 +51,8 @@ export function StoryPreview({
   onStickerMove,
   onStickerRemove,
   onTextMove,
+  textSizes,
+  onTextSize,
   handle,
   music,
   place,
@@ -73,6 +75,9 @@ export function StoryPreview({
   onStickerRemove?: () => void;
   /** Arrastar um trecho do texto: muda o lugar dele na foto baixada. */
   onTextMove?: (part: 1 | 2, at: Spot) => void;
+  /** Tamanho do título e da explicação, que a pinça ou a bolinha do canto mudam. */
+  textSizes?: [number, number];
+  onTextSize?: (part: 1 | 2, size: number) => void;
   handle: string;
   music?: MusicPick;
   place?: PlacePick;
@@ -83,7 +88,16 @@ export function StoryPreview({
   count: number;
   onIndex: (i: number) => void;
 }) {
-  const shot = useShot({ source, spec: STORY, framing, overlay, width: 540, onFraming: editable ? onFraming : undefined });
+  const shot = useShot({
+    source,
+    spec: STORY,
+    framing,
+    overlay,
+    width: 540,
+    onFraming: editable ? onFraming : undefined,
+    textSizes: onTextMove ? textSizes : undefined,
+    onTextSize: onTextMove ? onTextSize : undefined,
+  });
   const name = handle || "seu_perfil";
   // o quadro da prévia: é nele que valem os gestos de enquadrar (arrastar e pinça)
   const screen = shot.surface;
@@ -201,7 +215,16 @@ export function StoryPreview({
           tabIndex={shot.tabIndex}
           {...shot.handlers}
         />
-        {movableText && <TextHandles boxes={shot.boxes} frame={screen} pinching={shot.pinching} onMove={onTextMove!} />}
+        {movableText && (
+          <TextHandles
+            boxes={shot.boxes}
+            frame={screen}
+            pinching={shot.pinching}
+            sizes={textSizes}
+            onMove={onTextMove!}
+            onResize={onTextSize}
+          />
+        )}
         <div className="story-top" aria-hidden="true">
           <div className="story-bars">
             {Array.from({ length: Math.max(1, count) }, (_, i) => (
@@ -266,7 +289,8 @@ export function StoryPreview({
           {ghosts && "O que está tracejado você adiciona no Instagram, com as figurinhas. Não vai na foto baixada."}
           {shot.canPan && !example && " Arraste a foto para enquadrar e faça pinça com dois dedos para o zoom."}
           {movable && " Arraste a figurinha para ver onde ela fica melhor."}
-          {movableText && " Arraste os textos para mudar o lugar deles na foto."}
+          {movableText &&
+            ` Arraste os textos para mudar o lugar deles na foto${onTextSize ? "; para o tamanho, faça pinça em cima do texto ou puxe a bolinha do canto" : ""}.`}
         </figcaption>
       )}
     </figure>

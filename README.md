@@ -151,9 +151,9 @@ de *stories*; o de *feed* continua disponível.
 - **Enquadramento livre**: o *zoom* vai da foto um pouco menor que inteira até 3 vezes mais perto, e dá para
   enquadrar direto na prévia, desde a escolha dos textos (ou da legenda): arrastar a foto com um dedo (ou as setas do
   teclado) e fazer pinça com dois dedos para o *zoom*, que acompanha o meio dos dedos; no computador, a pinça do
-  *trackpad* ou Ctrl + roda do mouse. A pinça funciona também em cima dos textos e da figurinha. Quando a foto sobra,
-  arrastar escolhe a parte que aparece; quando ela não ocupa a tela toda, escolhe onde ela fica, e o espaço que sobra
-  é preenchido com a própria foto, desfocada. Na etapa final, **Preencher a tela** e **Foto inteira** são atalhos para
+  *trackpad* ou Ctrl + roda do mouse. A pinça funciona também em cima da figurinha; começando em cima de um texto, ela
+  muda o tamanho dele (veja abaixo). Quando a foto sobra, arrastar escolhe a parte que aparece; quando ela não ocupa a
+  tela toda, escolhe onde ela fica, e o espaço que sobra é preenchido com a própria foto, desfocada. Na etapa final, **Preencher a tela** e **Foto inteira** são atalhos para
   esses dois pontos, e o *zoom* encaixa neles quando chega perto.
 - **Título e explicação**: na tela de escolha ou na etapa final, o texto escrito na foto pode ser dividido em título
   e explicação, um embaixo do outro, cada um com a sua fonte, o seu tamanho e a sua caixa. Ao ligar, a página separa o
@@ -167,10 +167,13 @@ de *stories*; o de *feed* continua disponível.
   amarelo, vermelho, verde ou azul, em bolinhas para tocar. Por padrão, as cores se alternam: o título branco numa
   caixa escura e a explicação preta numa caixa clara. A caixa semitransparente é clara atrás do texto preto e escura
   atrás das outras cores; texto da mesma cor da caixa branca ou preta fica na cor oposta, para não sumir.
-- **Arrastar o texto na prévia**: o título e a explicação podem ser arrastados (ou movidos com as setas) para qualquer
-  lugar da foto, e a foto baixada sai igual. A explicação acompanha o título até ser arrastada também; as caixas não
-  saem da foto. Nos *stories*, o lugar vale para cada tela; no *feed*, para o texto da capa. Tocar numa opção de
-  **Posição** traz o texto de volta ao lugar padrão.
+- **Arrastar e redimensionar o texto na prévia**: o título e a explicação podem ser arrastados (ou movidos com as
+  setas) para qualquer lugar da foto, e a foto baixada sai igual. A explicação acompanha o título até ser arrastada
+  também; as caixas não saem da foto. Nos *stories*, o lugar vale para cada tela; no *feed*, para o texto da capa. Tocar
+  numa opção de **Posição** traz o texto de volta ao lugar padrão. O tamanho também muda na prévia: pinça com dois dedos
+  começando em cima do texto, a bolinha no canto da caixa (sempre à vista no celular; no computador, ao passar o mouse),
+  Ctrl + roda do mouse ou a pinça do *trackpad* em cima do texto, ou as teclas + e - com a caixa selecionada. O tamanho
+  vale para todas as telas e fica nos mesmos limites do controle **Tamanho**, que acompanha a mudança.
 - **Figurinha tracejada**: na prévia, dá para arrastar a figurinha (ou movê-la com as setas) para ver onde ela fica
   melhor em cada tela, e tirá-la pelo × no canto. Também dá para tirar pelo botão **Remover** na lista de figurinhas
   da etapa final ou no editor dos textos. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona

@@ -651,7 +651,7 @@ try {
   await page.getByText("Escrever os textos nas fotos").click();
 
   // arrastar a explicação (a caixa preta) para baixo na prévia: a foto baixada sai igual
-  await page.getByText("Na prévia, dá para arrastar o título e a explicação para outro lugar.").waitFor();
+  await page.getByText("Na prévia, dá para arrastar o título e a explicação para outro lugar").waitFor();
   const handle1 = page.getByRole("button", { name: "Título na foto: arraste (ou use as setas) para mudar de lugar" });
   const handle2 = page.getByRole("button", { name: "Explicação na foto: arraste (ou use as setas) para mudar de lugar" });
   const t1 = await settledBox(handle1);
@@ -685,7 +685,33 @@ try {
   await page.getByRole("radiogroup", { name: "Posição" }).getByRole("radio", { name: "Em cima" }).click();
   const t2back = await inScreen(handle2);
   expect(Math.abs(t2back - t2InScreen) < 2, `a posição escolhida traz a explicação de volta: ${t2InScreen} → ${t2back}`);
-  await page.getByText("Na prévia, dá para arrastar o título e a explicação para outro lugar.").waitFor();
+  // a bolinha do canto muda o tamanho do título (e só dele), e as teclas + e - também
+  const titleSize = page.getByLabel("Tamanho do título");
+  const storyZoom = page.getByLabel("Zoom");
+  const size0 = Number(await titleSize.inputValue());
+  const zoom0 = await storyZoom.inputValue();
+  const t1box = await settledBox(handle1);
+  await page.mouse.move(t1box.x + t1box.width / 2, t1box.y + t1box.height / 2);
+  const grip = await handle1.locator(".text-resize").boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 50, grip.y + grip.height / 2 + 25, { steps: 6 });
+  await page.mouse.up();
+  const size1 = Number(await titleSize.inputValue());
+  expect(size1 > size0 + 0.05, `puxar a bolinha aumenta o título: ${size0} → ${size1}`);
+  await handle1.press("-");
+  expect(Math.abs(Number(await titleSize.inputValue()) - (size1 - 0.05)) < 0.001, "a tecla - diminui o título");
+  // Ctrl + roda (a pinça do trackpad) em cima do título muda o tamanho dele, não o zoom da foto
+  const size2 = Number(await titleSize.inputValue());
+  const t1again = await settledBox(handle1);
+  await page.mouse.move(t1again.x + t1again.width / 2, t1again.y + t1again.height / 2);
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, 40);
+  await page.keyboard.up("Control");
+  expect(Number(await titleSize.inputValue()) < size2, "Ctrl + roda em cima do título diminui o título");
+  expect((await storyZoom.inputValue()) === zoom0, "o zoom da foto não muda");
+  await titleSize.fill(String(size0));
+  await page.getByText("Na prévia, dá para arrastar o título e a explicação para outro lugar").waitFor();
 
   await download(page, page.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }), `${OUT}/downloads/stories.txt`);
   const storiesTxt = readFileSync(`${OUT}/downloads/stories.txt`, "utf8");
@@ -953,6 +979,22 @@ try {
   // a prévia com os pixels de verdade da tela (aqui, densidade 2), para não parecer borrada
   const [canvasPixels, canvasCss] = await m.locator(".story-screen canvas").evaluate((c) => [c.width, c.clientWidth]);
   expect(Math.abs(canvasPixels - Math.min(1080, canvasCss * 2)) <= 10, `prévia nítida no celular: ${canvasPixels} px para ${canvasCss} px na tela`);
+  // pinça começando em cima do texto: muda o tamanho do texto, não o zoom da foto
+  await m.locator(".story-screen").scrollIntoViewIfNeeded();
+  const phoneText = m.locator(".story-screen .text-handle").first();
+  const phoneSize = m.getByLabel("Tamanho", { exact: true });
+  const textSize0 = Number(await phoneSize.inputValue());
+  const zoomKept = await phoneZoom.inputValue();
+  const tb = await settledBox(phoneText);
+  const onText = { x: tb.x + tb.width / 2, y: tb.y + tb.height / 2 };
+  const spread = (k) => [{ ...onText, id: 0 }, { x: onText.x + 30 + 50 * k, y: onText.y + 90 + 50 * k, id: 1 }];
+  await touchPreview([
+    ["touchStart", spread(0)],
+    ...Array.from({ length: 6 }, (_, i) => ["touchMove", spread((i + 1) / 6)]),
+    ["touchEnd", []],
+  ]);
+  expect(Number(await phoneSize.inputValue()) > textSize0 + 0.05, `a pinça em cima do texto aumenta o texto: ${textSize0} → ${await phoneSize.inputValue()}`);
+  expect((await phoneZoom.inputValue()) === zoomKept, "a pinça em cima do texto não mexe no zoom da foto");
   // sem o menu de compartilhar, as fotos prontas aparecem para tocar, segurar e compartilhar
   await m.getByText("Toque em Ver para compartilhar e, na foto, toque e segure").waitFor();
   await m.getByRole("button", { name: "Ver para compartilhar" }).click();

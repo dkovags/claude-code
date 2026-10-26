@@ -498,6 +498,11 @@ export default function App() {
     );
   }
 
+  // tamanho do título e da explicação, que a pinça e a bolinha do canto mudam na prévia (vale para todas as telas)
+  const textSizes: [number, number] = [finish.overlay.size, finish.overlay.size2];
+  const setTextSize = (part: 1 | 2, size: number) =>
+    setFinish((f) => ({ ...f, overlay: part === 1 ? { ...f.overlay, size } : { ...f.overlay, size2: size } }));
+
   const previewCommon = {
     source,
     framing: previewPhoto?.framing ?? DEFAULT_FRAMING,
@@ -547,6 +552,8 @@ export default function App() {
                       )
                   : undefined
               }
+              textSizes={textSizes}
+              onTextSize={setTextSize}
               onStickerRemove={
                 picked && !isExample
                   ? () => {
@@ -567,6 +574,8 @@ export default function App() {
                       setFinish((f) => ({ ...f, overlay: part === 1 ? { ...f.overlay, at } : { ...f.overlay, at2: at } }))
                   : undefined
               }
+              textSizes={textSizes}
+              onTextSize={setTextSize}
             />
           )}
           {isExample && (

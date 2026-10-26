@@ -183,6 +183,9 @@ export interface Overlay {
   at2?: Spot;
 }
 
+/** Tamanho do texto, como nos controles da etapa final: de 0,6 a 1,6. */
+export const textSize = (n: number) => Math.round(Math.min(1.6, Math.max(0.6, n)) * 100) / 100;
+
 export const DEFAULT_OVERLAY: Overlay = {
   text: "",
   style: "modern",

@@ -744,7 +744,7 @@ export function FinishPanel({
               {[
                 moved
                   ? "Você mudou o texto de lugar na prévia; para voltar ao lugar padrão, toque numa opção de Posição."
-                  : `Na prévia, dá para arrastar ${twoParts ? "o título e a explicação" : "o texto"} para outro lugar.`,
+                  : `Na prévia, dá para arrastar ${twoParts ? "o título e a explicação" : "o texto"} para outro lugar e mudar o tamanho com pinça em cima do texto (ou puxando a bolinha do canto).`,
                 stories &&
                   `${twoParts ? "As mesmas fontes, fundos e cores valem" : "O mesmo estilo, o fundo e a cor valem"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`,
                 !stories && several && "O texto vai só na capa (foto 1).",
