@@ -1064,6 +1064,29 @@ try {
   expect(sizeD > 1.03, `puxar as setas do canto com o dedo aumenta o texto: 1 → ${sizeD}`);
   expect((await phoneZoom.inputValue()) === zoomKept, "as setas do canto não mexem no zoom da foto");
   await shot(m, "12a-celular-setas-do-canto");
+  // menor, a caixa toda diminui por igual (largura e altura), e não só a letra
+  const phoneSizeInput = m.getByLabel("Tamanho", { exact: true });
+  await phoneSizeInput.fill("1");
+  await m.locator(".story-screen").scrollIntoViewIfNeeded();
+  const fullBox = await settledBox(phoneText);
+  await phoneSizeInput.fill("0.5");
+  await m.locator(".story-screen").scrollIntoViewIfNeeded();
+  const halfBox = await settledBox(phoneText);
+  await m.locator(".story-screen").screenshot({ path: `${OUT}/12d-celular-texto-metade.png` });
+  expect(
+    Math.abs(halfBox.width / fullBox.width - 0.5) < 0.08 && Math.abs(halfBox.height / fullBox.height - 0.5) < 0.08,
+    `a caixa diminui por igual: ${JSON.stringify(fullBox)} → ${JSON.stringify(halfBox)}`,
+  );
+  // e vai até o dobro do automático
+  await phoneSizeInput.fill("2");
+  expect((await phoneSizeInput.inputValue()) === "2", `o tamanho vai até 2: ${await phoneSizeInput.inputValue()}`);
+  await m.locator(".story-screen").scrollIntoViewIfNeeded();
+  const bigBox = await settledBox(phoneText);
+  await m.locator(".story-screen").screenshot({ path: `${OUT}/12e-celular-texto-dobro.png` });
+  const storyFrame = await m.locator(".story-screen").boundingBox();
+  expect(bigBox.height > fullBox.height * 1.4, `no dobro, a caixa cresce: ${fullBox.height} → ${bigBox.height}`);
+  expect(bigBox.x >= storyFrame.x - 1 && bigBox.x + bigBox.width <= storyFrame.x + storyFrame.width + 1, "a caixa grande não sai da foto");
+  await phoneSizeInput.fill("1");
   // a localização tracejada se arrasta com o dedo, sem mexer na foto
   const phonePlace = m.locator(".place-drag.movable");
   const q0 = await settledBox(phonePlace);

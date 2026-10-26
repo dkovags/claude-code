@@ -11,7 +11,8 @@ import { formatTakenAt } from "../prompts";
 import {
   ensureOverlayFonts, exportPhoto, fitZoom, FORMATS, type FormatId, formatSpec, type FormatSpec, type Framing, MAX_ZOOM,
   minZoom, type Overlay, snapZoom,
-  OVERLAY_STYLES, type OverlayStyle, sameAsBox, TEXT_BG_LABELS, TEXT_COLORS, type TextBg, type TextColor,
+  OVERLAY_STYLES, type OverlayStyle, sameAsBox, TEXT_BG_LABELS, TEXT_COLORS, TEXT_SIZE_MAX, TEXT_SIZE_MIN, type TextBg,
+  type TextColor,
 } from "../render";
 import { inClaude, mobileKind, touchScreen } from "../runtime";
 import type { Saver } from "../save";
@@ -192,8 +193,8 @@ function PartControls({
         <input
           id={sizeId}
           type="range"
-          min={0.6}
-          max={1.6}
+          min={TEXT_SIZE_MIN}
+          max={TEXT_SIZE_MAX}
           step={0.05}
           value={size}
           onChange={(e) => onSize(Number(e.target.value))}

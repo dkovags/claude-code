@@ -166,7 +166,10 @@ export interface Overlay {
   text: string;
   style: OverlayStyle;
   position: "top" | "center" | "bottom";
-  /** Multiplicador do tamanho da letra, de 0,6 a 1,6. */
+  /**
+   * Tamanho em relação ao automático (1 no título, 0,8 na explicação), de 0,3 a 2: menor, a caixa toda diminui por
+   * igual; maior, cresce por igual até ocupar a largura da foto e daí ganha linhas.
+   */
   size: number;
   /** Cor do texto do título (ou do texto todo, quando não há explicação). */
   color: TextColor;
@@ -183,8 +186,10 @@ export interface Overlay {
   at2?: Spot;
 }
 
-/** Tamanho do texto, como nos controles da etapa final: de 0,6 a 1,6. */
-export const textSize = (n: number) => Math.round(Math.min(1.6, Math.max(0.6, n)) * 100) / 100;
+/** Limites do tamanho do texto, nos controles da etapa final e nos gestos da prévia. */
+export const TEXT_SIZE_MIN = 0.3;
+export const TEXT_SIZE_MAX = 2;
+export const textSize = (n: number) => Math.round(Math.min(TEXT_SIZE_MAX, Math.max(TEXT_SIZE_MIN, n)) * 100) / 100;
 
 export const DEFAULT_OVERLAY: Overlay = {
   text: "",
@@ -294,8 +299,10 @@ export interface OverlayLayout {
 }
 
 /**
- * Calcula fonte, linhas e posição de cada trecho do texto. Diminui a letra até caber: no máximo 5 linhas e 45% da
- * altura com um trecho, 7 linhas e 55% com dois. Em 9:16 deixa livres o topo e a base, onde ficam os botões dos Stories.
+ * Calcula fonte, linhas e posição de cada trecho do texto. O tamanho automático é o dos tamanhos padrão, com a letra
+ * diminuindo até caber: no máximo 5 linhas e 45% da altura com um trecho, 7 linhas e 55% com dois. O tamanho escolhido
+ * multiplica o automático, e a caixa muda por igual (as mesmas linhas) até ocupar a largura da foto; daí em diante, a
+ * letra cresce e ganha linhas, sem sair da foto. Em 9:16 deixa livres o topo e a base, onde ficam os botões dos Stories.
  */
 export function layoutOverlay(
   o: Overlay,
@@ -312,16 +319,14 @@ export function layoutOverlay(
   const minPx = Math.round(W * 0.03);
   const maxLines = two ? 7 : 5;
   const maxHeight = H * (two ? 0.55 : 0.45);
-  const sizes = parts.map((p) => Math.max(minPx, Math.round(W * 0.085 * Math.min(1.6, Math.max(0.6, p.size)))));
-  let blocks: OverlayBlock[] = [];
-  let gap = 0;
-  for (;;) {
-    blocks = parts.map((p, i) => {
+  // `fixed`: linhas já quebradas (as do tamanho automático), para a caixa mudar por igual
+  const build = (sizes: number[], widths: number[], fixed?: (string[] | null)[]): OverlayBlock[] =>
+    parts.map((p, i) => {
       const style = OVERLAY_STYLES[p.style];
       const px = sizes[i];
       const font = overlayFont(p.style, px);
       const measure = (s: string) => measureWith(font, s);
-      const lines = wrapLines(style.upper ? p.text.toLocaleUpperCase("pt-BR") : p.text, maxWidth, measure);
+      const lines = fixed?.[i] ?? wrapLines(style.upper ? p.text.toLocaleUpperCase("pt-BR") : p.text, widths[i], measure);
       const lineHeight = px * style.lineHeight;
       const boxed = p.bg !== "none";
       return {
@@ -340,13 +345,42 @@ export function layoutOverlay(
         padY: boxed ? px * 0.3 : 0,
       };
     });
-    // com caixa, o espaço entre os trechos fica entre as caixas
-    gap = two ? Math.round(Math.min(...sizes) * 0.35) + blocks[0].padY + blocks[1].padY : 0;
-    const lines = blocks.reduce((n, b) => n + b.lines.length, 0);
-    const height = blocks.reduce((h, b) => h + b.height, gap);
-    const fits = blocks.every((b) => b.width <= maxWidth) && lines <= maxLines && height <= maxHeight;
+  // com caixa, o espaço entre os trechos fica entre as caixas
+  const gapOf = (blocks: OverlayBlock[], sizes: number[]) =>
+    two ? Math.round(Math.min(...sizes) * 0.35) + blocks[0].padY + blocks[1].padY : 0;
+  const shrink = (sizes: number[]) => sizes.forEach((px, i) => (sizes[i] = Math.max(minPx, Math.floor(px * 0.92))));
+
+  // o tamanho automático: com os tamanhos padrão, a letra diminui até caber
+  const ref = parts.map((p) => (p.part === 1 ? DEFAULT_OVERLAY.size : DEFAULT_OVERLAY.size2));
+  const auto = ref.map((r) => Math.max(minPx, Math.round(W * 0.085 * r)));
+  let autoBlocks: OverlayBlock[];
+  for (;;) {
+    autoBlocks = build(auto, auto.map(() => maxWidth));
+    const lines = autoBlocks.reduce((n, b) => n + b.lines.length, 0);
+    const height = autoBlocks.reduce((h, b) => h + b.height, gapOf(autoBlocks, auto));
+    const fits = autoBlocks.every((b) => b.width <= maxWidth) && lines <= maxLines && height <= maxHeight;
+    if (fits || auto.every((px) => px <= minPx)) break;
+    shrink(auto);
+  }
+  // o tamanho escolhido multiplica o automático, com as mesmas linhas: a caixa muda por igual até ocupar a largura da
+  // foto (com a folga da caixa); passando dela, as linhas quebram nessa largura
+  const scale = parts.map((p, i) => textSize(p.size) / ref[i]);
+  const sizes = auto.map((px, i) => Math.max(minPx, Math.round(px * scale[i])));
+  const scaled = () => {
+    const caps = sizes.map((px, i) => W * 0.94 - (parts[i].bg !== "none" ? px : 0));
+    const widths = sizes.map((_, i) => Math.min(maxWidth * scale[i], caps[i]));
+    return build(sizes, widths, caps.map((cap, i) => (maxWidth * scale[i] <= cap ? autoBlocks[i].lines : null)));
+  };
+  // grande demais para a foto (palavra comprida ou linhas demais), a letra diminui até caber
+  let blocks = scaled();
+  let gap = gapOf(blocks, sizes);
+  for (;;) {
+    const height = blocks.reduce((h, b) => h + b.height, gap) + (blocks[0]?.padY ?? 0) + (blocks[blocks.length - 1]?.padY ?? 0);
+    const fits = blocks.every((b) => b.width + 2 * b.padX <= W) && height <= H * 0.92;
     if (fits || sizes.every((px) => px <= minPx)) break;
-    sizes.forEach((px, i) => (sizes[i] = Math.max(minPx, Math.floor(px * 0.92))));
+    shrink(sizes);
+    blocks = scaled();
+    gap = gapOf(blocks, sizes);
   }
   const height = blocks.reduce((h, b) => h + b.height, gap);
   const story = H / W > 1.7;
@@ -355,12 +389,14 @@ export function layoutOverlay(
   // as caixas também ficam fora das áreas dos botões, e no meio é o conjunto com as caixas que fica centralizado
   const padTop = blocks[0]?.padY ?? 0;
   const padBottom = blocks[blocks.length - 1]?.padY ?? 0;
-  const top =
+  const preset =
     o.position === "top"
       ? marginTop + padTop
       : o.position === "center"
         ? (H - height + padTop - padBottom) / 2
         : H - marginBottom - padBottom - height;
+  // caixa alta (texto aumentado), sem sair da foto
+  const top = within(preset, padTop, H - height - padBottom);
   let y = top;
   for (const b of blocks) {
     b.top = y;

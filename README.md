@@ -174,7 +174,10 @@ de *stories*; o de *feed* continua disponível.
   em cima do texto ou em volta dele (basta um dedo no texto, ou o meio dos dedos nele ou bem perto, como no Instagram;
   longe dos textos, a pinça é o *zoom* da foto), as setas no canto da caixa (sempre à vista no celular, com área de
   toque maior; no computador, ao passar o mouse), Ctrl + roda do mouse ou a pinça do *trackpad* em cima do texto, ou as
-  teclas + e - com a caixa selecionada. O tamanho vale para todas as telas e fica nos mesmos limites do controle
+  teclas + e - com a caixa selecionada. O tamanho vai de 0,3 a 2 vezes o automático: menor, a caixa toda diminui por
+  igual (as mesmas linhas, mais estreitas e mais baixas); maior, cresce por igual até ocupar a largura da foto e daí a
+  letra continua crescendo em mais linhas, sem sair da foto. O encaixe automático (no máximo 5 linhas e 45% da altura)
+  vale só para o tamanho automático, e não desfaz o aumento. O tamanho vale para todas as telas e é o mesmo do controle
   **Tamanho**, que acompanha a mudança.
 - **Figurinha e localização tracejadas**: na prévia, dá para arrastar a figurinha e a localização (ou movê-las com as
   setas) para ver onde elas ficam melhor em cada tela; arrastar em cima delas não mexe na foto. A figurinha sai pelo ×

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   cropRect, DEFAULT_FRAMING, DEFAULT_OVERLAY, fitZoom, formatSpec, layoutOverlay, minZoom, overlayStyles, pan, pinch,
-  placePhoto, sameAsBox, sharpness, snapZoom, textBoxes, textColors, upscale, wrapLines,
+  placePhoto, sameAsBox, sharpness, snapZoom, textBoxes, textColors, textSize, upscale, wrapLines,
 } from "../../src/post-pronto/render";
 
 // largura fictícia: cada caractere mede 0,5 do tamanho da fonte
@@ -125,6 +125,31 @@ describe("texto na foto", () => {
     expect(l.blocks[0].lines.length).toBeLessThanOrEqual(5);
     expect(l.width).toBeLessThanOrEqual(1080 * 0.84);
     expect(l.blocks[0].px).toBeLessThan(Math.round(1080 * 0.085));
+  });
+
+  it("o tamanho escolhido muda a caixa por igual, também no texto longo, e sem sair da foto", () => {
+    const text = "Primeira ponte fixa sobre o Danúbio em Budapeste, aberta em 1849";
+    const at = (size: number) => layoutOverlay({ ...DEFAULT_OVERLAY, text, size }, 1080, 1920, measureWith).blocks[0];
+    const auto = at(1);
+    // menor: as mesmas linhas, com a letra e a caixa menores na mesma proporção
+    const small = at(0.5);
+    expect(small.lines).toEqual(auto.lines);
+    expect(small.px).toBe(Math.round(auto.px * 0.5));
+    expect(small.width).toBeCloseTo(auto.width * (small.px / auto.px), 0);
+    // maior: o encaixe automático (5 linhas, 45% da altura) não desfaz o aumento; a caixa não passa da largura da foto
+    const sizes = [1, 1.2, 1.4, 1.6, 1.8, 2].map((s) => at(s));
+    sizes.slice(1).forEach((b, i) => expect(b.px).toBeGreaterThan(sizes[i].px));
+    for (const b of sizes) expect(b.width + 2 * b.padX).toBeLessThanOrEqual(1080);
+    // palavra comprida demais na letra máxima: diminui até caber na foto
+    const word = layoutOverlay({ ...DEFAULT_OVERLAY, text: "Supercalifragilisticexpialidocious", size: 2 }, 1080, 1920, measureWith);
+    expect(word.blocks[0].width + 2 * word.blocks[0].padX).toBeLessThanOrEqual(1080);
+    // caixa alta embaixo: sobe o quanto precisa, sem sair da foto
+    const tall = layoutOverlay({ ...DEFAULT_OVERLAY, text: "palavra ".repeat(30).trim(), size: 2 }, 1080, 1920, measureWith);
+    const b = tall.blocks[0];
+    expect(b.top - b.padY).toBeGreaterThanOrEqual(0);
+    expect(b.top + b.height + b.padY).toBeLessThanOrEqual(1920);
+    expect(textSize(0.1)).toBe(0.3);
+    expect(textSize(5)).toBe(2);
   });
 
   it("posiciona embaixo deixando livre a área dos botões nos Stories", () => {
