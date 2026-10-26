@@ -171,9 +171,11 @@ de *stories*; o de *feed* continua disponível.
   setas) para qualquer lugar da foto, e a foto baixada sai igual. A explicação acompanha o título até ser arrastada
   também; as caixas não saem da foto. Nos *stories*, o lugar vale para cada tela; no *feed*, para o texto da capa. Tocar
   numa opção de **Posição** traz o texto de volta ao lugar padrão. O tamanho também muda na prévia: pinça com dois dedos
-  começando em cima do texto, a bolinha no canto da caixa (sempre à vista no celular; no computador, ao passar o mouse),
-  Ctrl + roda do mouse ou a pinça do *trackpad* em cima do texto, ou as teclas + e - com a caixa selecionada. O tamanho
-  vale para todas as telas e fica nos mesmos limites do controle **Tamanho**, que acompanha a mudança.
+  em cima do texto ou em volta dele (basta um dedo no texto, ou o meio dos dedos nele ou bem perto, como no Instagram;
+  longe dos textos, a pinça é o *zoom* da foto), as setas no canto da caixa (sempre à vista no celular, com área de
+  toque maior; no computador, ao passar o mouse), Ctrl + roda do mouse ou a pinça do *trackpad* em cima do texto, ou as
+  teclas + e - com a caixa selecionada. O tamanho vale para todas as telas e fica nos mesmos limites do controle
+  **Tamanho**, que acompanha a mudança.
 - **Figurinha e localização tracejadas**: na prévia, dá para arrastar a figurinha e a localização (ou movê-las com as
   setas) para ver onde elas ficam melhor em cada tela; arrastar em cima delas não mexe na foto. A figurinha sai pelo ×
   no canto, pelo botão **Remover** na lista de figurinhas da etapa final ou pelo editor dos textos; a localização, por

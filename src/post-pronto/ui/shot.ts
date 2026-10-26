@@ -14,6 +14,8 @@ type Point = { x: number; y: number };
 /** Um dedo (ou o mouse) no quadro, e o trecho do texto em que ele começou, se for o caso. */
 type Finger = Point & { part?: 1 | 2 };
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+/** Até quantos pixels fora da caixa a pinça ainda vale para o texto (os dedos costumam ficar em volta dele). */
+const NEAR_TEXT = 24;
 /** Em qual trecho do texto (título 1, explicação 2) o dedo ou o cursor está, pela alça sobre ele. */
 const partOf = (target: EventTarget | null): 1 | 2 | undefined => {
   const part = (target as Element | null)?.closest?.(".text-handle")?.getAttribute("data-part");
@@ -44,7 +46,10 @@ export function useShot({
   /** Largura inicial do canvas em pixels (a altura segue o formato); depois, segue a tela. */
   width: number;
   onFraming?: (f: Framing) => void;
-  /** Tamanho do título e da explicação: a pinça (ou Ctrl + roda) em cima de um deles muda o dele, não o zoom. */
+  /**
+   * Tamanho do título e da explicação: a pinça em cima de um deles (ou com os dedos em volta dele), ou Ctrl + roda em
+   * cima dele, muda o dele, não o zoom.
+   */
   textSizes?: [number, number];
   onTextSize?: (part: 1 | 2, size: number) => void;
 }) {
@@ -131,6 +136,19 @@ export function useShot({
 
   const spotIn = (r: DOMRect, p: Point): Spot => ({ x: (p.x - r.left) / r.width, y: (p.y - r.top) / r.height });
   const midOf = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  /** O trecho do texto em que fica o meio dos dedos, ou o mais perto dele (até `NEAR_TEXT`). */
+  const partNear = (r: DOMRect, p: Point): 1 | 2 | undefined => {
+    let best: { part: 1 | 2; d: number } | undefined;
+    for (const b of boxes) {
+      const left = r.left + b.x * r.width;
+      const top = r.top + b.y * r.height;
+      const dx = Math.max(left - p.x, 0, p.x - (left + b.w * r.width));
+      const dy = Math.max(top - p.y, 0, p.y - (top + b.h * r.height));
+      const d = Math.hypot(dx, dy);
+      if (d <= NEAR_TEXT && (!best || d < best.d)) best = { part: b.part, d };
+    }
+    return best?.part;
+  };
   // em cima dos textos, da figurinha e da localização, um dedo arrasta só eles; os botões (telas, remover) ficam de fora
   const onPhoto = (e: PointerEvent) => !(e.target as Element).closest(".text-handle, .sticker-drag, .place-drag");
   const release = (e: PointerEvent<HTMLDivElement>) => {
@@ -166,15 +184,16 @@ export function useShot({
         return;
       }
       // segundo dedo: começa a pinça, e o arraste de um dedo (da foto, do texto, da figurinha ou da localização) para.
-      // Se o primeiro dedo estava num texto, a pinça muda o tamanho dele; senão, o zoom da foto
+      // Com um dos dedos num texto, ou com os dois em volta dele, a pinça muda o tamanho do texto; senão, o zoom da foto
       capture();
       const [a, b] = [...pointers.current.values()];
       drag.current = null;
       pinching.current = true;
-      const part = textSizes && onTextSize ? a.part : undefined;
+      const r = e.currentTarget.getBoundingClientRect();
+      const part = textSizes && onTextSize ? (a.part ?? b.part ?? partNear(r, midOf(a, b))) : undefined;
       pinchStart.current = {
         d: Math.max(1, distance(a, b)),
-        mid: spotIn(e.currentTarget.getBoundingClientRect(), midOf(a, b)),
+        mid: spotIn(r, midOf(a, b)),
         start: framing,
         part,
         size: part ? textSizes![part - 1] : undefined,

@@ -713,7 +713,7 @@ try {
   await page.getByRole("radiogroup", { name: "Posição" }).getByRole("radio", { name: "Em cima" }).click();
   const t2back = await inScreen(handle2);
   expect(Math.abs(t2back - t2InScreen) < 2, `a posição escolhida traz a explicação de volta: ${t2InScreen} → ${t2back}`);
-  // a bolinha do canto muda o tamanho do título (e só dele), e as teclas + e - também
+  // a alça do canto muda o tamanho do título (e só dele), e as teclas + e - também
   const titleSize = page.getByLabel("Tamanho do título");
   const storyZoom = page.getByLabel("Zoom");
   const size0 = Number(await titleSize.inputValue());
@@ -726,7 +726,7 @@ try {
   await page.mouse.move(grip.x + grip.width / 2 + 50, grip.y + grip.height / 2 + 25, { steps: 6 });
   await page.mouse.up();
   const size1 = Number(await titleSize.inputValue());
-  expect(size1 > size0 + 0.05, `puxar a bolinha aumenta o título: ${size0} → ${size1}`);
+  expect(size1 > size0 + 0.05, `puxar a alça aumenta o título: ${size0} → ${size1}`);
   await handle1.press("-");
   expect(Math.abs(Number(await titleSize.inputValue()) - (size1 - 0.05)) < 0.001, "a tecla - diminui o título");
   // Ctrl + roda (a pinça do trackpad) em cima do título muda o tamanho dele, não o zoom da foto
@@ -1023,6 +1023,47 @@ try {
   ]);
   expect(Number(await phoneSize.inputValue()) > textSize0 + 0.05, `a pinça em cima do texto aumenta o texto: ${textSize0} → ${await phoneSize.inputValue()}`);
   expect((await phoneZoom.inputValue()) === zoomKept, "a pinça em cima do texto não mexe no zoom da foto");
+  // com os dedos em volta do texto (um acima, outro abaixo), como no Instagram, a pinça também muda o tamanho do texto
+  const tb2 = await settledBox(phoneText);
+  const sizeA = Number(await phoneSize.inputValue());
+  const around = (k) => [
+    { x: tb2.x + tb2.width / 2, y: tb2.y - 12 + 25 * k, id: 0 },
+    { x: tb2.x + tb2.width / 2, y: tb2.y + tb2.height + 12 - 25 * k, id: 1 },
+  ];
+  await touchPreview([["touchStart", around(0)], ...Array.from({ length: 6 }, (_, i) => ["touchMove", around((i + 1) / 6)]), ["touchEnd", []]]);
+  const sizeB = Number(await phoneSize.inputValue());
+  expect(sizeB < sizeA - 0.05, `juntar os dedos em volta do texto diminui o texto: ${sizeA} → ${sizeB}`);
+  expect((await phoneZoom.inputValue()) === zoomKept, "a pinça em volta do texto não mexe no zoom da foto");
+  // um dedo na foto e o outro no texto: a pinça é do texto
+  const tb3 = await settledBox(phoneText);
+  const screenBox = await m.locator(".story-screen").boundingBox();
+  const onPhoto = { x: screenBox.x + screenBox.width * 0.5, y: screenBox.y + screenBox.height * 0.75 };
+  const inText = { x: tb3.x + tb3.width / 2, y: tb3.y + tb3.height / 2 };
+  const apart = (k) => [
+    { x: onPhoto.x, y: onPhoto.y + 40 * k, id: 0 },
+    { x: inText.x, y: inText.y - 40 * k, id: 1 },
+  ];
+  await touchPreview([["touchStart", [apart(0)[0]]]]);
+  await touchPreview([["touchStart", apart(0)], ...Array.from({ length: 6 }, (_, i) => ["touchMove", apart((i + 1) / 6)]), ["touchEnd", []]]);
+  const sizeC = Number(await phoneSize.inputValue());
+  expect(sizeC > sizeB + 0.05, `com um dedo no texto, a pinça aumenta o texto: ${sizeB} → ${sizeC}`);
+  expect((await phoneZoom.inputValue()) === zoomKept, "com um dedo no texto, a pinça não mexe no zoom da foto");
+  // as setas do canto, com o dedo: a área de toque passa do círculo (aqui, o dedo pega 18 px para dentro da caixa)
+  await m.getByLabel("Tamanho", { exact: true }).fill("1");
+  await m.locator(".story-screen").scrollIntoViewIfNeeded();
+  const phoneGrip = phoneText.locator(".text-resize");
+  await phoneGrip.locator("svg").waitFor();
+  const gb = await settledBox(phoneGrip);
+  const g0 = { x: gb.x + gb.width / 2 - 18, y: gb.y + gb.height / 2 - 18 };
+  await touchPreview([
+    ["touchStart", [{ ...g0, id: 0 }]],
+    ...Array.from({ length: 6 }, (_, i) => ["touchMove", [{ x: g0.x + 6 * (i + 1), y: g0.y + 6 * (i + 1), id: 0 }]]),
+    ["touchEnd", []],
+  ]);
+  const sizeD = Number(await phoneSize.inputValue());
+  expect(sizeD > 1.03, `puxar as setas do canto com o dedo aumenta o texto: 1 → ${sizeD}`);
+  expect((await phoneZoom.inputValue()) === zoomKept, "as setas do canto não mexem no zoom da foto");
+  await shot(m, "12a-celular-setas-do-canto");
   // a localização tracejada se arrasta com o dedo, sem mexer na foto
   const phonePlace = m.locator(".place-drag.movable");
   const q0 = await settledBox(phonePlace);

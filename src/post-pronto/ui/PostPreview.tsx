@@ -57,7 +57,7 @@ export function PostPreview({
   onFraming?: (f: Framing) => void;
   /** Arrastar um trecho do texto da capa: muda o lugar dele na foto baixada. */
   onTextMove?: (part: 1 | 2, at: Spot) => void;
-  /** Tamanho do título e da explicação, que a pinça ou a bolinha do canto mudam. */
+  /** Tamanho do título e da explicação, que a pinça ou a alça do canto mudam. */
   textSizes?: [number, number];
   onTextSize?: (part: 1 | 2, size: number) => void;
   index: number;

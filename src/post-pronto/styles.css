@@ -1721,7 +1721,7 @@ input.emoji-input {
 .text-handle:focus-visible {
   outline: 2px solid var(--focus);
 }
-/* a bolinha do canto, para puxar e mudar o tamanho (a área de toque é maior que a bolinha) */
+/* a alça do canto, com as setas de redimensionar: a área de toque é maior que o círculo, e no celular maior ainda */
 .text-resize {
   position: absolute;
   right: -16px;
@@ -1735,13 +1735,14 @@ input.emoji-input {
   opacity: 0;
   transition: opacity 0.15s;
 }
-.text-resize::after {
-  content: "";
-  width: 12px;
-  height: 12px;
-  border: 2px solid #15171c;
+.text-resize svg {
+  width: 20px;
+  height: 20px;
+  padding: 3px;
+  border: 1.5px solid #15171c;
   border-radius: 50%;
   background: #ffffff;
+  color: #15171c;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 .text-handle:hover .text-resize,
@@ -1751,7 +1752,16 @@ input.emoji-input {
 }
 @media (pointer: coarse) {
   .text-resize {
+    right: -22px;
+    bottom: -22px;
+    width: 44px;
+    height: 44px;
     opacity: 1;
+  }
+  .text-resize svg {
+    width: 26px;
+    height: 26px;
+    padding: 4px;
   }
 }
 

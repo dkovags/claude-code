@@ -162,7 +162,7 @@ export function StoryPreview({
   onPlaceMove?: (at: Spot) => void;
   /** Arrastar um trecho do texto: muda o lugar dele na foto baixada. */
   onTextMove?: (part: 1 | 2, at: Spot) => void;
-  /** Tamanho do título e da explicação, que a pinça ou a bolinha do canto mudam. */
+  /** Tamanho do título e da explicação, que a pinça ou a alça do canto mudam. */
   textSizes?: [number, number];
   onTextSize?: (part: 1 | 2, size: number) => void;
   handle: string;
@@ -337,7 +337,7 @@ export function StoryPreview({
           {shot.canPan && !example && " Arraste a foto para enquadrar e faça pinça com dois dedos para o zoom."}
           {dragNote}
           {movableText &&
-            ` Arraste os textos para mudar o lugar deles na foto${onTextSize ? "; para o tamanho, faça pinça em cima do texto ou puxe a bolinha do canto" : ""}.`}
+            ` Arraste os textos para mudar o lugar deles na foto${onTextSize ? "; para o tamanho, faça pinça em cima do texto ou em volta dele, ou puxe as setas no canto da caixa" : ""}.`}
         </figcaption>
       )}
     </figure>

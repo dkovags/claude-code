@@ -1,3 +1,4 @@
+import { MoveDiagonal2 } from "lucide-react";
 import { type KeyboardEvent, type PointerEvent, type RefObject, useRef } from "react";
 import { type Spot, type TextBox, textSize } from "../render";
 
@@ -9,8 +10,8 @@ const keepIn = (b: TextBox, at: Spot): Spot => ({
 
 /**
  * Alças transparentes sobre o título e a explicação na prévia: arrastar (ou usar as setas) muda o lugar de cada um, e
- * a foto baixada sai igual. A bolinha do canto (ou as teclas + e -) muda o tamanho; a pinça em cima do texto também,
- * pelo quadro da prévia (`useShot`). O texto em si é desenhado no canvas, embaixo delas.
+ * a foto baixada sai igual. A alça do canto (ou as teclas + e -) muda o tamanho; a pinça em cima do texto ou em volta
+ * dele também, pelo quadro da prévia (`useShot`). O texto em si é desenhado no canvas, embaixo delas.
  */
 export function TextHandles({
   boxes,
@@ -60,7 +61,7 @@ export function TextHandles({
           aria-label={`${name(b.part)} na foto: arraste (ou use as setas) para mudar de lugar${onResize ? "; + e - mudam o tamanho" : ""}`}
           style={{ left: `${b.x * 100}%`, top: `${b.y * 100}%`, width: `${b.w * 100}%`, height: `${b.h * 100}%` }}
           onPointerDown={(e) => {
-            // o segundo dedo é da pinça; e a bolinha do canto muda o tamanho, não o lugar
+            // o segundo dedo é da pinça; e a alça do canto muda o tamanho, não o lugar
             if (!e.isPrimary || pinching?.current || (e.target as Element).closest(".text-resize")) return;
             e.preventDefault();
             e.currentTarget.setPointerCapture(e.pointerId);
@@ -129,7 +130,9 @@ export function TextHandles({
               onLostPointerCapture={() => {
                 resize.current = null;
               }}
-            />
+            >
+              <MoveDiagonal2 aria-hidden="true" />
+            </span>
           )}
         </div>
       ))}
