@@ -23,8 +23,9 @@ const partOf = (target: EventTarget | null): 1 | 2 | undefined => {
 /**
  * Canvas da prévia: desenha a foto com o enquadramento e o texto. Quando `onFraming` é passado, dá para enquadrar na
  * prévia: arrastar a foto com um dedo (ou usar as setas), fazer pinça com dois dedos para o zoom e, no computador, a
- * pinça do trackpad ou Ctrl + roda do mouse. Os gestos valem no quadro todo (`surface`), também em cima dos textos e
- * da figurinha: com dois dedos, o arraste deles para (`pinching`). Devolve também onde ficou cada trecho (`boxes`).
+ * pinça do trackpad ou Ctrl + roda do mouse. Os gestos valem no quadro todo (`surface`), também em cima dos textos, da
+ * figurinha e da localização: com dois dedos, o arraste deles para (`pinching`). Devolve também onde ficou cada trecho
+ * (`boxes`).
  */
 export function useShot({
   source,
@@ -130,8 +131,8 @@ export function useShot({
 
   const spotIn = (r: DOMRect, p: Point): Spot => ({ x: (p.x - r.left) / r.width, y: (p.y - r.top) / r.height });
   const midOf = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-  // em cima dos textos e da figurinha, um dedo arrasta só eles; os botões (telas, remover) ficam de fora
-  const onPhoto = (e: PointerEvent) => !(e.target as Element).closest(".text-handle, .sticker-drag");
+  // em cima dos textos, da figurinha e da localização, um dedo arrasta só eles; os botões (telas, remover) ficam de fora
+  const onPhoto = (e: PointerEvent) => !(e.target as Element).closest(".text-handle, .sticker-drag, .place-drag");
   const release = (e: PointerEvent<HTMLDivElement>) => {
     pointers.current.delete(e.pointerId);
     if (pinchStart.current && pointers.current.size < 2) {
@@ -164,8 +165,8 @@ export function useShot({
         drag.current = { ...p, start: framing };
         return;
       }
-      // segundo dedo: começa a pinça, e o arraste de um dedo (da foto, do texto ou da figurinha) para. Se o primeiro
-      // dedo estava num texto, a pinça muda o tamanho dele; senão, o zoom da foto
+      // segundo dedo: começa a pinça, e o arraste de um dedo (da foto, do texto, da figurinha ou da localização) para.
+      // Se o primeiro dedo estava num texto, a pinça muda o tamanho dele; senão, o zoom da foto
       capture();
       const [a, b] = [...pointers.current.values()];
       drag.current = null;

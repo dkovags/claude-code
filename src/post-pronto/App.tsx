@@ -402,8 +402,13 @@ export default function App() {
       );
       if (!next) return false;
       setUndoFrames(current);
-      // os textos reescritos ficam onde a pessoa os arrastou na prévia
-      const placed = next.map((f, i) => ({ ...f, textAt: current[i]?.textAt, text2At: current[i]?.text2At }));
+      // os textos reescritos ficam onde a pessoa os arrastou na prévia, e a localização também
+      const placed = next.map((f, i) => ({
+        ...f,
+        textAt: current[i]?.textAt,
+        text2At: current[i]?.text2At,
+        placeAt: current[i]?.placeAt,
+      }));
       setFrames(finish.twoParts ? placed.map((f) => withTwoParts(f, true)) : placed);
       return true;
     }
@@ -540,6 +545,12 @@ export default function App() {
               onStickerMove={
                 picked && !isExample
                   ? (at) => setFrames(frames.map((f, i) => (i === previewIndex ? { ...f, stickerAt: at } : f)))
+                  : undefined
+              }
+              placeAt={shownFrames[previewIndex]?.placeAt}
+              onPlaceMove={
+                picked && !isExample
+                  ? (at) => setFrames(frames.map((f, i) => (i === previewIndex ? { ...f, placeAt: at } : f)))
                   : undefined
               }
               onTextMove={

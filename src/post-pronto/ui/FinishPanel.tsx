@@ -59,7 +59,10 @@ function PlaceSection({
         <MapPin size={17} aria-hidden="true" /> Localização
       </h3>
       {stories && places.length > 0 && (
-        <p className="hint">No story, use a figurinha Localização e busque pelo nome.</p>
+        <p className="hint">
+          No story, use a figurinha Localização e busque pelo nome. Na prévia, arraste a localização tracejada para ver
+          onde ela fica melhor em cada tela.
+        </p>
       )}
       {located.length > 0 && (
         <p className="exif-note">

@@ -1837,12 +1837,14 @@ input.emoji-input {
 .sticker-drag .sticker-ghost {
   width: 100%;
 }
-.sticker-drag.movable {
+.sticker-drag.movable,
+.place-drag.movable {
   pointer-events: auto;
   touch-action: none;
   cursor: grab;
 }
-.sticker-drag.movable:active {
+.sticker-drag.movable:active,
+.place-drag.movable:active {
   cursor: grabbing;
 }
 .ghost-remove {
@@ -1938,11 +1940,29 @@ input.emoji-input {
   background: rgba(21, 23, 28, 0.06);
   color: #6b717d;
 }
+/* a localização tracejada, que também se arrasta: a área de toque passa um pouco das bordas dela */
+.place-drag {
+  position: relative;
+  flex: none;
+  display: flex;
+  max-width: 82%;
+}
+.place-drag.movable::before {
+  content: "";
+  position: absolute;
+  inset: -10px -6px;
+}
+.place-drag.movable:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
 .place-ghost {
   display: inline-flex;
+  flex: 0 1 auto;
   align-items: center;
   gap: 4px;
-  max-width: 82%;
+  min-width: 0;
   padding: 5px 11px;
   border-radius: 8px;
   font: 700 11px / 1.2 var(--font-body);

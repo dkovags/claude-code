@@ -151,8 +151,8 @@ de *stories*; o de *feed* continua disponível.
 - **Enquadramento livre**: o *zoom* vai da foto um pouco menor que inteira até 3 vezes mais perto, e dá para
   enquadrar direto na prévia, desde a escolha dos textos (ou da legenda): arrastar a foto com um dedo (ou as setas do
   teclado) e fazer pinça com dois dedos para o *zoom*, que acompanha o meio dos dedos; no computador, a pinça do
-  *trackpad* ou Ctrl + roda do mouse. A pinça funciona também em cima da figurinha; começando em cima de um texto, ela
-  muda o tamanho dele (veja abaixo). Quando a foto sobra, arrastar escolhe a parte que aparece; quando ela não ocupa a
+  *trackpad* ou Ctrl + roda do mouse. A pinça funciona também em cima da figurinha e da localização; começando em cima
+  de um texto, ela muda o tamanho dele (veja abaixo). Quando a foto sobra, arrastar escolhe a parte que aparece; quando ela não ocupa a
   tela toda, escolhe onde ela fica, e o espaço que sobra é preenchido com a própria foto, desfocada. Na etapa final, **Preencher a tela** e **Foto inteira** são atalhos para
   esses dois pontos, e o *zoom* encaixa neles quando chega perto.
 - **Título e explicação**: na tela de escolha ou na etapa final, o texto escrito na foto pode ser dividido em título
@@ -174,10 +174,10 @@ de *stories*; o de *feed* continua disponível.
   começando em cima do texto, a bolinha no canto da caixa (sempre à vista no celular; no computador, ao passar o mouse),
   Ctrl + roda do mouse ou a pinça do *trackpad* em cima do texto, ou as teclas + e - com a caixa selecionada. O tamanho
   vale para todas as telas e fica nos mesmos limites do controle **Tamanho**, que acompanha a mudança.
-- **Figurinha tracejada**: na prévia, dá para arrastar a figurinha (ou movê-la com as setas) para ver onde ela fica
-  melhor em cada tela, e tirá-la pelo × no canto. Também dá para tirar pelo botão **Remover** na lista de figurinhas
-  da etapa final ou no editor dos textos. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona
-  arrastando com o dedo.
+- **Figurinha e localização tracejadas**: na prévia, dá para arrastar a figurinha e a localização (ou movê-las com as
+  setas) para ver onde elas ficam melhor em cada tela; arrastar em cima delas não mexe na foto. A figurinha sai pelo ×
+  no canto, pelo botão **Remover** na lista de figurinhas da etapa final ou pelo editor dos textos; a localização, por
+  **Sem localização**. Elas não vão na foto baixada: no Instagram, as figurinhas se posicionam arrastando com o dedo.
 - **Nitidez da foto baixada**: a foto sai em 1080 px de largura, a partir da original, em PNG, sem compressão: assim o
   Instagram comprime uma vez só, ao receber, em vez de comprimir de novo um JPEG (cada tela fica com uns 3 MB). Quando
   o pedaço usado tem menos pixels que isso (foto recebida por mensagem, tirada com zoom do celular, zoom alto no

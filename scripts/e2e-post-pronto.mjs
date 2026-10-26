@@ -600,7 +600,35 @@ try {
   await page.getByRole("button", { name: "Próxima tela" }).click();
   await page.getByRole("button", { name: "Tela anterior" }).click();
   expect(Math.abs((await settledBox(ghost)).y - nudged.y) < 2, "a figurinha fica onde foi deixada");
-  await page.getByText("Arraste a figurinha para ver onde ela fica melhor.").waitFor();
+  // a localização tracejada também se arrasta (e se move com as setas), sem mexer na foto, e fica no lugar em cada tela
+  const placeGhost = page.locator(".place-drag.movable");
+  const storyPixels = () =>
+    page.locator(".story-screen canvas").evaluate((c) => {
+      const d = c.toDataURL("image/png");
+      let h = 0;
+      for (let i = 0; i < d.length; i++) h = (h * 31 + d.charCodeAt(i)) | 0;
+      return h;
+    });
+  const photoBefore = await storyPixels();
+  const p0 = await settledBox(placeGhost);
+  await page.mouse.move(p0.x + p0.width / 2, p0.y + p0.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(p0.x + p0.width / 2 + 40, p0.y + p0.height / 2 + 150, { steps: 6 });
+  await page.mouse.up();
+  const p1 = await settledBox(placeGhost);
+  expect(
+    Math.abs(p1.x - (p0.x + 40)) < 2 && Math.abs(p1.y - (p0.y + 150)) < 2,
+    `a localização deveria ir 40 px para a direita e descer 150 px: ${JSON.stringify(p0)} → ${JSON.stringify(p1)}`,
+  );
+  expect((await storyPixels()) === photoBefore, "arrastar a localização não mexe na foto");
+  await placeGhost.press("ArrowUp");
+  const p2 = await settledBox(placeGhost);
+  expect(p2.y < p1.y, "a seta para cima sobe a localização");
+  await page.getByRole("button", { name: "Próxima tela" }).click();
+  await page.getByRole("button", { name: "Tela anterior" }).click();
+  expect(Math.abs((await settledBox(placeGhost)).y - p2.y) < 2, "a localização fica onde foi deixada");
+  await page.getByText("Arraste a figurinha e a localização para ver onde elas ficam melhor.").waitFor();
+  await page.getByText("Na prévia, arraste a localização tracejada para ver onde ela fica melhor em cada tela.").waitFor();
   expect(await page.locator(".mini-preview").isHidden(), "no computador, a prévia pequena não aparece");
   await shot(page, "06b-stories-pronto-pagina-inteira", true);
 
@@ -995,6 +1023,21 @@ try {
   ]);
   expect(Number(await phoneSize.inputValue()) > textSize0 + 0.05, `a pinça em cima do texto aumenta o texto: ${textSize0} → ${await phoneSize.inputValue()}`);
   expect((await phoneZoom.inputValue()) === zoomKept, "a pinça em cima do texto não mexe no zoom da foto");
+  // a localização tracejada se arrasta com o dedo, sem mexer na foto
+  const phonePlace = m.locator(".place-drag.movable");
+  const q0 = await settledBox(phonePlace);
+  const photoKept = await previewPixels();
+  const from = { x: q0.x + q0.width / 2, y: q0.y + q0.height / 2 };
+  await touchPreview([
+    ["touchStart", [{ ...from, id: 0 }]],
+    ...Array.from({ length: 6 }, (_, i) => ["touchMove", [{ x: from.x, y: from.y - 12 * (i + 1), id: 0 }]]),
+    ["touchEnd", []],
+  ]);
+  const q1 = await settledBox(phonePlace);
+  expect(Math.abs(q1.y - (q0.y - 72)) < 2, `a localização deveria subir 72 px com o dedo: ${q0.y} → ${q1.y}`);
+  expect((await previewPixels()) === photoKept, "arrastar a localização com o dedo não mexe na foto");
+  await m.getByText("Arraste a localização para ver onde ela fica melhor.").waitFor();
+  await shot(m, "12b-celular-localizacao-arrastada");
   // sem o menu de compartilhar, as fotos prontas aparecem para tocar, segurar e compartilhar
   await m.getByText("Toque em Ver para compartilhar e, na foto, toque e segure").waitFor();
   await m.getByRole("button", { name: "Ver para compartilhar" }).click();
