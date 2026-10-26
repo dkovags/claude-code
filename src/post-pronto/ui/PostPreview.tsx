@@ -38,6 +38,7 @@ export function PostPreview({
   onFraming,
   onTextMove,
   onTextBox,
+  onTextScale,
   textSizes,
   onTextSize,
   index,
@@ -60,7 +61,9 @@ export function PostPreview({
   onTextMove?: (part: 1 | 2, at: Spot) => void;
   /** Puxar as setas do canto de um trecho: muda o tamanho da caixa dele (e o centro, que acompanha). */
   onTextBox?: (part: 1 | 2, box: BoxSize, at: Spot) => void;
-  /** Tamanho da letra do título e da explicação, que a pinça muda. */
+  /** Pinça em cima de um trecho (ou Ctrl + roda): a caixa inteira, com a letra junto, em volta do centro dela. */
+  onTextScale?: (part: 1 | 2, size: number, box: BoxSize, at: Spot) => void;
+  /** Tamanho da letra do título e da explicação (as teclas + e - mudam só a letra). */
   textSizes?: [number, number];
   onTextSize?: (part: 1 | 2, size: number) => void;
   index: number;
@@ -76,7 +79,7 @@ export function PostPreview({
     width: 720,
     onFraming: editable ? onFraming : undefined,
     textSizes: onTextMove ? textSizes : undefined,
-    onTextSize: onTextMove ? onTextSize : undefined,
+    onTextScale: onTextMove ? onTextScale : undefined,
   });
   const name = handle || "seu_perfil";
   const caption = draft ? draft.text.trim() : "";

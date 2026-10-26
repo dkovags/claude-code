@@ -13,7 +13,7 @@ import {
   BadAnswerError, buildRefinePrompt, buildStoryRefinePrompt, buildSuggestPrompt, normalizeRefine, normalizeStoryRefine,
   normalizeSuggestions, REFINE_SCHEMA, STORY_REFINE_SCHEMA, suggestSchema, todayLabel,
 } from "./prompts";
-import { DEFAULT_FRAMING, formatSpec, type Framing } from "./render";
+import { type BoxSize, DEFAULT_FRAMING, formatSpec, type Framing, type Spot } from "./render";
 import { inClaude } from "./runtime";
 import { connectSaver, type Saver } from "./save";
 import type { Answer, Brief, Destination, Draft, StoryFrame, Suggestions } from "./types";
@@ -506,10 +506,21 @@ export default function App() {
     );
   }
 
-  // tamanho da letra do título e da explicação, que a pinça muda na prévia (vale para todas as telas)
+  // tamanho da letra do título e da explicação (vale para todas as telas)
   const textSizes: [number, number] = [finish.overlay.size, finish.overlay.size2];
   const setTextSize = (part: 1 | 2, size: number) =>
     setFinish((f) => ({ ...f, overlay: part === 1 ? { ...f.overlay, size } : { ...f.overlay, size2: size } }));
+  // caixa de um trecho (tamanho e centro) mudada na prévia: nos stories, a desta tela; no feed, a da capa
+  const setStoryBox = (part: 1 | 2, box: BoxSize, at: Spot) =>
+    setFrames(
+      frames.map((f, i) =>
+        i !== previewIndex ? f : part === 1 ? { ...f, textBox: box, textAt: at } : { ...f, text2Box: box, text2At: at },
+      ),
+    );
+  const setCoverBox = (part: 1 | 2, box: BoxSize, at: Spot) =>
+    setFinish((f) => ({ ...f, overlay: part === 1 ? { ...f.overlay, box, at } : { ...f.overlay, box2: box, at2: at } }));
+  const storyTextEditable = picked && !isExample && !!overlay;
+  const coverTextEditable = atFinish && !!overlay && previewIndex === 0;
 
   const previewCommon = {
     source,
@@ -566,18 +577,13 @@ export default function App() {
                       )
                   : undefined
               }
-              onTextBox={
-                picked && !isExample && overlay
-                  ? (part, box, at) =>
-                      setFrames(
-                        frames.map((f, i) =>
-                          i !== previewIndex
-                            ? f
-                            : part === 1
-                              ? { ...f, textBox: box, textAt: at }
-                              : { ...f, text2Box: box, text2At: at },
-                        ),
-                      )
+              onTextBox={storyTextEditable ? setStoryBox : undefined}
+              onTextScale={
+                storyTextEditable
+                  ? (part, size, box, at) => {
+                      setTextSize(part, size);
+                      setStoryBox(part, box, at);
+                    }
                   : undefined
               }
               textSizes={textSizes}
@@ -602,13 +608,13 @@ export default function App() {
                       setFinish((f) => ({ ...f, overlay: part === 1 ? { ...f.overlay, at } : { ...f.overlay, at2: at } }))
                   : undefined
               }
-              onTextBox={
-                atFinish && overlay && previewIndex === 0
-                  ? (part, box, at) =>
-                      setFinish((f) => ({
-                        ...f,
-                        overlay: part === 1 ? { ...f.overlay, box, at } : { ...f.overlay, box2: box, at2: at },
-                      }))
+              onTextBox={coverTextEditable ? setCoverBox : undefined}
+              onTextScale={
+                coverTextEditable
+                  ? (part, size, box, at) => {
+                      setTextSize(part, size);
+                      setCoverBox(part, box, at);
+                    }
                   : undefined
               }
               textSizes={textSizes}

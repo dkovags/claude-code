@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
-  drawPost, ensureOverlayFonts, fitZoom, type FormatSpec, type Framing, MAX_ZOOM, minZoom, type Overlay, overlayStyles,
-  pan, pinch, snapZoom, type Spot, type TextBox, textBoxes, textSize,
+  type BoxSize, drawPost, ensureOverlayFonts, fitZoom, type FormatSpec, type Framing, MAX_ZOOM, minZoom, type Overlay,
+  overlayStyles, pan, pinch, snapZoom, type Spot, type TextBox, textBoxes, textSize,
 } from "../render";
 
 export interface PreviewSource {
@@ -37,7 +37,7 @@ export function useShot({
   width,
   onFraming,
   textSizes,
-  onTextSize,
+  onTextScale,
 }: {
   source: PreviewSource;
   spec: FormatSpec;
@@ -46,25 +46,33 @@ export function useShot({
   /** Largura inicial do canvas em pixels (a altura segue o formato); depois, segue a tela. */
   width: number;
   onFraming?: (f: Framing) => void;
-  /**
-   * Tamanho do título e da explicação: a pinça em cima de um deles (ou com os dedos em volta dele), ou Ctrl + roda em
-   * cima dele, muda o dele, não o zoom.
-   */
+  /** Tamanho da letra do título e da explicação. */
   textSizes?: [number, number];
-  onTextSize?: (part: 1 | 2, size: number) => void;
+  /**
+   * A pinça em cima de um trecho (ou com os dedos em volta dele), ou Ctrl + roda em cima dele, muda a caixa inteira, com
+   * a letra junto, em volta do centro dela (como no Instagram), e não o zoom da foto.
+   */
+  onTextScale?: (part: 1 | 2, size: number, box: BoxSize, at: Spot) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const surface = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; start: Framing } | null>(null);
   // dedos (ou o mouse) no quadro, e o começo da pinça
   const pointers = useRef(new Map<number, Finger>());
-  const pinchStart = useRef<{ d: number; mid: Spot; start: Framing; part?: 1 | 2; size?: number } | null>(null);
+  const pinchStart = useRef<{ d: number; mid: Spot; start: Framing; text?: { size: number; box: TextBox } } | null>(null);
   const pinching = useRef(false);
-  // o enquadramento e o callback mais recentes, para o gesto e a roda do mouse não usarem valores velhos
-  const latest = useRef({ framing, onFraming, textSizes, onTextSize });
-  latest.current = { framing, onFraming, textSizes, onTextSize };
   const [fontsReady, setFontsReady] = useState(0);
   const [boxes, setBoxes] = useState<TextBox[]>([]);
+  // o enquadramento, as caixas e os callbacks mais recentes, para o gesto e a roda do mouse não usarem valores velhos
+  const latest = useRef({ framing, onFraming, textSizes, onTextScale, boxes });
+  latest.current = { framing, onFraming, textSizes, onTextScale, boxes };
+  /** A caixa do trecho `ratio` vezes maior, com a letra junto, em volta do centro dela (até os limites da letra). */
+  const scaleText = (start: { size: number; box: TextBox }, ratio: number) => {
+    const size = textSize(start.size * ratio);
+    const r = size / start.size;
+    const { box } = start;
+    latest.current.onTextScale?.(box.part, size, { w: Math.min(1, box.w * r), h: Math.min(1, box.h * r) }, box.center);
+  };
   // a prévia com os pixels de verdade da tela (até a largura da foto final): em 1/3 deles, ela parece borrada no celular
   const [W, setW] = useState(width);
   useEffect(() => {
@@ -113,14 +121,15 @@ export function useShot({
     const el = surface.current;
     if (!el || !canPan) return;
     const onWheel = (e: WheelEvent) => {
-      const { framing: f, onFraming: set, textSizes: sizes, onTextSize: setSize } = latest.current;
+      const { framing: f, onFraming: set, textSizes: sizes, onTextScale, boxes: now } = latest.current;
       if (!e.ctrlKey || !set) return;
       e.preventDefault();
       const factor = Math.exp(-Math.max(-50, Math.min(50, e.deltaY)) * 0.01);
-      // em cima de um texto, muda o tamanho dele
+      // em cima de um texto, muda a caixa dele, com a letra junto
       const part = partOf(e.target);
-      if (part && sizes && setSize) {
-        setSize(part, textSize(sizes[part - 1] * factor));
+      const box = now.find((b) => b.part === part);
+      if (part && box && sizes && onTextScale) {
+        scaleText({ size: sizes[part - 1], box }, factor);
         return;
       }
       const r = el.getBoundingClientRect();
@@ -184,19 +193,20 @@ export function useShot({
         return;
       }
       // segundo dedo: começa a pinça, e o arraste de um dedo (da foto, do texto, da figurinha ou da localização) para.
-      // Com um dos dedos num texto, ou com os dois em volta dele, a pinça muda o tamanho do texto; senão, o zoom da foto
+      // Com um dos dedos num texto, ou com os dois em volta dele, a pinça muda a caixa dele, com a letra junto; senão, o
+      // zoom da foto
       capture();
       const [a, b] = [...pointers.current.values()];
       drag.current = null;
       pinching.current = true;
       const r = e.currentTarget.getBoundingClientRect();
-      const part = textSizes && onTextSize ? (a.part ?? b.part ?? partNear(r, midOf(a, b))) : undefined;
+      const part = textSizes && onTextScale ? (a.part ?? b.part ?? partNear(r, midOf(a, b))) : undefined;
+      const box = boxes.find((x) => x.part === part);
       pinchStart.current = {
         d: Math.max(1, distance(a, b)),
         mid: spotIn(r, midOf(a, b)),
         start: framing,
-        part,
-        size: part ? textSizes![part - 1] : undefined,
+        text: part && box ? { size: textSizes![part - 1], box } : undefined,
       };
     },
     onPointerMove: (e: PointerEvent<HTMLDivElement>) => {
@@ -209,7 +219,7 @@ export function useShot({
       if (s && pointers.current.size >= 2) {
         const [a, b] = [...pointers.current.values()];
         const ratio = distance(a, b) / s.d;
-        if (s.part && s.size !== undefined) onTextSize?.(s.part, textSize(s.size * ratio));
+        if (s.text) scaleText(s.text, ratio);
         else onFraming?.(zoomAround(s.start, zoomOf(s.start) * ratio, s.mid, spotIn(r, midOf(a, b))));
         return;
       }

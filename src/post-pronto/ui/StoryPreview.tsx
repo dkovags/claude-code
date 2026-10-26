@@ -135,6 +135,7 @@ export function StoryPreview({
   onPlaceMove,
   onTextMove,
   onTextBox,
+  onTextScale,
   textSizes,
   onTextSize,
   handle,
@@ -165,7 +166,9 @@ export function StoryPreview({
   onTextMove?: (part: 1 | 2, at: Spot) => void;
   /** Puxar as setas do canto de um trecho: muda o tamanho da caixa dele (e o centro, que acompanha). */
   onTextBox?: (part: 1 | 2, box: BoxSize, at: Spot) => void;
-  /** Tamanho da letra do título e da explicação, que a pinça muda. */
+  /** Pinça em cima de um trecho (ou Ctrl + roda): a caixa inteira, com a letra junto, em volta do centro dela. */
+  onTextScale?: (part: 1 | 2, size: number, box: BoxSize, at: Spot) => void;
+  /** Tamanho da letra do título e da explicação (as teclas + e - mudam só a letra). */
   textSizes?: [number, number];
   onTextSize?: (part: 1 | 2, size: number) => void;
   handle: string;
@@ -186,7 +189,7 @@ export function StoryPreview({
     width: 540,
     onFraming: editable ? onFraming : undefined,
     textSizes: onTextMove ? textSizes : undefined,
-    onTextSize: onTextMove ? onTextSize : undefined,
+    onTextScale: onTextMove ? onTextScale : undefined,
   });
   const name = handle || "seu_perfil";
   // o quadro da prévia: é nele que valem os gestos de enquadrar (arrastar e pinça)
@@ -341,7 +344,7 @@ export function StoryPreview({
           {shot.canPan && !example && " Arraste a foto para enquadrar e faça pinça com dois dedos para o zoom."}
           {dragNote}
           {movableText &&
-            ` Arraste os textos para mudar o lugar deles na foto${onTextSize ? ". Para o tamanho da letra, faça pinça em cima do texto (ou em volta dele); para o tamanho da caixa, puxe as setas do canto" : ""}.`}
+            ` Arraste os textos para mudar o lugar deles na foto${onTextScale ? ". Pinça em cima do texto (ou em volta dele) aumenta ou diminui a caixa com a letra junto; as setas do canto mudam só a caixa" : ""}.`}
         </figcaption>
       )}
     </figure>

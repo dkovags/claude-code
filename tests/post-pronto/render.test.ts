@@ -176,6 +176,19 @@ describe("texto na foto", () => {
     expect(t.h).toBeGreaterThan(0.05);
     expect(t.y).toBeCloseTo(0.495);
     expect(t.x).toBeCloseTo(0.25);
+    // a pinça muda a caixa e a letra juntas: as mesmas linhas, tudo maior ou menor por igual, até a caixa chegar à
+    // largura da foto (aqui, a caixa automática já ocupa 89% dela)
+    const handle0 = textBoxes(layoutOverlay({ ...DEFAULT_OVERLAY, text }, 1080, 1920, measureWith), 1080, 1920)[0];
+    for (const r of [0.4, 0.6, 0.8, 1.1]) {
+      const scaled = layoutOverlay(
+        { ...DEFAULT_OVERLAY, text, size: r, box: { w: handle0.w * r, h: handle0.h * r }, at: handle0.center },
+        1080,
+        1920,
+        measureWith,
+      );
+      expect(scaled.blocks[0].lines).toEqual(free.lines);
+      expect(textBoxes(scaled, 1080, 1920)[0].w).toBeCloseTo(handle0.w * r, 1);
+    }
     // sem fundo, a caixa pedida já conta com a folga para pegar a alça
     const plain = layoutOverlay({ ...DEFAULT_OVERLAY, text, bg: "none", box: { w: 0.6, h: 0.45 }, at: center }, 1080, 1920, measureWith);
     const [pb] = textBoxes(plain, 1080, 1920);

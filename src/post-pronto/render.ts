@@ -374,13 +374,16 @@ export function layoutOverlay(
     shrink(auto);
   }
   // o tamanho escolhido multiplica o automático; as linhas quebram na largura da caixa escolhida (menos a folga) ou na
-  // automática, sem passar da largura da foto
-  const sizes = parts.map((p, i) => Math.max(minPx, Math.round((auto[i] * textSize(p.size)) / ref[i])));
+  // automática, sem passar da largura da foto. Na caixa escolhida, a largura segue a letra arredondada em pixels: assim
+  // a pinça, que aumenta a caixa e a letra juntas, não muda as linhas
+  const exact = parts.map((p, i) => (auto[i] * textSize(p.size)) / ref[i]);
+  const sizes = exact.map((px) => Math.max(minPx, Math.round(px)));
+  const padOf = (bg: TextBg, px: number) => (bg !== "none" ? px : 0) + 2 * gripOf(bg, px);
   const widths = () =>
     sizes.map((px, i) => {
       const { bg, box } = parts[i];
-      const pad = (bg !== "none" ? px : 0) + 2 * gripOf(bg, px);
-      return box ? Math.max(px, Math.min(box.w, 1) * W - pad) : Math.min(maxWidth, W * 0.94 - pad);
+      if (!box) return Math.min(maxWidth, W * 0.94 - padOf(bg, px));
+      return Math.max(px, (Math.min(box.w, 1) * W - padOf(bg, exact[i])) * (px / exact[i]) + 0.5);
     });
   // grande demais para a foto (palavra comprida ou linhas demais), a letra diminui até caber
   let blocks = build(sizes, widths());

@@ -758,7 +758,7 @@ export function FinishPanel({
               {[
                 moved
                   ? "Você mudou o texto de lugar na prévia; para voltar ao lugar padrão, toque numa opção de Posição."
-                  : `Na prévia, dá para arrastar ${twoParts ? "o título e a explicação" : "o texto"} para outro lugar, mudar o tamanho da letra com pinça em cima do texto (ou em volta dele) e o tamanho da caixa puxando as setas do canto.`,
+                  : `Na prévia, dá para arrastar ${twoParts ? "o título e a explicação" : "o texto"} para outro lugar, aumentar ou diminuir a caixa com a letra junto fazendo pinça em cima do texto (ou em volta dele) e mudar só a caixa puxando as setas do canto. Tamanho da letra, acima, muda só a letra.`,
                 stories &&
                   `${twoParts ? "As mesmas fontes, fundos e cores valem" : "O mesmo estilo, o fundo e a cor valem"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`,
                 !stories && several && "O texto vai só na capa (foto 1).",
@@ -768,7 +768,7 @@ export function FinishPanel({
             </p>
             {resized && (
               <div className="box-reset">
-                <p className="hint">Você mudou o tamanho da caixa na prévia; a letra continua no tamanho escolhido acima.</p>
+                <p className="hint">Você mudou o tamanho da caixa na prévia; Tamanho da letra, acima, muda a letra dentro dela.</p>
                 <button type="button" className="btn ghost small" onClick={autoBox}>
                   Voltar à caixa automática
                 </button>

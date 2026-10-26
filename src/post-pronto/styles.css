@@ -1774,6 +1774,21 @@ input.emoji-input {
     padding: 4px;
   }
 }
+/* tela de toque larga: tablet ou o Chrome do celular em "Site para computador", que mostra tudo bem menor */
+@media (pointer: coarse) and (min-width: 941px) {
+  .text-resize {
+    right: -36px;
+    bottom: -36px;
+    width: 72px;
+    height: 72px;
+  }
+  .text-resize svg {
+    width: 42px;
+    height: 42px;
+    padding: 7px;
+    border-width: 2.5px;
+  }
+}
 
 .story-top {
   position: absolute;

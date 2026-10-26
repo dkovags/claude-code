@@ -748,6 +748,7 @@ try {
   await page.mouse.wheel(0, 40);
   await page.keyboard.up("Control");
   expect(Number(await titleSize.inputValue()) < size2, "Ctrl + roda em cima do título diminui a letra do título");
+  expect((await settledBox(handle1)).width < t1smaller.width - 2, "Ctrl + roda diminui a caixa junto com a letra");
   expect((await storyZoom.inputValue()) === zoom0, "o zoom da foto não muda");
   await titleSize.fill(String(size0));
   // de volta à caixa que acompanha o texto, e ao lugar padrão
@@ -1023,8 +1024,9 @@ try {
   // a prévia com os pixels de verdade da tela (aqui, densidade 2), para não parecer borrada
   const [canvasPixels, canvasCss] = await m.locator(".story-screen canvas").evaluate((c) => [c.width, c.clientWidth]);
   expect(Math.abs(canvasPixels - Math.min(1080, canvasCss * 2)) <= 10, `prévia nítida no celular: ${canvasPixels} px para ${canvasCss} px na tela`);
-  // pinça começando em cima do texto: muda o tamanho do texto, não o zoom da foto
+  // pinça começando em cima do texto: muda a caixa com a letra junto, e não o zoom da foto
   await m.locator(".story-screen").scrollIntoViewIfNeeded();
+  await m.getByText("Pinça em cima do texto (ou em volta dele) aumenta ou diminui a caixa com a letra junto").waitFor();
   const phoneText = m.locator(".story-screen .text-handle").first();
   const phoneSize = m.getByLabel("Tamanho da letra", { exact: true });
   const textSize0 = Number(await phoneSize.inputValue());
@@ -1037,8 +1039,11 @@ try {
     ...Array.from({ length: 6 }, (_, i) => ["touchMove", spread((i + 1) / 6)]),
     ["touchEnd", []],
   ]);
-  expect(Number(await phoneSize.inputValue()) > textSize0 + 0.05, `a pinça em cima do texto aumenta o texto: ${textSize0} → ${await phoneSize.inputValue()}`);
+  expect(Number(await phoneSize.inputValue()) > textSize0 + 0.05, `a pinça em cima do texto aumenta a letra: ${textSize0} → ${await phoneSize.inputValue()}`);
   expect((await phoneZoom.inputValue()) === zoomKept, "a pinça em cima do texto não mexe no zoom da foto");
+  const tbPinched = await settledBox(phoneText);
+  expect(tbPinched.height > tb.height * 1.3, `a pinça aumenta a caixa junto com a letra: ${JSON.stringify(tb)} → ${JSON.stringify(tbPinched)}`);
+  await m.getByText("Você mudou o tamanho da caixa na prévia").waitFor();
   // com os dedos em volta do texto (um acima, outro abaixo), como no Instagram, a pinça também muda o tamanho do texto
   const tb2 = await settledBox(phoneText);
   const sizeA = Number(await phoneSize.inputValue());
@@ -1064,8 +1069,9 @@ try {
   const sizeC = Number(await phoneSize.inputValue());
   expect(sizeC > sizeB + 0.05, `com um dedo no texto, a pinça aumenta o texto: ${sizeB} → ${sizeC}`);
   expect((await phoneZoom.inputValue()) === zoomKept, "com um dedo no texto, a pinça não mexe no zoom da foto");
-  // as setas do canto, com o dedo, mudam a caixa, e a letra fica; a área de toque passa do círculo (aqui, o dedo pega
+  // as setas do canto, com o dedo, mudam só a caixa, e a letra fica; a área de toque passa do círculo (aqui, o dedo pega
   // 18 px para dentro da caixa)
+  await m.getByRole("button", { name: "Voltar à caixa automática" }).click();
   const phoneSizeInput = m.getByLabel("Tamanho da letra", { exact: true });
   await phoneSizeInput.fill("1");
   await m.locator(".story-screen").scrollIntoViewIfNeeded();
