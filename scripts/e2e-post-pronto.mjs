@@ -379,7 +379,7 @@ function python(code, ...args) {
 }
 const ZIP_SIZES =
   "import sys,zipfile,io\nfrom PIL import Image\nz=zipfile.ZipFile(sys.argv[1])\n" +
-  "print(';'.join(n+'='+'x'.join(map(str,Image.open(io.BytesIO(z.read(n))).size)) for n in z.namelist() if n.endswith('.jpg')))";
+  "print(';'.join(n+'='+'x'.join(map(str,Image.open(io.BytesIO(z.read(n))).size)) for n in z.namelist() if n.endswith('.png')))";
 async function download(page, button, path) {
   const [d] = await Promise.all([page.waitForEvent("download"), button.click()]);
   await d.saveAs(path);
@@ -555,6 +555,7 @@ try {
   await page.locator(".place-ghost", { hasText: "CAMPINAS, SÃO PAULO" }).waitFor();
   expect((await page.locator(".how").innerText()).includes("Na tela 2, toque no ícone de figurinhas e adicione Enquete"), "passo a passo");
   expect((await page.locator(".how").innerText()).includes("cole as hashtags e esconda como mostra Hashtags ocultas"), "passo das hashtags");
+  expect((await page.locator(".how").innerText()).includes("ative Carregar em alta qualidade"), "dica da qualidade do Instagram");
   expect((await page.locator(".hide-steps").innerText()).includes("o conta-gotas pega a cor exata"), "como esconder as hashtags");
   await page.getByRole("radio", { name: "Moderno" }).click();
   await page.getByRole("radiogroup", { name: "Fundo", exact: true }).getByRole("radio", { name: /^Semi\u00ad?transparente$/ }).click();
@@ -607,13 +608,19 @@ try {
   const zipButton = page.getByRole("button", { name: "Baixar as 2 telas (.zip)" });
   expect((await download(page, zipButton, `${OUT}/downloads/stories.zip`)) === "stories.zip", "nome do zip dos stories");
   const sizes = python(ZIP_SIZES, `${OUT}/downloads/stories.zip`);
-  expect(sizes === "story-1.jpg=1080x1920;story-2.jpg=1080x1920", `telas no zip: ${sizes}`);
+  expect(sizes === "story-1.png=1080x1920;story-2.png=1080x1920", `telas no zip: ${sizes}`);
+  // sem compressão: PNG de verdade, para o Instagram comprimir uma vez só
+  const formats = python(
+    "import sys,zipfile,io\nfrom PIL import Image\nz=zipfile.ZipFile(sys.argv[1])\nprint(','.join(Image.open(io.BytesIO(z.read(n))).format for n in z.namelist()))",
+    `${OUT}/downloads/stories.zip`,
+  );
+  expect(formats === "PNG,PNG", `formato das telas: ${formats}`);
   await page.getByText("Escrever os textos nas fotos").click();
   await page.getByText("Sem o texto na foto, escreva no story com o botão Aa.").waitFor();
   await download(page, page.getByRole("button", { name: "Baixar as 2 telas (.zip)" }), `${OUT}/downloads/stories-sem-texto.zip`);
   const diff = python(
     "import sys,zipfile,io\nfrom PIL import Image, ImageChops\n" +
-      "a,b=[Image.open(io.BytesIO(zipfile.ZipFile(p).read('story-1.jpg'))).convert('L') for p in sys.argv[1:3]]\n" +
+      "a,b=[Image.open(io.BytesIO(zipfile.ZipFile(p).read('story-1.png'))).convert('L') for p in sys.argv[1:3]]\n" +
       "box=ImageChops.difference(a,b).point(lambda v: 255 if v>40 else 0).getbbox()\nprint(box)",
     `${OUT}/downloads/stories.zip`,
     `${OUT}/downloads/stories-sem-texto.zip`,
@@ -624,7 +631,7 @@ try {
   const darkPixels = python(
     "import sys,zipfile,io\nfrom PIL import Image, ImageChops\n" +
       "for p in sys.argv[1:3]:\n" +
-      "  r,g,b=Image.open(io.BytesIO(zipfile.ZipFile(p).read('story-1.jpg'))).convert('RGB').crop((0,0,1080,1100)).split()\n" +
+      "  r,g,b=Image.open(io.BytesIO(zipfile.ZipFile(p).read('story-1.png'))).convert('RGB').crop((0,0,1080,1100)).split()\n" +
       "  print(sum(ImageChops.lighter(ImageChops.lighter(r,g),b).histogram()[:40]))",
     `${OUT}/downloads/stories.zip`,
     `${OUT}/downloads/stories-sem-texto.zip`,
@@ -634,7 +641,7 @@ try {
   const yellowPixels = Number(
     python(
       "import sys,zipfile,io\nfrom PIL import Image, ImageChops\n" +
-        "r,g,b=Image.open(io.BytesIO(zipfile.ZipFile(sys.argv[1]).read('story-1.jpg'))).convert('RGB').split()\n" +
+        "r,g,b=Image.open(io.BytesIO(zipfile.ZipFile(sys.argv[1]).read('story-1.png'))).convert('RGB').split()\n" +
         "m=ImageChops.multiply(ImageChops.multiply(r.point(lambda v: 255 if v>200 else 0), g.point(lambda v: 255 if v>170 else 0)), b.point(lambda v: 255 if v<120 else 0))\n" +
         "print(m.histogram()[255])",
       `${OUT}/downloads/stories.zip`,
@@ -667,7 +674,7 @@ try {
   await download(page, page.getByRole("button", { name: "Baixar as 2 telas (.zip)" }), `${OUT}/downloads/stories-arrastado.zip`);
   const darkSplit = python(
     "import sys,zipfile,io\nfrom PIL import Image, ImageChops\n" +
-      "r,g,b=Image.open(io.BytesIO(zipfile.ZipFile(sys.argv[1]).read('story-1.jpg'))).convert('RGB').split()\n" +
+      "r,g,b=Image.open(io.BytesIO(zipfile.ZipFile(sys.argv[1]).read('story-1.png'))).convert('RGB').split()\n" +
       "m=ImageChops.lighter(ImageChops.lighter(r,g),b)\n" +
       "print(sum(m.crop((0,0,1080,1100)).histogram()[:40]), sum(m.crop((0,1100,1080,1920)).histogram()[:40]))",
     `${OUT}/downloads/stories-arrastado.zip`,
@@ -691,7 +698,7 @@ try {
   expect(storiesTxt.includes("MÚSICA\nHappy – Pharrell Williams (refrão)") && storiesTxt.includes("HASHTAGS OCULTAS (cole com Aa, em letra mínima e na cor do fundo)\n#festadinossauro #5anos #vovó"), `txt: ${storiesTxt}`);
   await download(page, page.getByRole("button", { name: "Baixar tudo junto (.zip)" }), `${OUT}/downloads/stories-completo.zip`);
   const all = python("import sys,zipfile\nprint(','.join(zipfile.ZipFile(sys.argv[1]).namelist()))", `${OUT}/downloads/stories-completo.zip`);
-  expect(all === "story-1.jpg,story-2.jpg,stories.txt", `zip completo: ${all}`);
+  expect(all === "story-1.png,story-2.png,stories.txt", `zip completo: ${all}`);
   await noHorizontalScroll(page, "desktop, stories");
 
   // imagem da página inteira, com a página rolada
@@ -835,7 +842,7 @@ try {
     "nome do zip das fotos",
   );
   const feedSizes = python(ZIP_SIZES, `${OUT}/downloads/fotos.zip`);
-  expect(feedSizes === "post-pronto-1.jpg=1080x1350;post-pronto-2.jpg=1080x1350", `fotos no zip: ${feedSizes}`);
+  expect(feedSizes === "post-pronto-1.png=1080x1350;post-pronto-2.png=1080x1350", `fotos no zip: ${feedSizes}`);
   await page.getByRole("button", { name: "Copiar legenda" }).click();
   await page.getByText("Legenda copiada.").waitFor();
   const clip = await page.evaluate(() => navigator.clipboard.readText());
@@ -943,6 +950,9 @@ try {
   expect(Math.abs(Number(await phoneZoom.inputValue()) - 0.45) < 0.011, `juntar os dedos leva ao menor zoom: ${await phoneZoom.inputValue()}`);
   await m.getByRole("radiogroup", { name: "Enquadramento" }).getByRole("radio", { name: "Preencher a tela" }).click();
   await shot(m, "12-celular-pronto");
+  // a prévia com os pixels de verdade da tela (aqui, densidade 2), para não parecer borrada
+  const [canvasPixels, canvasCss] = await m.locator(".story-screen canvas").evaluate((c) => [c.width, c.clientWidth]);
+  expect(Math.abs(canvasPixels - Math.min(1080, canvasCss * 2)) <= 10, `prévia nítida no celular: ${canvasPixels} px para ${canvasCss} px na tela`);
   // no celular, enquanto ajusta o texto, uma prévia pequena acompanha no canto
   await m.locator('section[aria-labelledby="pp-overlay"]').scrollIntoViewIfNeeded();
   await m.locator(".mini-preview canvas").waitFor();
@@ -1069,7 +1079,7 @@ try {
   await a.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }).click();
   await a.waitForFunction(() => window.__saved.length === 2);
   const saved = await a.evaluate(() => window.__saved);
-  expect(saved[0].filename === "story.jpg" && saved[0].size > 20000, `foto salva no artefato: ${JSON.stringify(saved[0])}`);
+  expect(saved[0].filename === "story.png" && saved[0].size > 20000, `foto salva no artefato: ${JSON.stringify(saved[0])}`);
   expect(saved[1].filename === "stories.txt", "texto salvo no artefato");
   await a.getByRole("button", { name: "Salvar imagem da tela" }).click();
   await a.getByRole("dialog", { name: "Imagem da tela" }).getByRole("button", { name: "Baixar imagem" }).click();
@@ -1195,7 +1205,7 @@ try {
       await sp.getByRole("button", { name: "Baixar as 2 telas", exact: true }).click();
       await sp.waitForFunction(() => window.__saved?.length === 2);
       const saved = await sp.evaluate(() => window.__saved);
-      expect(saved.join(",") === "story-1.jpg,story-2.jpg", `no celular, as telas saem uma a uma: ${saved}`);
+      expect(saved.join(",") === "story-1.png,story-2.png", `no celular, as telas saem uma a uma: ${saved}`);
       await sp.getByText("Fotos salvas no celular.").waitFor();
       const igLink = sp.getByRole("link", { name: "Abrir o Instagram" });
       expect((await igLink.getAttribute("href")) === "https://www.instagram.com/", "link para abrir o Instagram");
@@ -1203,7 +1213,7 @@ try {
       await sp.getByRole("button", { name: "Mandar para o Instagram" }).click();
       await sp.waitForFunction(() => window.__shared?.length === 2);
       const shared = await sp.evaluate(() => window.__shared);
-      expect(shared.join(",") === "story-1.jpg,story-2.jpg", `fotos compartilhadas: ${shared}`);
+      expect(shared.join(",") === "story-1.png,story-2.png", `fotos compartilhadas: ${shared}`);
       await sp.getByText("no menu, escolha Instagram (Stories)").waitFor();
     }
     await shot(sp, `30-tamanho-${size.name}`, true);

@@ -31,10 +31,10 @@ describe("texto nas fotos", () => {
   });
 
   it("nomeia os arquivos conforme o destino", () => {
-    expect(fileNames("stories", 1).photo(0)).toBe("story.jpg");
-    expect(fileNames("stories", 3).photo(2)).toBe("story-3.jpg");
+    expect(fileNames("stories", 1).photo(0)).toBe("story.png");
+    expect(fileNames("stories", 3).photo(2)).toBe("story-3.png");
     expect(fileNames("stories", 3).photosZip).toBe("stories.zip");
-    expect(fileNames("feed", 1).photo(0)).toBe("post-pronto.jpg");
+    expect(fileNames("feed", 1).photo(0)).toBe("post-pronto.png");
     expect(fileNames("feed", 2).text).toBe("legenda.txt");
   });
 });

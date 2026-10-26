@@ -529,8 +529,11 @@ export function drawPost(
   return overlay ? drawOverlay(ctx, overlay, W, H) : null;
 }
 
-/** Gera o JPEG final (1080 px de largura) de uma foto. */
-export function exportJpeg(
+/**
+ * Gera a foto final (1080 px de largura) em PNG, sem compressão: assim o Instagram comprime uma vez só, ao receber,
+ * em vez de comprimir de novo um JPEG já comprimido (o que borra os detalhes e as bordas do texto).
+ */
+export function exportPhoto(
   img: Source,
   imgW: number,
   imgH: number,
@@ -543,7 +546,7 @@ export function exportJpeg(
   canvas.height = spec.h;
   drawPost(canvas.getContext("2d")!, img, imgW, imgH, spec.w, spec.h, framing, overlay);
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob"))), "image/jpeg", 0.95),
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob"))), "image/png"),
   );
 }
 

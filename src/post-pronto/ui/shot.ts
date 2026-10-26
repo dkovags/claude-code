@@ -31,7 +31,7 @@ export function useShot({
   spec: FormatSpec;
   framing: Framing;
   overlay: Overlay | null;
-  /** Largura do canvas em pixels (a altura segue o formato). */
+  /** Largura inicial do canvas em pixels (a altura segue o formato); depois, segue a tela. */
   width: number;
   onFraming?: (f: Framing) => void;
 }) {
@@ -47,7 +47,21 @@ export function useShot({
   latest.current = { framing, onFraming };
   const [fontsReady, setFontsReady] = useState(0);
   const [boxes, setBoxes] = useState<TextBox[]>([]);
-  const H = Math.round((width * spec.h) / spec.w);
+  // a prévia com os pixels de verdade da tela (até a largura da foto final): em 1/3 deles, ela parece borrada no celular
+  const [W, setW] = useState(width);
+  useEffect(() => {
+    const c = canvas.current;
+    if (!c || typeof ResizeObserver === "undefined") return;
+    const fit = () => {
+      const w = Math.round(Math.min(spec.w, c.clientWidth * (window.devicePixelRatio || 1)));
+      if (w > 0) setW((prev) => (Math.abs(prev - w) > 8 ? w : prev));
+    };
+    const watcher = new ResizeObserver(fit);
+    watcher.observe(c);
+    fit();
+    return () => watcher.disconnect();
+  }, [spec.w]);
+  const H = Math.round((W * spec.h) / spec.w);
   const canPan = !!onFraming;
   const whole = fitZoom(source.width, source.height, spec.w, spec.h);
   const zoomOf = (f: Framing) => Math.min(MAX_ZOOM, Math.max(minZoom(source.width, source.height, spec.w, spec.h), f.zoom));
@@ -69,12 +83,12 @@ export function useShot({
   useEffect(() => {
     const c = canvas.current;
     if (!c) return;
-    c.width = width;
+    c.width = W;
     c.height = H;
-    const layout = drawPost(c.getContext("2d")!, source.img, source.width, source.height, width, H, framing, overlay);
-    const next = layout ? textBoxes(layout, width, H) : [];
+    const layout = drawPost(c.getContext("2d")!, source.img, source.width, source.height, W, H, framing, overlay);
+    const next = layout ? textBoxes(layout, W, H) : [];
     setBoxes((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
-  }, [source, width, H, framing, overlay, fontsReady]);
+  }, [source, W, H, framing, overlay, fontsReady]);
 
   // pinça do trackpad (chega como roda com Ctrl) ou Ctrl + roda do mouse; a roda sozinha continua rolando a página
   useEffect(() => {

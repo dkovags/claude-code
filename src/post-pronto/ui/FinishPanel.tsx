@@ -9,7 +9,7 @@ import { mapsPoint, mapsSearch } from "../links";
 import type { Photo } from "../photos";
 import { formatTakenAt } from "../prompts";
 import {
-  ensureOverlayFonts, exportJpeg, fitZoom, FORMATS, type FormatId, formatSpec, type FormatSpec, type Framing, MAX_ZOOM,
+  ensureOverlayFonts, exportPhoto, fitZoom, FORMATS, type FormatId, formatSpec, type FormatSpec, type Framing, MAX_ZOOM,
   minZoom, type Overlay, snapZoom,
   OVERLAY_STYLES, type OverlayStyle, sameAsBox, TEXT_BG_LABELS, TEXT_COLORS, type TextBg, type TextColor,
 } from "../render";
@@ -418,8 +418,8 @@ export function FinishPanel({
       const photoName = fileNames(destination, photos.length).photo;
       const files = await Promise.all(
         photos.map(async (p, i) => {
-          const blob = await exportJpeg(p.img, p.width, p.height, spec, p.framing, overlays[i]);
-          return new File([blob], photoName(i), { type: "image/jpeg" });
+          const blob = await exportPhoto(p.img, p.width, p.height, spec, p.framing, overlays[i]);
+          return new File([blob], photoName(i), { type: "image/png" });
         }),
       );
       if (alive) setPrepared(files);
@@ -559,7 +559,8 @@ export function FinishPanel({
             <p>
               <b>{several ? "Fotos salvas no celular." : "Foto salva no celular."}</b> Para postar, abra o Instagram,{" "}
               {stories ? "deslize o feed para a direita (ou toque em + e escolha Story)" : "toque em + e escolha Publicação"}{" "}
-              e escolha {several ? "as fotos, na ordem dos números," : "a foto"} em Recentes.
+              e escolha {several ? "as fotos, na ordem dos números," : "a foto"} em Recentes. Para não perder qualidade, ative
+              uma vez no Instagram <b>Carregar em alta qualidade</b> (veja Como publicar, abaixo).
             </p>
             <div className="actions">
               <a className="btn secondary" href="https://www.instagram.com/" target="_blank" rel="noreferrer">
@@ -864,6 +865,11 @@ export function FinishPanel({
         {stories ? (
           <ol className="how">
             <li>
+              Uma vez só: no Instagram, ative <b>Carregar em alta qualidade</b> (no seu perfil, ☰ &gt; Configurações e
+              privacidade &gt; Uso de dados e qualidade da mídia). No Android ela vem desligada, e sem ela o Instagram
+              comprime mais as fotos.
+            </li>
+            <li>
               No Instagram, toque em <b>+</b> e escolha <b>Story</b> (ou deslize o feed para a direita).
             </li>
             <li>
@@ -901,6 +907,11 @@ export function FinishPanel({
           </ol>
         ) : (
           <ol className="how">
+            <li>
+              Uma vez só: no Instagram, ative <b>Carregar em alta qualidade</b> (no seu perfil, ☰ &gt; Configurações e
+              privacidade &gt; Uso de dados e qualidade da mídia). No Android ela vem desligada, e sem ela o Instagram
+              comprime mais as fotos.
+            </li>
             <li>
               No Instagram, toque em <b>+</b> e escolha <b>{finish.format === "9:16" ? "Story" : "Publicação"}</b>.
             </li>

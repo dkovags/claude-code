@@ -51,7 +51,7 @@ export function overlaysFor(
 export function fileNames(destination: Destination, count: number) {
   const base = destination === "stories" ? "story" : "post-pronto";
   return {
-    photo: (i: number) => (count === 1 ? `${base}.jpg` : `${base}-${i + 1}.jpg`),
+    photo: (i: number) => (count === 1 ? `${base}.png` : `${base}-${i + 1}.png`),
     photosZip: destination === "stories" ? "stories.zip" : "post-pronto-fotos.zip",
     allZip: destination === "stories" ? "stories-completo.zip" : "post-pronto.zip",
     text: destination === "stories" ? "stories.txt" : "legenda.txt",

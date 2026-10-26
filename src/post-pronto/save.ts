@@ -19,7 +19,7 @@ function canShareFiles(): boolean {
   try {
     return (
       typeof navigator.canShare === "function" &&
-      navigator.canShare({ files: [new File([new Uint8Array([0xff])], "teste.jpg", { type: "image/jpeg" })] })
+      navigator.canShare({ files: [new File([new Uint8Array([0x89])], "teste.png", { type: "image/png" })] })
     );
   } catch {
     return false;

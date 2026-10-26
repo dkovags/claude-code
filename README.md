@@ -175,10 +175,13 @@ de *stories*; o de *feed* continua disponível.
   melhor em cada tela, e tirá-la pelo × no canto. Também dá para tirar pelo botão **Remover** na lista de figurinhas
   da etapa final ou no editor dos textos. Ela não vai na foto baixada: no Instagram, a figurinha se posiciona
   arrastando com o dedo.
-- **Nitidez da foto baixada**: a foto sai em 1080 px de largura, a partir da original. Quando o pedaço usado tem
-  menos pixels que isso (foto recebida por mensagem, tirada com zoom do celular, zoom alto no enquadramento ou foto
-  deitada recortada em pé), ela precisa ser ampliada e fica borrada: a página avisa ao escolher as fotos e na etapa
-  final, com o que fazer (diminuir o zoom, usar Foto inteira ou a foto original), e marca a foto na tira.
+- **Nitidez da foto baixada**: a foto sai em 1080 px de largura, a partir da original, em PNG, sem compressão: assim o
+  Instagram comprime uma vez só, ao receber, em vez de comprimir de novo um JPEG (cada tela fica com uns 3 MB). Quando
+  o pedaço usado tem menos pixels que isso (foto recebida por mensagem, tirada com zoom do celular, zoom alto no
+  enquadramento ou foto deitada recortada em pé), ela precisa ser ampliada e fica borrada: a página avisa ao escolher
+  as fotos e na etapa final, com o que fazer (diminuir o zoom, usar Foto inteira ou a foto original), e marca a foto
+  na tira. A prévia é desenhada com os pixels de verdade da tela, para não parecer borrada no celular, e o passo a
+  passo lembra de ativar **Carregar em alta qualidade** no Instagram, que no Android vem desligada.
 - **Direto para o Instagram**: no celular, **Mandar para o Instagram** manda as fotos prontas pelo menu de compartilhar
   do sistema; aí é escolher Instagram (Stories ou Feed) e adicionar as figurinhas, a música e a localização lá. Dentro
   do Claude, o botão aparece quando o claude.ai deixa a página usar esse menu (no app do Claude para iPhone, o próprio
