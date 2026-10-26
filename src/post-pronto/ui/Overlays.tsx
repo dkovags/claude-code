@@ -1,7 +1,47 @@
 import { CircleStop, Download, Share2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_MODELS, type ApiModel, type ApiSettings } from "../ai";
 import { touchScreen } from "../runtime";
+
+/**
+ * As fotos prontas, para compartilhar tocando e segurando cada uma (o navegador oferece "Compartilhar imagem"), quando a
+ * página não pode abrir o menu de compartilhar do celular.
+ */
+export function PhotosDialog({ files, stories, onClose }: { files: File[]; stories: boolean; onClose: () => void }) {
+  const urls = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
+  useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const several = files.length > 1;
+  return (
+    <div className="overlay" data-capture="skip" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="dialog photos-dialog" role="dialog" aria-modal="true" aria-labelledby="pp-photos-title">
+        <h2 id="pp-photos-title">Compartilhar {several ? "as fotos" : "a foto"}</h2>
+        <p>
+          Toque e segure {several ? "cada foto, na ordem dos números," : "a foto"} e escolha <b>Compartilhar imagem</b>{" "}
+          e depois <b>Instagram ({stories ? "Stories" : "Feed"})</b>.
+          {several && !stories && " Assim cada foto vira um post; para o carrossel, baixe as fotos e escolha todas no Instagram."}
+        </p>
+        <ol className="photos-list">
+          {urls.map((u, i) => (
+            <li key={u}>
+              <span className="label">{stories ? `Tela ${i + 1}` : `Foto ${i + 1}`}</span>
+              <img src={u} alt={`${stories ? "Tela" : "Foto"} ${i + 1} pronta`} />
+            </li>
+          ))}
+        </ol>
+        <div className="actions">
+          <button type="button" className="btn ghost" onClick={onClose}>
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * A imagem da página pronta: dá para baixar e, se o download não funcionar nesta tela, salvar tocando e segurando a

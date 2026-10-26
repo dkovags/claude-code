@@ -2050,6 +2050,29 @@ input.emoji-input {
   height: auto;
 }
 
+/* fotos prontas para tocar, segurar e compartilhar */
+.photos-list {
+  display: grid;
+  gap: 12px;
+  max-height: 60vh;
+  max-height: 60dvh;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+.photos-list li {
+  display: grid;
+  gap: 4px;
+}
+.photos-list img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
 /* prévia pequena enquanto ajusta o texto e a foto no celular (a grande fica no alto da página) */
 .mini-preview {
   position: fixed;

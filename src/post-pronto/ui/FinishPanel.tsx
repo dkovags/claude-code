@@ -13,11 +13,12 @@ import {
   minZoom, type Overlay, snapZoom,
   OVERLAY_STYLES, type OverlayStyle, sameAsBox, TEXT_BG_LABELS, TEXT_COLORS, type TextBg, type TextColor,
 } from "../render";
-import { mobileKind, touchScreen } from "../runtime";
+import { inClaude, mobileKind, touchScreen } from "../runtime";
 import type { Saver } from "../save";
 import type { Destination, Draft, PlacePick, StoryFrame, Suggestions } from "../types";
 import { makeZip } from "../zip";
 import { MusicSection } from "./MusicSection";
+import { PhotosDialog } from "./Overlays";
 import { CopyButton, Segmented, Toggle } from "./parts";
 import { PhotoStrip } from "./PhotoStrip";
 import { andList, photoSharpness, SharpnessNote } from "./Sharpness";
@@ -325,6 +326,8 @@ export function FinishPanel({
   const [saving, setSaving] = useState<string | null>(null);
   // no celular, depois de baixar as fotos: o caminho até o Instagram
   const [postHelp, setPostHelp] = useState(false);
+  // as fotos prontas para tocar, segurar e compartilhar, quando a página não pode abrir o menu de compartilhar
+  const [showPhotos, setShowPhotos] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [prepared, setPrepared] = useState<File[] | null>(null);
   const textSection = useRef<HTMLElement>(null);
@@ -351,6 +354,9 @@ export function FinishPanel({
   }, []);
   const stories = destination === "stories";
   const phone = touchScreen();
+  // dentro dos apps do Claude, tocar e segurar a foto não abre o menu do navegador
+  const claudeApp = inClaude() ? mobileKind() : null;
+  const inClaudeApp = claudeApp === "android-app" || claudeApp === "ios-app";
   const spec = formatSpec(stories ? "9:16" : finish.format);
   const photo = photos[Math.min(active, photos.length - 1)];
   // zoom da foto que está sendo ajustada: de um pouco menor que a foto inteira até 3 vezes o que preenche a tela
@@ -514,6 +520,11 @@ export function FinishPanel({
                 <Share2 size={16} aria-hidden="true" /> {phone ? "Mandar para o Instagram" : "Compartilhar"}
               </button>
             )}
+            {!saver.share && phone && !inClaudeApp && (
+              <button type="button" className="btn secondary" disabled={!prepared} onClick={() => setShowPhotos(true)}>
+                <Share2 size={16} aria-hidden="true" /> Ver para compartilhar
+              </button>
+            )}
           </div>
         ) : (
           <div className="actions">
@@ -559,8 +570,9 @@ export function FinishPanel({
             <p>
               <b>{several ? "Fotos salvas no celular." : "Foto salva no celular."}</b> Para postar, abra o Instagram,{" "}
               {stories ? "deslize o feed para a direita (ou toque em + e escolha Story)" : "toque em + e escolha Publicação"}{" "}
-              e escolha {several ? "as fotos, na ordem dos números," : "a foto"} em Recentes. Para não perder qualidade, ative
-              uma vez no Instagram <b>Carregar em alta qualidade</b> (veja Como publicar, abaixo).
+              e escolha {several ? "as fotos, na ordem dos números," : "a foto"} em Recentes. Ou, na Galeria, abra a foto,
+              toque em Compartilhar e escolha Instagram. Para não perder qualidade, ative uma vez no Instagram{" "}
+              <b>Carregar em alta qualidade</b> (veja Como publicar, abaixo).
             </p>
             <div className="actions">
               <a className="btn secondary" href="https://www.instagram.com/" target="_blank" rel="noreferrer">
@@ -574,10 +586,15 @@ export function FinishPanel({
         )}
         {saver && !saver.share && phone && (
           <p className="hint">
-            {mobileKind() === "ios-app"
+            {claudeApp === "ios-app"
               ? "No app do Claude para iPhone, baixar abre o menu de compartilhar: dá para escolher o Instagram direto."
-              : "Aqui, o menu de compartilhar do celular não abre. Baixe as fotos: elas ficam no celular, e é só escolher no Instagram."}
+              : claudeApp === "android-app"
+                ? "No app do Claude para Android, a página não consegue abrir o menu de compartilhar (é uma limitação do app). Baixe as fotos e, na Galeria, abra cada uma e toque em Compartilhar e depois em Instagram."
+                : "Aqui, a página não consegue abrir o menu de compartilhar. Toque em Ver para compartilhar e, na foto, toque e segure e escolha Compartilhar imagem."}
           </p>
+        )}
+        {showPhotos && prepared && (
+          <PhotosDialog files={prepared} stories={stories} onClose={() => setShowPhotos(false)} />
         )}
         {saver?.share && (
           <p className="hint">

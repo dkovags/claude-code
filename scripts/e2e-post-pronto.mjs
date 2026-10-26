@@ -953,6 +953,20 @@ try {
   // a prévia com os pixels de verdade da tela (aqui, densidade 2), para não parecer borrada
   const [canvasPixels, canvasCss] = await m.locator(".story-screen canvas").evaluate((c) => [c.width, c.clientWidth]);
   expect(Math.abs(canvasPixels - Math.min(1080, canvasCss * 2)) <= 10, `prévia nítida no celular: ${canvasPixels} px para ${canvasCss} px na tela`);
+  // sem o menu de compartilhar, as fotos prontas aparecem para tocar, segurar e compartilhar
+  await m.getByText("Toque em Ver para compartilhar e, na foto, toque e segure").waitFor();
+  await m.getByRole("button", { name: "Ver para compartilhar" }).click();
+  const photosDialog = m.getByRole("dialog", { name: "Compartilhar a foto" });
+  await photosDialog.getByRole("img", { name: "Tela 1 pronta" }).waitFor();
+  await photosDialog.getByText("Compartilhar imagem").waitFor();
+  const naturalWidth = await photosDialog.getByRole("img", { name: "Tela 1 pronta" }).evaluate(async (img) => {
+    await img.decode();
+    return img.naturalWidth;
+  });
+  expect(naturalWidth === 1080, `a foto para compartilhar é a final: ${naturalWidth}`);
+  await shot(m, "12c-celular-ver-para-compartilhar");
+  await photosDialog.getByRole("button", { name: "Fechar" }).click();
+  expect((await photosDialog.count()) === 0, "o quadro das fotos fecha");
   // no celular, enquanto ajusta o texto, uma prévia pequena acompanha no canto
   await m.locator('section[aria-labelledby="pp-overlay"]').scrollIntoViewIfNeeded();
   await m.locator(".mini-preview canvas").waitFor();
