@@ -19,11 +19,15 @@ export function PhotosDialog({ files, stories, onClose }: { files: File[]; stori
   return (
     <div className="overlay" data-capture="skip" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog photos-dialog" role="dialog" aria-modal="true" aria-labelledby="pp-photos-title">
-        <h2 id="pp-photos-title">Compartilhar {several ? "as fotos" : "a foto"}</h2>
+        <h2 id="pp-photos-title">Mandar para o Instagram</h2>
         <p>
-          Toque e segure {several ? "cada foto, na ordem dos números," : "a foto"} e escolha <b>Compartilhar imagem</b>{" "}
-          e depois <b>Instagram ({stories ? "Stories" : "Feed"})</b>.
+          Toque e segure {several ? "cada foto, na ordem dos números," : "a foto"} até abrir o menu do navegador, escolha{" "}
+          <b>Compartilhar imagem</b> e depois <b>Instagram ({stories ? "Stories" : "Feed"})</b>.
+          {several && stories && " Depois de postar uma tela, volte aqui e mande a próxima."}
           {several && !stories && " Assim cada foto vira um post; para o carrossel, baixe as fotos e escolha todas no Instagram."}
+        </p>
+        <p className="hint">
+          Se o menu não tiver Compartilhar imagem, salve a foto por ele e escolha-a na galeria, dentro do Instagram.
         </p>
         <ol className="photos-list">
           {urls.map((u, i) => (

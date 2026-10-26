@@ -525,7 +525,7 @@ export function FinishPanel({
             )}
             {!saver.share && phone && !inClaudeApp && (
               <button type="button" className="btn secondary" disabled={!prepared} onClick={() => setShowPhotos(true)}>
-                <Share2 size={16} aria-hidden="true" /> Ver para compartilhar
+                <Share2 size={16} aria-hidden="true" /> Mandar para o Instagram
               </button>
             )}
           </div>
@@ -593,7 +593,7 @@ export function FinishPanel({
               ? "No app do Claude para iPhone, baixar abre o menu de compartilhar: dá para escolher o Instagram direto."
               : claudeApp === "android-app"
                 ? "No app do Claude para Android, a página não consegue abrir o menu de compartilhar (é uma limitação do app). Baixe as fotos e, na Galeria, abra cada uma e toque em Compartilhar e depois em Instagram."
-                : "Aqui, a página não consegue abrir o menu de compartilhar. Toque em Ver para compartilhar e, na foto, toque e segure e escolha Compartilhar imagem."}
+                : `${inClaude() ? "Dentro do claude.ai" : "Neste navegador"}, a página não consegue abrir sozinha o menu de compartilhar do celular. Toque em Mandar para o Instagram, toque e segure a foto, escolha Compartilhar imagem e depois Instagram (${stories ? "Stories" : "Feed"}).`}
           </p>
         )}
         {showPhotos && prepared && (

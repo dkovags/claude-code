@@ -190,8 +190,9 @@ de *stories*; o de *feed* continua disponível.
   do Claude, o botão aparece quando o claude.ai deixa a página usar esse menu (no app do Claude para iPhone, o próprio
   download abre esse menu). Sem ele, no celular as fotos são baixadas uma a uma, não num .zip, porque o Instagram não
   abre .zip, e um aviso logo abaixo leva ao Instagram, com o botão **Abrir o Instagram**, para escolher as fotos em
-  Recentes (ou compartilhar pela Galeria). No navegador do celular, **Ver para compartilhar** mostra as fotos prontas:
-  tocando e segurando uma delas, o navegador oferece **Compartilhar imagem**, que leva ao Instagram. No app do Claude
+  Recentes (ou compartilhar pela Galeria). No navegador do celular sem esse menu (como o Chrome dentro do claude.ai), o
+  mesmo **Mandar para o Instagram** mostra as fotos prontas: tocando e segurando uma delas, o navegador oferece
+  **Compartilhar imagem**, que leva direto ao Instagram (Stories ou Feed). No app do Claude
   para Android, nem isso funciona (o app não deixa a página abrir o menu de compartilhar), e a página explica o caminho
   pela Galeria. Publicar
   sem abrir o Instagram exigiria a API da Meta, só para contas profissionais e com um servidor, e ela não põe

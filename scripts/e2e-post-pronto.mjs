@@ -1039,11 +1039,13 @@ try {
   await m.getByText("Arraste a localização para ver onde ela fica melhor.").waitFor();
   await shot(m, "12b-celular-localizacao-arrastada");
   // sem o menu de compartilhar, as fotos prontas aparecem para tocar, segurar e compartilhar
-  await m.getByText("Toque em Ver para compartilhar e, na foto, toque e segure").waitFor();
-  await m.getByRole("button", { name: "Ver para compartilhar" }).click();
-  const photosDialog = m.getByRole("dialog", { name: "Compartilhar a foto" });
+  await m.getByText("Neste navegador, a página não consegue abrir sozinha o menu de compartilhar").waitFor();
+  await m.getByText("Toque em Mandar para o Instagram, toque e segure a foto, escolha Compartilhar imagem").waitFor();
+  await m.getByRole("button", { name: "Mandar para o Instagram" }).click();
+  const photosDialog = m.getByRole("dialog", { name: "Mandar para o Instagram" });
   await photosDialog.getByRole("img", { name: "Tela 1 pronta" }).waitFor();
-  await photosDialog.getByText("Compartilhar imagem").waitFor();
+  await photosDialog.getByText("Compartilhar imagem", { exact: true }).waitFor();
+  await photosDialog.getByText("Se o menu não tiver Compartilhar imagem, salve a foto por ele").waitFor();
   const naturalWidth = await photosDialog.getByRole("img", { name: "Tela 1 pronta" }).evaluate(async (img) => {
     await img.decode();
     return img.naturalWidth;
@@ -1226,8 +1228,9 @@ try {
 
   // ============ 6. Tamanhos de tela: Android (pequeno e grande), notebook e monitor ============
   const SIZES = [
-    { name: "android-360", width: 360, height: 780, phone: true },
-    { name: "android-412", width: 412, height: 915, phone: true },
+    // no Chrome do Android, o claude.ai pode bloquear o menu de compartilhar (360) ou liberar (412)
+    { name: "android-360", width: 360, height: 780, phone: true, share: false },
+    { name: "android-412", width: 412, height: 915, phone: true, share: true },
     { name: "notebook-1024", width: 1024, height: 768, phone: false },
     { name: "monitor-1440", width: 1440, height: 900, phone: false },
   ];
@@ -1238,7 +1241,7 @@ try {
       hasTouch: size.phone,
       locale: "pt-BR",
       reducedMotion: "reduce",
-      // no celular, o Chrome do Android (não o app do Claude), com o menu de compartilhar
+      // no celular, o Chrome do Android (não o app do Claude)
       ...(size.phone
         ? {
             userAgent:
@@ -1248,16 +1251,17 @@ try {
     });
     await hermetic(sized);
     if (size.phone) {
-      await sized.addInitScript(() => {
+      await sized.addInitScript((share) => {
         navigator.canShare = () => true;
         navigator.share = async ({ files }) => {
           window.__shared = files.map((f) => f.name);
         };
-        // o Chromium do teste (Linux) não tem o menu de compartilhar; o Chrome do Android tem e libera
-        const allows = { allowsFeature: (feature) => feature === "web-share" };
+        // o Chromium do teste (Linux) não tem o menu de compartilhar; o Chrome do Android tem, e a página que o
+        // envolve (o claude.ai) libera ou não pela política de permissões
+        const allows = { allowsFeature: (feature) => share && feature === "web-share" };
         Object.defineProperty(Document.prototype, "featurePolicy", { configurable: true, get: () => allows });
         Object.defineProperty(Document.prototype, "permissionsPolicy", { configurable: true, get: () => allows });
-      });
+      }, size.share);
     }
     await sized.route("https://artefato.teste/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: skeleton }));
     await sized.addInitScript(
@@ -1308,12 +1312,24 @@ try {
       await sp.getByText("Fotos salvas no celular.").waitFor();
       const igLink = sp.getByRole("link", { name: "Abrir o Instagram" });
       expect((await igLink.getAttribute("href")) === "https://www.instagram.com/", "link para abrir o Instagram");
-      // dentro do Claude, no Chrome do Android: as fotos vão direto para o Instagram pelo menu de compartilhar
-      await sp.getByRole("button", { name: "Mandar para o Instagram" }).click();
-      await sp.waitForFunction(() => window.__shared?.length === 2);
-      const shared = await sp.evaluate(() => window.__shared);
-      expect(shared.join(",") === "story-1.png,story-2.png", `fotos compartilhadas: ${shared}`);
-      await sp.getByText("no menu, escolha Instagram (Stories)").waitFor();
+      if (size.share) {
+        // dentro do Claude, no Chrome do Android, com o menu liberado: as fotos vão direto para o Instagram
+        await sp.getByRole("button", { name: "Mandar para o Instagram" }).click();
+        await sp.waitForFunction(() => window.__shared?.length === 2);
+        const shared = await sp.evaluate(() => window.__shared);
+        expect(shared.join(",") === "story-1.png,story-2.png", `fotos compartilhadas: ${shared}`);
+        await sp.getByText("no menu, escolha Instagram (Stories)").waitFor();
+      } else {
+        // com o menu bloqueado pelo claude.ai: o mesmo botão mostra as fotos prontas para tocar, segurar e compartilhar
+        await sp.getByText("Dentro do claude.ai, a página não consegue abrir sozinha o menu de compartilhar").waitFor();
+        await sp.getByRole("button", { name: "Mandar para o Instagram" }).click();
+        const sizedDialog = sp.getByRole("dialog", { name: "Mandar para o Instagram" });
+        await sizedDialog.getByRole("img", { name: "Tela 2 pronta" }).waitFor();
+        await sizedDialog.getByText("Depois de postar uma tela, volte aqui e mande a próxima.").waitFor();
+        expect((await sp.evaluate(() => window.__shared)) === undefined, "com o menu bloqueado, nada vai pelo menu");
+        await shot(sp, `30-tamanho-${size.name}-mandar-para-o-instagram`);
+        await sizedDialog.getByRole("button", { name: "Fechar" }).click();
+      }
     }
     await shot(sp, `30-tamanho-${size.name}`, true);
     await sized.close();
