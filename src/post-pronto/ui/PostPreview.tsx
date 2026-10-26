@@ -1,7 +1,7 @@
 import { Bookmark, ChevronLeft, ChevronRight, Ellipsis, Heart, MessageCircle, Music, Send } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 import { feedExcerpt } from "../caption";
-import type { FormatSpec, Framing, Overlay, Spot } from "../render";
+import type { BoxSize, FormatSpec, Framing, Overlay, Spot } from "../render";
 import type { Draft, MusicPick, PlacePick } from "../types";
 import { type PreviewSource, useShot } from "./shot";
 import { TextHandles } from "./TextHandles";
@@ -37,6 +37,7 @@ export function PostPreview({
   editable,
   onFraming,
   onTextMove,
+  onTextBox,
   textSizes,
   onTextSize,
   index,
@@ -57,7 +58,9 @@ export function PostPreview({
   onFraming?: (f: Framing) => void;
   /** Arrastar um trecho do texto da capa: muda o lugar dele na foto baixada. */
   onTextMove?: (part: 1 | 2, at: Spot) => void;
-  /** Tamanho do título e da explicação, que a pinça ou a alça do canto mudam. */
+  /** Puxar as setas do canto de um trecho: muda o tamanho da caixa dele (e o centro, que acompanha). */
+  onTextBox?: (part: 1 | 2, box: BoxSize, at: Spot) => void;
+  /** Tamanho da letra do título e da explicação, que a pinça muda. */
   textSizes?: [number, number];
   onTextSize?: (part: 1 | 2, size: number) => void;
   index: number;
@@ -121,6 +124,7 @@ export function PostPreview({
             sizes={textSizes}
             onMove={onTextMove}
             onResize={onTextSize}
+            onBox={onTextBox}
           />
         )}
         {canPan && (

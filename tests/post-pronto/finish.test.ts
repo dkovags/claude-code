@@ -30,6 +30,16 @@ describe("texto nas fotos", () => {
     expect(overlaysFor("feed", 1, cover, [])[0]?.text2).toBe("Fim");
   });
 
+  it("o tamanho da caixa escolhido na prévia vai junto: nos stories, o de cada tela; no feed, o da capa", () => {
+    const sized = [{ ...frames[0], text2: "e um dinossauro", textBox: { w: 0.5, h: 0.2 }, text2Box: { w: 0.4, h: 0.1 } }];
+    const stories = overlaysFor("stories", 1, { ...INITIAL_FINISH, overlayOn: true, twoParts: true }, sized);
+    expect([stories[0]?.box, stories[0]?.box2]).toEqual([{ w: 0.5, h: 0.2 }, { w: 0.4, h: 0.1 }]);
+    // sem a explicação ligada, a caixa dela não vale
+    expect(overlaysFor("stories", 1, { ...INITIAL_FINISH, overlayOn: true }, sized)[0]?.box2).toBeUndefined();
+    const cover = { ...INITIAL_FINISH, overlayOn: true, overlay: { ...INITIAL_FINISH.overlay, text: "5 anos", box: { w: 0.7, h: 0.3 } } };
+    expect(overlaysFor("feed", 2, cover, []).map((o) => o?.box ?? null)).toEqual([{ w: 0.7, h: 0.3 }, null]);
+  });
+
   it("nomeia os arquivos conforme o destino", () => {
     expect(fileNames("stories", 1).photo(0)).toBe("story.png");
     expect(fileNames("stories", 3).photo(2)).toBe("story-3.png");

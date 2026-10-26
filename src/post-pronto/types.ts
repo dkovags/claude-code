@@ -83,6 +83,9 @@ export interface StoryFrame {
   /** Centro de cada trecho do texto arrastado na prévia, em fração da tela (sem ele, vale a posição escolhida). */
   textAt?: { x: number; y: number };
   text2At?: { x: number; y: number };
+  /** Tamanho da caixa de cada trecho escolhido na prévia, em fração da tela (sem ele, a caixa acompanha o texto). */
+  textBox?: { w: number; h: number };
+  text2Box?: { w: number; h: number };
 }
 
 export interface StoryVersion {

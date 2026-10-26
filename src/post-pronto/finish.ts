@@ -43,7 +43,10 @@ export function overlaysFor(
     // lugar de cada trecho arrastado na prévia: nos stories, o de cada tela; no feed, o da capa
     const at = destination === "stories" ? frame?.textAt : finish.overlay.at;
     const at2 = finish.twoParts ? (destination === "stories" ? frame?.text2At : finish.overlay.at2) : undefined;
-    return text.trim() || text2.trim() ? { ...finish.overlay, text, text2, at, at2 } : null;
+    // e o tamanho da caixa escolhido na prévia, do mesmo jeito
+    const box = destination === "stories" ? frame?.textBox : finish.overlay.box;
+    const box2 = finish.twoParts ? (destination === "stories" ? frame?.text2Box : finish.overlay.box2) : undefined;
+    return text.trim() || text2.trim() ? { ...finish.overlay, text, text2, at, at2, box, box2 } : null;
   });
 }
 

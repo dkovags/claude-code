@@ -1701,6 +1701,16 @@ input.emoji-input {
 }
 
 /* alças para arrastar os trechos do texto (o texto está desenhado no canvas, embaixo) */
+.box-reset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.box-reset .hint {
+  flex: 1 1 220px;
+  margin: 0;
+}
 .text-handle {
   position: absolute;
   border-radius: 8px;

@@ -188,7 +188,7 @@ function PartControls({
       )}
       <div className="field">
         <label className="label" htmlFor={sizeId}>
-          Tamanho{of}
+          Tamanho da letra{of}
         </label>
         <input
           id={sizeId}
@@ -369,8 +369,10 @@ export function FinishPanel({
   const zoom = Math.min(MAX_ZOOM, Math.max(smallestZoom, photo.framing.zoom));
   const framingPreset = zoom >= 0.995 ? "fill" : Math.abs(zoom - wholeZoom) < 0.005 ? "fit" : null;
   const { overlayOn, twoParts, overlay } = finish;
-  // só os textos e o lugar deles entram na foto: mexer na figurinha tracejada não refaz os arquivos
-  const frameTexts = frames.map((f) => JSON.stringify([f.text, f.text2 ?? "", f.textAt, f.text2At])).join("\u0001");
+  // só os textos, o lugar e a caixa deles entram na foto: mexer na figurinha tracejada não refaz os arquivos
+  const frameTexts = frames
+    .map((f) => JSON.stringify([f.text, f.text2 ?? "", f.textAt, f.text2At, f.textBox, f.text2Box]))
+    .join("\u0001");
   const overlays = useMemo(
     () => overlaysFor(destination, photos.length, { ...INITIAL_FINISH, overlayOn, twoParts, overlay }, frames),
     [destination, photos.length, overlayOn, twoParts, overlay, frameTexts],
@@ -390,6 +392,14 @@ export function FinishPanel({
   const moved = stories
     ? frames.some((f) => f.textAt || (twoParts && f.text2At))
     : !!(overlay.at || (twoParts && overlay.at2));
+  // caixa com o tamanho mudado na prévia (pelas setas do canto), e a volta para a caixa que acompanha o texto
+  const resized = stories
+    ? frames.some((f) => f.textBox || (twoParts && f.text2Box))
+    : !!(overlay.box || (twoParts && overlay.box2));
+  const autoBox = () => {
+    setOverlay({ box: undefined, box2: undefined });
+    if (stories) setFrames(frames.map((f) => ({ ...f, textBox: undefined, text2Box: undefined })));
+  };
   // escolher uma posição tira o texto do lugar para onde foi arrastado
   const setPosition = (position: Overlay["position"]) => {
     setOverlay({ position, at: undefined, at2: undefined });
@@ -748,7 +758,7 @@ export function FinishPanel({
               {[
                 moved
                   ? "Você mudou o texto de lugar na prévia; para voltar ao lugar padrão, toque numa opção de Posição."
-                  : `Na prévia, dá para arrastar ${twoParts ? "o título e a explicação" : "o texto"} para outro lugar e mudar o tamanho com pinça em cima do texto ou em volta dele (ou puxando as setas no canto da caixa).`,
+                  : `Na prévia, dá para arrastar ${twoParts ? "o título e a explicação" : "o texto"} para outro lugar, mudar o tamanho da letra com pinça em cima do texto (ou em volta dele) e o tamanho da caixa puxando as setas do canto.`,
                 stories &&
                   `${twoParts ? "As mesmas fontes, fundos e cores valem" : "O mesmo estilo, o fundo e a cor valem"} para todas as telas. Em cima e embaixo ficam livres as áreas cobertas pelos botões do story.`,
                 !stories && several && "O texto vai só na capa (foto 1).",
@@ -756,6 +766,14 @@ export function FinishPanel({
                 .filter(Boolean)
                 .join(" ")}
             </p>
+            {resized && (
+              <div className="box-reset">
+                <p className="hint">Você mudou o tamanho da caixa na prévia; a letra continua no tamanho escolhido acima.</p>
+                <button type="button" className="btn ghost small" onClick={autoBox}>
+                  Voltar à caixa automática
+                </button>
+              </div>
+            )}
           </>
         )}
       </section>

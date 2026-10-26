@@ -565,9 +565,9 @@ try {
   expect((await page.getByLabel("Explicação da tela 1").inputValue()) === "e um dinossauro de chantilly", "explicação da tela 1");
   const font2 = page.getByRole("radiogroup", { name: "Fonte da explicação" });
   expect((await font2.getByRole("radio", { name: "Editorial" }).getAttribute("aria-checked")) === "true", "a explicação começa em Editorial");
-  expect((await page.getByLabel("Tamanho da explicação").inputValue()) === "0.8", "a explicação começa menor que o título");
+  expect((await page.getByLabel("Tamanho da letra da explicação").inputValue()) === "0.8", "a explicação começa menor que o título");
   await font2.getByRole("radio", { name: "Editorial" }).click();
-  await page.getByLabel("Tamanho da explicação").fill("0.8");
+  await page.getByLabel("Tamanho da letra da explicação").fill("0.8");
   // cada um com a sua caixa e a sua cor; por padrão, as cores se alternam: título branco, explicação preta numa caixa clara
   const bg1 = page.getByRole("radiogroup", { name: "Fundo do título" });
   const bg2 = page.getByRole("radiogroup", { name: "Fundo da explicação" });
@@ -713,8 +713,8 @@ try {
   await page.getByRole("radiogroup", { name: "Posição" }).getByRole("radio", { name: "Em cima" }).click();
   const t2back = await inScreen(handle2);
   expect(Math.abs(t2back - t2InScreen) < 2, `a posição escolhida traz a explicação de volta: ${t2InScreen} → ${t2back}`);
-  // a alça do canto muda o tamanho do título (e só dele), e as teclas + e - também
-  const titleSize = page.getByLabel("Tamanho do título");
+  // as setas do canto mudam o tamanho da caixa do título, com o canto de cima à esquerda parado; a letra fica
+  const titleSize = page.getByLabel("Tamanho da letra do título");
   const storyZoom = page.getByLabel("Zoom");
   const size0 = Number(await titleSize.inputValue());
   const zoom0 = await storyZoom.inputValue();
@@ -725,10 +725,21 @@ try {
   await page.mouse.down();
   await page.mouse.move(grip.x + grip.width / 2 + 50, grip.y + grip.height / 2 + 25, { steps: 6 });
   await page.mouse.up();
-  const size1 = Number(await titleSize.inputValue());
-  expect(size1 > size0 + 0.05, `puxar a alça aumenta o título: ${size0} → ${size1}`);
+  const t1resized = await settledBox(handle1);
+  expect(Number(await titleSize.inputValue()) === size0, "as setas do canto não mudam a letra");
+  expect(Math.abs(t1resized.x - t1box.x) < 2 && Math.abs(t1resized.y - t1box.y) < 2, "o canto de cima à esquerda fica parado");
+  expect(
+    Math.abs(t1resized.width - (t1box.width + 50)) < 3 && Math.abs(t1resized.height - (t1box.height + 25)) < 3,
+    `a caixa do título cresce com o arraste: ${JSON.stringify(t1box)} → ${JSON.stringify(t1resized)}`,
+  );
+  await page.getByText("Você mudou o tamanho da caixa na prévia").waitFor();
+  await shot(page, "06d-stories-caixa-maior");
+  // a letra muda pelas teclas + e -, sem mexer na caixa escolhida
   await handle1.press("-");
-  expect(Math.abs(Number(await titleSize.inputValue()) - (size1 - 0.05)) < 0.001, "a tecla - diminui o título");
+  const size1 = Number(await titleSize.inputValue());
+  expect(Math.abs(size1 - (size0 - 0.05)) < 0.001, "a tecla - diminui a letra do título");
+  const t1smaller = await settledBox(handle1);
+  expect(Math.abs(t1smaller.width - t1resized.width) < 2, "com a letra menor, a caixa escolhida fica do mesmo tamanho");
   // Ctrl + roda (a pinça do trackpad) em cima do título muda o tamanho dele, não o zoom da foto
   const size2 = Number(await titleSize.inputValue());
   const t1again = await settledBox(handle1);
@@ -736,9 +747,14 @@ try {
   await page.keyboard.down("Control");
   await page.mouse.wheel(0, 40);
   await page.keyboard.up("Control");
-  expect(Number(await titleSize.inputValue()) < size2, "Ctrl + roda em cima do título diminui o título");
+  expect(Number(await titleSize.inputValue()) < size2, "Ctrl + roda em cima do título diminui a letra do título");
   expect((await storyZoom.inputValue()) === zoom0, "o zoom da foto não muda");
   await titleSize.fill(String(size0));
+  // de volta à caixa que acompanha o texto, e ao lugar padrão
+  await page.getByRole("button", { name: "Voltar à caixa automática" }).click();
+  expect((await page.getByText("Você mudou o tamanho da caixa na prévia").count()) === 0, "a caixa volta a ser automática");
+  expect(Math.abs((await settledBox(handle1)).width - t1box.width) < 2, "a caixa automática volta à largura do texto");
+  await page.getByRole("radiogroup", { name: "Posição" }).getByRole("radio", { name: "Em cima" }).click();
   await page.getByText("Na prévia, dá para arrastar o título e a explicação para outro lugar").waitFor();
 
   await download(page, page.getByRole("button", { name: /Baixar textos, figurinhas, música e local/ }), `${OUT}/downloads/stories.txt`);
@@ -1010,7 +1026,7 @@ try {
   // pinça começando em cima do texto: muda o tamanho do texto, não o zoom da foto
   await m.locator(".story-screen").scrollIntoViewIfNeeded();
   const phoneText = m.locator(".story-screen .text-handle").first();
-  const phoneSize = m.getByLabel("Tamanho", { exact: true });
+  const phoneSize = m.getByLabel("Tamanho da letra", { exact: true });
   const textSize0 = Number(await phoneSize.inputValue());
   const zoomKept = await phoneZoom.inputValue();
   const tb = await settledBox(phoneText);
@@ -1048,35 +1064,42 @@ try {
   const sizeC = Number(await phoneSize.inputValue());
   expect(sizeC > sizeB + 0.05, `com um dedo no texto, a pinça aumenta o texto: ${sizeB} → ${sizeC}`);
   expect((await phoneZoom.inputValue()) === zoomKept, "com um dedo no texto, a pinça não mexe no zoom da foto");
-  // as setas do canto, com o dedo: a área de toque passa do círculo (aqui, o dedo pega 18 px para dentro da caixa)
-  await m.getByLabel("Tamanho", { exact: true }).fill("1");
+  // as setas do canto, com o dedo, mudam a caixa, e a letra fica; a área de toque passa do círculo (aqui, o dedo pega
+  // 18 px para dentro da caixa)
+  const phoneSizeInput = m.getByLabel("Tamanho da letra", { exact: true });
+  await phoneSizeInput.fill("1");
   await m.locator(".story-screen").scrollIntoViewIfNeeded();
   const phoneGrip = phoneText.locator(".text-resize");
   await phoneGrip.locator("svg").waitFor();
+  const boxBefore = await settledBox(phoneText);
   const gb = await settledBox(phoneGrip);
   const g0 = { x: gb.x + gb.width / 2 - 18, y: gb.y + gb.height / 2 - 18 };
+  // mais estreita e mais alta (perto da borda direita, a caixa não passaria da foto)
   await touchPreview([
     ["touchStart", [{ ...g0, id: 0 }]],
-    ...Array.from({ length: 6 }, (_, i) => ["touchMove", [{ x: g0.x + 6 * (i + 1), y: g0.y + 6 * (i + 1), id: 0 }]]),
+    ...Array.from({ length: 6 }, (_, i) => ["touchMove", [{ x: g0.x - 7 * (i + 1), y: g0.y + 10 * (i + 1), id: 0 }]]),
     ["touchEnd", []],
   ]);
-  const sizeD = Number(await phoneSize.inputValue());
-  expect(sizeD > 1.03, `puxar as setas do canto com o dedo aumenta o texto: 1 → ${sizeD}`);
+  const boxAfter = await settledBox(phoneText);
+  expect((await phoneSizeInput.inputValue()) === "1", `as setas do canto não mudam a letra: ${await phoneSizeInput.inputValue()}`);
+  expect(
+    Math.abs(boxAfter.x - boxBefore.x) < 2 &&
+      Math.abs(boxAfter.y - boxBefore.y) < 2 &&
+      Math.abs(boxAfter.width - (boxBefore.width - 42)) < 3 &&
+      Math.abs(boxAfter.height - (boxBefore.height + 60)) < 3,
+    `puxar as setas do canto com o dedo muda a caixa: ${JSON.stringify(boxBefore)} → ${JSON.stringify(boxAfter)}`,
+  );
   expect((await phoneZoom.inputValue()) === zoomKept, "as setas do canto não mexem no zoom da foto");
   await shot(m, "12a-celular-setas-do-canto");
-  // menor, a caixa toda diminui por igual (largura e altura), e não só a letra
-  const phoneSizeInput = m.getByLabel("Tamanho", { exact: true });
-  await phoneSizeInput.fill("1");
+  await m.getByRole("button", { name: "Voltar à caixa automática" }).click();
+  // a letra: menor, a caixa (automática) acompanha o texto
   await m.locator(".story-screen").scrollIntoViewIfNeeded();
   const fullBox = await settledBox(phoneText);
   await phoneSizeInput.fill("0.5");
   await m.locator(".story-screen").scrollIntoViewIfNeeded();
   const halfBox = await settledBox(phoneText);
   await m.locator(".story-screen").screenshot({ path: `${OUT}/12d-celular-texto-metade.png` });
-  expect(
-    Math.abs(halfBox.width / fullBox.width - 0.5) < 0.08 && Math.abs(halfBox.height / fullBox.height - 0.5) < 0.08,
-    `a caixa diminui por igual: ${JSON.stringify(fullBox)} → ${JSON.stringify(halfBox)}`,
-  );
+  expect(halfBox.height < fullBox.height * 0.75, `com a letra menor, o texto ocupa menos: ${JSON.stringify(fullBox)} → ${JSON.stringify(halfBox)}`);
   // e vai até o dobro do automático
   await phoneSizeInput.fill("2");
   expect((await phoneSizeInput.inputValue()) === "2", `o tamanho vai até 2: ${await phoneSizeInput.inputValue()}`);

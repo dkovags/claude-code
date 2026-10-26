@@ -402,11 +402,14 @@ export default function App() {
       );
       if (!next) return false;
       setUndoFrames(current);
-      // os textos reescritos ficam onde a pessoa os arrastou na prévia, e a localização também
+      // os textos reescritos ficam onde a pessoa os arrastou na prévia, com a caixa do tamanho escolhido, e a
+      // localização também
       const placed = next.map((f, i) => ({
         ...f,
         textAt: current[i]?.textAt,
         text2At: current[i]?.text2At,
+        textBox: current[i]?.textBox,
+        text2Box: current[i]?.text2Box,
         placeAt: current[i]?.placeAt,
       }));
       setFrames(finish.twoParts ? placed.map((f) => withTwoParts(f, true)) : placed);
@@ -503,7 +506,7 @@ export default function App() {
     );
   }
 
-  // tamanho do título e da explicação, que a pinça e a alça do canto mudam na prévia (vale para todas as telas)
+  // tamanho da letra do título e da explicação, que a pinça muda na prévia (vale para todas as telas)
   const textSizes: [number, number] = [finish.overlay.size, finish.overlay.size2];
   const setTextSize = (part: 1 | 2, size: number) =>
     setFinish((f) => ({ ...f, overlay: part === 1 ? { ...f.overlay, size } : { ...f.overlay, size2: size } }));
@@ -563,6 +566,20 @@ export default function App() {
                       )
                   : undefined
               }
+              onTextBox={
+                picked && !isExample && overlay
+                  ? (part, box, at) =>
+                      setFrames(
+                        frames.map((f, i) =>
+                          i !== previewIndex
+                            ? f
+                            : part === 1
+                              ? { ...f, textBox: box, textAt: at }
+                              : { ...f, text2Box: box, text2At: at },
+                        ),
+                      )
+                  : undefined
+              }
               textSizes={textSizes}
               onTextSize={setTextSize}
               onStickerRemove={
@@ -583,6 +600,15 @@ export default function App() {
                 atFinish && overlay && previewIndex === 0
                   ? (part, at) =>
                       setFinish((f) => ({ ...f, overlay: part === 1 ? { ...f.overlay, at } : { ...f.overlay, at2: at } }))
+                  : undefined
+              }
+              onTextBox={
+                atFinish && overlay && previewIndex === 0
+                  ? (part, box, at) =>
+                      setFinish((f) => ({
+                        ...f,
+                        overlay: part === 1 ? { ...f.overlay, box, at } : { ...f.overlay, box2: box, at2: at },
+                      }))
                   : undefined
               }
               textSizes={textSizes}

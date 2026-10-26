@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Heart, Link2, MapPin, Music, Send, X } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, type PointerEvent, type RefObject, useRef } from "react";
 import { STICKER_LABELS } from "../caption";
-import { formatSpec, type Framing, type Overlay, type Spot } from "../render";
+import { type BoxSize, formatSpec, type Framing, type Overlay, type Spot } from "../render";
 import type { MusicPick, PlacePick, Sticker } from "../types";
 import { type PreviewSource, useShot } from "./shot";
 import { TextHandles } from "./TextHandles";
@@ -134,6 +134,7 @@ export function StoryPreview({
   placeAt,
   onPlaceMove,
   onTextMove,
+  onTextBox,
   textSizes,
   onTextSize,
   handle,
@@ -162,7 +163,9 @@ export function StoryPreview({
   onPlaceMove?: (at: Spot) => void;
   /** Arrastar um trecho do texto: muda o lugar dele na foto baixada. */
   onTextMove?: (part: 1 | 2, at: Spot) => void;
-  /** Tamanho do título e da explicação, que a pinça ou a alça do canto mudam. */
+  /** Puxar as setas do canto de um trecho: muda o tamanho da caixa dele (e o centro, que acompanha). */
+  onTextBox?: (part: 1 | 2, box: BoxSize, at: Spot) => void;
+  /** Tamanho da letra do título e da explicação, que a pinça muda. */
   textSizes?: [number, number];
   onTextSize?: (part: 1 | 2, size: number) => void;
   handle: string;
@@ -268,6 +271,7 @@ export function StoryPreview({
             sizes={textSizes}
             onMove={onTextMove!}
             onResize={onTextSize}
+            onBox={onTextBox}
           />
         )}
         <div className="story-top" aria-hidden="true">
@@ -337,7 +341,7 @@ export function StoryPreview({
           {shot.canPan && !example && " Arraste a foto para enquadrar e faça pinça com dois dedos para o zoom."}
           {dragNote}
           {movableText &&
-            ` Arraste os textos para mudar o lugar deles na foto${onTextSize ? "; para o tamanho, faça pinça em cima do texto ou em volta dele, ou puxe as setas no canto da caixa" : ""}.`}
+            ` Arraste os textos para mudar o lugar deles na foto${onTextSize ? ". Para o tamanho da letra, faça pinça em cima do texto (ou em volta dele); para o tamanho da caixa, puxe as setas do canto" : ""}.`}
         </figcaption>
       )}
     </figure>

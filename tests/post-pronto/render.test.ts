@@ -127,15 +127,14 @@ describe("texto na foto", () => {
     expect(l.blocks[0].px).toBeLessThan(Math.round(1080 * 0.085));
   });
 
-  it("o tamanho escolhido muda a caixa por igual, também no texto longo, e sem sair da foto", () => {
+  it("o tamanho da letra muda só a letra: as linhas quebram de novo, e o encaixe automático não desfaz o aumento", () => {
     const text = "Primeira ponte fixa sobre o Danúbio em Budapeste, aberta em 1849";
     const at = (size: number) => layoutOverlay({ ...DEFAULT_OVERLAY, text, size }, 1080, 1920, measureWith).blocks[0];
     const auto = at(1);
-    // menor: as mesmas linhas, com a letra e a caixa menores na mesma proporção
+    // menor: a letra diminui na proporção, e as linhas quebram de novo na largura automática
     const small = at(0.5);
-    expect(small.lines).toEqual(auto.lines);
     expect(small.px).toBe(Math.round(auto.px * 0.5));
-    expect(small.width).toBeCloseTo(auto.width * (small.px / auto.px), 0);
+    expect(small.lines.length).toBeLessThan(auto.lines.length);
     // maior: o encaixe automático (5 linhas, 45% da altura) não desfaz o aumento; a caixa não passa da largura da foto
     const sizes = [1, 1.2, 1.4, 1.6, 1.8, 2].map((s) => at(s));
     sizes.slice(1).forEach((b, i) => expect(b.px).toBeGreaterThan(sizes[i].px));
@@ -150,6 +149,38 @@ describe("texto na foto", () => {
     expect(b.top + b.height + b.padY).toBeLessThanOrEqual(1920);
     expect(textSize(0.1)).toBe(0.3);
     expect(textSize(5)).toBe(2);
+  });
+
+  it("caixa escolhida na prévia: a letra fica, as linhas quebram na largura dela e o texto fica no meio", () => {
+    const text = "Primeira ponte fixa sobre o Danúbio em Budapeste, aberta em 1849";
+    const center = { x: 0.5, y: 0.5 };
+    const free = layoutOverlay({ ...DEFAULT_OVERLAY, text }, 1080, 1920, measureWith).blocks[0];
+    // mais estreita e mais alta que o texto: mais linhas, a mesma letra, e a caixa no tamanho e no lugar pedidos
+    const narrow = layoutOverlay({ ...DEFAULT_OVERLAY, text, box: { w: 0.6, h: 0.4 }, at: center }, 1080, 1920, measureWith);
+    const n = narrow.blocks[0];
+    expect(n.px).toBe(free.px);
+    expect(n.lines.length).toBeGreaterThan(free.lines.length);
+    const [handle] = textBoxes(narrow, 1080, 1920);
+    expect(handle.w).toBeCloseTo(0.6);
+    expect(handle.h).toBeCloseTo(0.4);
+    expect(handle.center.x).toBeCloseTo(0.5);
+    expect(handle.center.y).toBeCloseTo(0.5);
+    // a letra muda dentro da caixa: maior, mais linhas na mesma largura
+    const bigger = layoutOverlay({ ...DEFAULT_OVERLAY, text, size: 1.5, box: { w: 0.6, h: 0.4 }, at: center }, 1080, 1920, measureWith);
+    expect(bigger.blocks[0].px).toBeGreaterThan(n.px);
+    expect(bigger.blocks[0].lines.length).toBeGreaterThan(n.lines.length);
+    // menor do que o texto precisa (a altura, e a largura para "Budapeste,"): a caixa fica do tamanho do texto, a partir
+    // do canto de cima à esquerda
+    const tiny = layoutOverlay({ ...DEFAULT_OVERLAY, text, box: { w: 0.5, h: 0.01 }, at: center }, 1080, 1920, measureWith);
+    const [t] = textBoxes(tiny, 1080, 1920);
+    expect(t.h).toBeGreaterThan(0.05);
+    expect(t.y).toBeCloseTo(0.495);
+    expect(t.x).toBeCloseTo(0.25);
+    // sem fundo, a caixa pedida já conta com a folga para pegar a alça
+    const plain = layoutOverlay({ ...DEFAULT_OVERLAY, text, bg: "none", box: { w: 0.6, h: 0.45 }, at: center }, 1080, 1920, measureWith);
+    const [pb] = textBoxes(plain, 1080, 1920);
+    expect(pb.w).toBeCloseTo(0.6);
+    expect(pb.h).toBeCloseTo(0.45);
   });
 
   it("posiciona embaixo deixando livre a área dos botões nos Stories", () => {

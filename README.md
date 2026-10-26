@@ -170,15 +170,18 @@ de *stories*; o de *feed* continua disponível.
 - **Arrastar e redimensionar o texto na prévia**: o título e a explicação podem ser arrastados (ou movidos com as
   setas) para qualquer lugar da foto, e a foto baixada sai igual. A explicação acompanha o título até ser arrastada
   também; as caixas não saem da foto. Nos *stories*, o lugar vale para cada tela; no *feed*, para o texto da capa. Tocar
-  numa opção de **Posição** traz o texto de volta ao lugar padrão. O tamanho também muda na prévia: pinça com dois dedos
-  em cima do texto ou em volta dele (basta um dedo no texto, ou o meio dos dedos nele ou bem perto, como no Instagram;
-  longe dos textos, a pinça é o *zoom* da foto), as setas no canto da caixa (sempre à vista no celular, com área de
-  toque maior; no computador, ao passar o mouse), Ctrl + roda do mouse ou a pinça do *trackpad* em cima do texto, ou as
-  teclas + e - com a caixa selecionada. O tamanho vai de 0,3 a 2 vezes o automático: menor, a caixa toda diminui por
-  igual (as mesmas linhas, mais estreitas e mais baixas); maior, cresce por igual até ocupar a largura da foto e daí a
-  letra continua crescendo em mais linhas, sem sair da foto. O encaixe automático (no máximo 5 linhas e 45% da altura)
-  vale só para o tamanho automático, e não desfaz o aumento. O tamanho vale para todas as telas e é o mesmo do controle
-  **Tamanho**, que acompanha a mudança.
+  numa opção de **Posição** traz o texto de volta ao lugar padrão. A letra e a caixa mudam de tamanho separadamente:
+  - **Tamanho da letra**: pinça com dois dedos em cima do texto ou em volta dele (basta um dedo no texto, ou o meio dos
+    dedos nele ou bem perto, como no Instagram; longe dos textos, a pinça é o *zoom* da foto), Ctrl + roda do mouse ou
+    a pinça do *trackpad* em cima do texto, as teclas + e - com a caixa selecionada ou o controle **Tamanho da letra**.
+    Vai de 0,3 a 2 vezes o tamanho automático e vale para todas as telas; as linhas quebram de novo na largura da caixa.
+    O encaixe automático (no máximo 5 linhas e 45% da altura) define só o tamanho automático e não desfaz o aumento; a
+    letra só diminui sozinha se o texto não couber na foto.
+  - **Tamanho da caixa**: as setas no canto da caixa (sempre à vista no celular, com área de toque maior; no
+    computador, ao passar o mouse) mudam a largura e a altura dela, com o canto de cima à esquerda parado. A letra
+    fica: numa caixa mais estreita, o texto ganha linhas; numa maior que o texto, ele fica no meio, com mais folga. A
+    caixa não fica menor do que o texto precisa nem passa da foto. Nos *stories*, o tamanho vale para cada tela; no
+    *feed*, para o texto da capa. **Voltar à caixa automática** faz a caixa acompanhar o texto de novo.
 - **Figurinha e localização tracejadas**: na prévia, dá para arrastar a figurinha e a localização (ou movê-las com as
   setas) para ver onde elas ficam melhor em cada tela; arrastar em cima delas não mexe na foto. A figurinha sai pelo ×
   no canto, pelo botão **Remover** na lista de figurinhas da etapa final ou pelo editor dos textos; a localização, por
