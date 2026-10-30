@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildFeed } from "../src/domain/activity";
 import { buildLedger } from "../src/domain/balances";
 import { splitEqual } from "../src/domain/split";
@@ -89,16 +89,23 @@ describe("ações", () => {
   });
 
   it("gera ocorrências de despesas recorrentes uma única vez", () => {
-    const { store, me, ana } = setup();
-    run(store, A.saveExpense, {
-      groupId: null, description: "Netflix", cost: 4000, currency: "BRL", date: "2026-08-20", category: "utilities.internet",
-      paidBy: { [me]: 4000 }, owedBy: { [me]: 2000, [ana]: 2000 }, splitMode: "equal", repeat: "monthly",
-    });
-    // hoje (no contexto do teste) é 16/10/2026: deve gerar 20/09 apenas
-    expect(run(store, A.spawnRecurring)).toBe(1);
-    expect(run(store, A.spawnRecurring)).toBe(0);
-    const dates = Object.values(store.getSnapshot()!.expenses).map((e) => e.date).sort();
-    expect(dates).toEqual(["2026-08-20", "2026-09-20"]);
+    // as ações usam a data do relógio: fixa "hoje" em 16/10/2026
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 16, 12));
+    try {
+      const { store, me, ana } = setup();
+      run(store, A.saveExpense, {
+        groupId: null, description: "Netflix", cost: 4000, currency: "BRL", date: "2026-08-20", category: "utilities.internet",
+        paidBy: { [me]: 4000 }, owedBy: { [me]: 2000, [ana]: 2000 }, splitMode: "equal", repeat: "monthly",
+      });
+      // hoje é 16/10/2026: deve gerar 20/09 apenas
+      expect(run(store, A.spawnRecurring)).toBe(1);
+      expect(run(store, A.spawnRecurring)).toBe(0);
+      const dates = Object.values(store.getSnapshot()!.expenses).map((e) => e.date).sort();
+      expect(dates).toEqual(["2026-08-20", "2026-09-20"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("não remove amigo com saldo e exporta/importa backup", () => {
