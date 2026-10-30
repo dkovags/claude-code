@@ -12,7 +12,8 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      // só os caches do Rateio: o Autos, no mesmo site, tem os seus
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("rateio-") && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -21,6 +22,8 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== self.location.origin) return;
+  // o Autos é outra página no mesmo site: não pode ser salvo como a página principal do Rateio
+  if (url.pathname.includes("/autos/")) return;
   const immutable = url.pathname.includes("/assets/");
   if (immutable) {
     event.respondWith(
