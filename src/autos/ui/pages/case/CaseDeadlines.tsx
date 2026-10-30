@@ -1,10 +1,63 @@
-import { CalendarPlus, ClipboardPaste, ListChecks } from "lucide-react";
+import { CalendarPlus, ClipboardPaste, ListChecks, UserCheck } from "lucide-react";
 import { useState } from "react";
+import { formatDate } from "../../../domain/dates";
+import { noticeDeadline, urgencyOf } from "../../../domain/deadlines";
+import { POLES } from "../../../domain/labels";
 import { noticesOfCase, tasksOfCase } from "../../../domain/select";
-import type { Case } from "../../../domain/types";
-import { Empty } from "../../components/basics";
+import type { Case, Dataset, Notice } from "../../../domain/types";
+import { DueBadge, Empty } from "../../components/basics";
 import { NoticeCard, TaskCard } from "../../components/Cards";
-import { useData, useUI } from "../../context";
+import { useData, useToday, useUI } from "../../context";
+
+/** Expedientes de cada parte: quantos em aberto, a última ciência e o próximo vencimento. */
+function ByParty({ c, ds, notices }: { c: Case; ds: Dataset; notices: Notice[] }) {
+  const today = useToday();
+  const rows = c.parties
+    .map((p) => {
+      const mine = notices.filter((n) => n.recipients.includes(p.id));
+      const open = mine.filter((n) => n.status === "aberto");
+      const dues = open.map((n) => noticeDeadline(ds, n, today).due).filter(Boolean).sort() as string[];
+      const lastRead = mine.map((n) => n.readAt || n.sentAt).sort().at(-1);
+      return { p, total: mine.length, open: open.length, next: dues[0], lastRead };
+    })
+    .filter((r) => r.total > 0);
+  if (!rows.length) return null;
+  return (
+    <section className="card by-party">
+      <div className="card-head">
+        <h2>Expedientes por parte</h2>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Parte</th>
+              <th>Em aberto</th>
+              <th>Último expediente</th>
+              <th>Próximo vencimento</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ p, total, open, next, lastRead }) => (
+              <tr key={p.id}>
+                <td>
+                  <strong>{p.name}</strong>
+                  {p.client && <UserCheck size={14} className="client-icon" aria-label="cliente" />}
+                  <div className="muted small">
+                    {p.role || POLES[p.pole]} · {total} {total === 1 ? "expediente" : "expedientes"}
+                  </div>
+                </td>
+                <td>{open}</td>
+                <td>{lastRead ? formatDate(lastRead) : "–"}</td>
+                <td>{next ? <DueBadge due={next} today={today} urgency={urgencyOf(today, next)} /> : <span className="muted">–</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
 
 export function CaseDeadlines({ c }: { c: Case }) {
   const ds = useData();
@@ -28,6 +81,7 @@ export function CaseDeadlines({ c }: { c: Case }) {
           <ListChecks size={17} /> Nova providência
         </button>
       </div>
+      <ByParty c={c} ds={ds} notices={notices} />
       {!tasks.length && !notices.length && (
         <Empty icon={<CalendarPlus size={28} />} title="Nenhum expediente registrado">
           Registre as intimações, citações e notificações de cada parte. O Autos calcula o prazo, diz se é preciso peticionar e lista os documentos para

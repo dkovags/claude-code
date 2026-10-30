@@ -2596,3 +2596,45 @@ body.modal-open .toasts {
   color: var(--muted);
   font-size: 13px;
 }
+
+/* expedientes por parte */
+.by-party {
+  margin-bottom: 16px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  padding: 0 16px 12px;
+}
+
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table-wrap th {
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table-wrap td {
+  padding: 8px 8px 8px 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.table-wrap tr:last-child td {
+  border-bottom: none;
+}
+
+.client-icon {
+  margin-left: 6px;
+  color: var(--ok);
+  vertical-align: -2px;
+}

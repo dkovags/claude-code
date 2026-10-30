@@ -110,6 +110,8 @@ try {
 
   await page.getByRole("tab", { name: /Expedientes e prazos/ }).click();
   await page.getByText("Documentos para instruir a petição").first().waitFor();
+  await page.getByText("Expedientes por parte").waitFor();
+  expect((await page.locator(".by-party tbody tr").count()) === 1, "o resumo por parte deveria listar a cliente");
   await page.getByRole("button", { name: /Memória de cálculo/ }).first().click();
   await page.getByText(/Publicação: primeiro dia útil seguinte/).waitFor();
   await shot(page, "03-processo-prazos");
@@ -211,11 +213,91 @@ try {
   expect(statSync(await zip.path()).size > 2000, "cópia de segurança vazia");
   await shot(page, "15-configuracoes");
 
+  // feriado local do TJRN no dia do vencimento: o prazo passa para o próximo dia útil
+  await page.goto(URL + "#/prazos");
+  const recurso = page.locator(".agenda-row", { hasText: "Recurso inominado" });
+  const before = (await recurso.locator(".date-tile").innerText()).replace(/\s+/g, " ");
+  const MONTHS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+  const [mon, day] = before.split(" ");
+  const year = new Date().getFullYear() + (MONTHS.indexOf(mon) < new Date().getMonth() ? 1 : 0);
+  const dueISO = `${year}-${String(MONTHS.indexOf(mon) + 1).padStart(2, "0")}-${day.padStart(2, "0")}`;
+  await page.goto(URL + "#/configuracoes");
+  await page.locator(".holiday-form input[type=date]").first().fill(dueISO);
+  await page.getByPlaceholder(/feriado municipal/).fill("Feriado municipal (teste)");
+  await page.getByPlaceholder("TJRN, TRT21").fill("TJRN");
+  await page.getByRole("button", { name: "Incluir" }).click();
+  await page.getByText("Feriado municipal (teste)").first().waitFor();
+  await page.goto(URL + "#/prazos");
+  const after = (await page.locator(".agenda-row", { hasText: "Recurso inominado" }).locator(".date-tile").innerText()).replace(/\s+/g, " ");
+  expect(before !== after, `o feriado local não mudou o vencimento (${before} → ${after})`);
+
+  // anotação nos andamentos e cadastro manual de processo
+  await page.goto(URL + "#/processos");
+  await page.getByText("Ana Cliente x Telefonia Gama S.A.").click();
+  await page.getByRole("tab", { name: /Andamentos/ }).click();
+  await page.getByRole("button", { name: /Nova anotação/ }).click();
+  await page.getByLabel(/Anotação/).fill("Cliente avisada da réplica por telefone.");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await closed(page);
+  await page.getByText("Cliente avisada da réplica por telefone.").waitFor();
+  await page.getByText(/Despacho: Despacho/).waitFor();
+  await shot(page, "16-andamentos");
+
+  await page.goto(URL + "#/processos");
+  await page.getByRole("button", { name: /Novo processo/ }).click();
+  const num = page.getByPlaceholder("0801234-56.2023.8.20.5001");
+  await num.fill("0801234-00.2026.8.26.0100");
+  await page.getByText(/Dígito verificador não confere/).waitFor();
+  await num.fill(cnj("1004321", "2026", "8", "26", "0100"));
+  await page.getByText(/Número válido · TJSP/).waitFor();
+  const names = page.getByLabel("Nome da parte");
+  await names.nth(0).fill("Bruno Cliente");
+  await names.nth(1).fill("Construtora Delta Ltda.");
+  await page.getByPlaceholder(/Ex.: 3ª Vara/).fill("2ª Vara Cível do Foro Central");
+  await shot(page, "17-novo-processo");
+  await page.getByRole("button", { name: "Salvar" }).click();
+  await closed(page);
+  await page.getByRole("heading", { name: "Bruno Cliente x Construtora Delta Ltda." }).waitFor();
+
+  // verificar as citações da contestação do exemplo, a partir do documento
+  await page.goto(URL + "#/processos");
+  await page.getByText("Maria Exemplo x Banco Alfa (exemplo)").click();
+  await page.getByRole("tab", { name: /Documentos/ }).click();
+  await page.locator(".doc-row", { hasText: "Contestação" }).locator(".doc-main").click();
+  await page.getByRole("button", { name: /Verificar citações/ }).click();
+  await page.locator(".check-card").first().waitFor();
+  expect((await page.locator(".check-card.level-erro").count()) === 1, "a citação fictícia da contestação deveria apontar erro");
+  expect((await page.locator(".check-card.level-ok").count()) === 1, "a Súmula 385 do STJ deveria conferir com a base");
+
+  // apagar tudo e restaurar a cópia de segurança
+  await page.goto(URL + "#/configuracoes");
+  await page.getByRole("button", { name: /Apagar todos os dados/ }).click();
+  await page.getByRole("button", { name: "Apagar tudo", exact: true }).click();
+  await page.goto(URL + "#/");
+  await page.getByText("Boas-vindas ao Autos").waitFor();
+  await page.goto(URL + "#/configuracoes");
+  await page.locator("input[type=file][accept*=zip]").setInputFiles(await zip.path());
+  await page.getByRole("button", { name: "Restaurar", exact: true }).click();
+  await page.getByText("Cópia restaurada.").waitFor();
+
   // os dados ficam no aparelho: recarrega e continua tudo lá
   await page.reload();
   await page.goto(URL + "#/processos");
   await page.getByText("Ana Cliente x Telefonia Gama S.A.").waitFor();
   expect((await page.locator(".case-row").count()) === 3, "processos não ficaram guardados");
+  await page.getByText("Ana Cliente x Telefonia Gama S.A.").click();
+  await page.getByRole("tab", { name: /Documentos/ }).click();
+  await page.getByLabel("Pesquisar nos documentos do processo").fill("negativação");
+  await page.locator(".result").first().waitFor();
+
+  // tema escuro
+  await page.goto(URL + "#/configuracoes");
+  await page.getByRole("combobox", { name: /Tema/ }).selectOption("dark");
+  await page.goto(URL + "#/");
+  await page.getByText("Próximos prazos").waitFor();
+  await shot(page, "18-painel-escuro");
+  await page.goto(URL + "#/citacoes");
+  await shot(page, "19-citacoes-escuro");
 
   // celular
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "pt-BR", reducedMotion: "reduce", isMobile: true, hasTouch: true });
@@ -224,16 +306,16 @@ try {
   await m.goto(URL);
   await m.getByRole("button", { name: /Ver um exemplo/ }).click();
   await m.getByText("Maria Exemplo x Banco Alfa (exemplo)").first().waitFor();
-  await shot(m, "16-celular-processo");
+  await shot(m, "20-celular-processo");
   await m.goto(URL + "#/");
   await m.getByText("Próximos prazos").waitFor();
-  await shot(m, "17-celular-painel");
+  await shot(m, "21-celular-painel");
   await m.goto(URL + "#/prazos");
   await m.locator(".agenda-row").first().waitFor();
-  await shot(m, "18-celular-prazos");
+  await shot(m, "22-celular-prazos");
   await m.locator(".agenda-main").first().click();
   await m.locator(".modal").waitFor();
-  await shot(m, "19-celular-providencia");
+  await shot(m, "23-celular-providencia");
   const overflow = await m.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow <= 0, `a página rola para o lado no celular (${overflow}px)`);
 
