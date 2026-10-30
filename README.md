@@ -142,10 +142,12 @@ celular, pode ser instalado como aplicativo e funciona sem internet.
   (Domicílio Judicial Eletrônico para empresas e entes públicos, confirmação em 3 dias úteis, carta entregue ao próprio
   citando, edital só depois de esgotadas as tentativas, sem edital nos juizados, regras do processo penal e do
   trabalhista) e o início do prazo da contestação.
-- **Base de conhecimento**: o PDF do processo inteiro baixado do PJe vira um processo cadastrado, com a capa lida
-  (número, classe, órgão julgador, distribuição, valor, assuntos, justiça gratuita), as partes e os advogados, e cada
-  documento separado pelo carimbo "Num. Id - Pág." com nome, tipo, data e quem assinou; no e-SAJ, os documentos são
-  separados pelo código da pasta digital. Quando um processo integral mais novo é importado, os documentos já
+- **Base de conhecimento**: o PDF do processo inteiro baixado do PJe, do eproc ou do e-SAJ vira um processo cadastrado,
+  com a capa lida (número, classe, órgão julgador, distribuição ou autuação, valor, assuntos, sigilo, justiça
+  gratuita), as partes com os advogados ou procuradores e cada documento separado, com nome, tipo, data e quem assinou:
+  no PJe, pelo carimbo "Num. Id - Pág."; no eproc, pelo evento e pelo código do documento (INIC1, PROC2, CONTES1...)
+  das páginas ou, sem eles, pelos marcadores do PDF, com as partes do quadro "Partes e Representantes" e as datas da
+  tabela de eventos; no e-SAJ, pelo código da pasta digital; em outros sistemas, pelos marcadores do PDF. Quando um processo integral mais novo é importado, os documentos já
   guardados passam para o arquivo novo, sem duplicar. Também aceita documentos avulsos (PDF, Word, ODT, HTML e texto,
   inclusive colado) e o expediente. A pesquisa ignora acentos e maiúsculas, procura as palavras pelo começo, aceita
   "frase exata" e -exclusão, ordena por relevância e abre o documento na página, com os termos destacados e o botão
@@ -220,7 +222,7 @@ src/autos/domain/cnj.ts          número único do CNJ: dígito verificador e tr
 src/autos/domain/calendar.ts     calendário forense: feriados, Páscoa, recesso e feriados locais
 src/autos/domain/deadlines.ts    cálculo dos prazos com a memória de cálculo
 src/autos/domain/analysis.ts     leitura de expedientes e decisões: ato, prazo, documentos, audiência
-src/autos/domain/casefile.ts     leitura do PDF do processo integral (PJe e e-SAJ)
+src/autos/domain/casefile.ts     leitura do PDF do processo integral (PJe, eproc, e-SAJ e marcadores)
 src/autos/domain/summons.ts      conferência da citação (o ato)
 src/autos/domain/precedents.ts   leitura de acórdãos e das partes, formatos de citação
 src/autos/domain/refs.ts         citações de jurisprudência encontradas num texto
@@ -229,7 +231,7 @@ src/autos/domain/search.ts       pesquisa sem acentos, com pontuação e destaqu
 src/autos/store/                 ações, IndexedDB, leitura de arquivos (pdf.js, Word), cópia de segurança, exemplo
 src/autos/ui/                    telas (React)
 tests/autos/                     testes da lógica (Vitest, rodam com npm test)
-scripts/e2e-autos.mjs            teste de ponta a ponta no navegador, com um PDF no formato do PJe
+scripts/e2e-autos.mjs            teste de ponta a ponta no navegador, com PDFs nos formatos do PJe e do eproc
 ```
 
 ```bash

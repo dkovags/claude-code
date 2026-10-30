@@ -1,5 +1,6 @@
 import { CalendarPlus, Download, ExternalLink, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { courtRef } from "../../domain/casefile";
 import { formatDate } from "../../domain/dates";
 import { DOC_TYPES, ORDER_TYPES } from "../../domain/labels";
 import { compile, highlight } from "../../domain/search";
@@ -56,7 +57,7 @@ export function DocViewer({ docId, q: initialQ, page, onClose }: { docId: string
         <div className="doc-meta">
           <span className="chip tone-muted">{DOC_TYPES[d.type]}</span>
           {d.date && <span>{formatDate(d.date)}</span>}
-          {d.courtId && <span>Id. {d.courtId}</span>}
+          {courtRef(d.courtId) && <span>{courtRef(d.courtId)}</span>}
           {d.signer && <span>{d.signer}</span>}
           {d.pages && <span>páginas {d.pages[0]} a {d.pages[1]} do arquivo</span>}
         </div>

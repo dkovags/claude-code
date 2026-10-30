@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyze, classifyText, explicitTerms, requestedDocs } from "../../src/autos/domain/analysis";
-import { parseCaseFile } from "../../src/autos/domain/casefile";
+import { courtRef, eprocDoc, parseCaseFile } from "../../src/autos/domain/casefile";
+import { cnjCheckDigits, formatCnj } from "../../src/autos/domain/cnj";
 import { fold } from "../../src/autos/domain/text";
 
 const DJEN = `Processo: 0801234-56.2023.8.20.5001
@@ -199,5 +200,151 @@ describe("processo integral", () => {
     expect(info.number).toBe("0801234-56.2023.8.20.5001");
     expect(info.parties.map((p) => [p.name, p.pole])).toEqual([["Maria Exemplo", "ativo"], ["Banco Alfa S.A.", "passivo"]]);
     expect(info.docs).toEqual([{ title: "Processo integral", type: "processo", pages: [1, 2] }]);
+  });
+});
+
+// Processo fictício no formato do eproc: capa com "Partes e Representantes" e eventos; carimbo em cada página.
+const EPROC_NUMBER = formatCnj({ seq: "5001234", year: "2023", j: "4", tr: "04", origin: "7100", dv: cnjCheckDigits({ seq: "5001234", year: "2023", j: "4", tr: "04", origin: "7100" }) });
+const EPROC_COVER = `Processo nº ${EPROC_NUMBER}/RS
+Nº do processo: ${EPROC_NUMBER}
+Classe da ação: PROCEDIMENTO COMUM
+Data de autuação: 10/01/2023 10:20:30
+Órgão Julgador: Juízo Federal da 1ª VF de Porto Alegre
+Nível de sigilo do processo: Sem Sigilo (Nível 0)
+Assuntos
+Código Descrição Principal
+6114 Aposentadoria por Tempo de Contribuição (Art. 55/6) Sim
+Partes e Representantes
+AUTOR RÉU
+FULANO DE TAL (123.456.789-09) INSTITUTO NACIONAL DO SEGURO SOCIAL - INSS (29.979.036/0001-40)
+Procurador(es): Procurador(es):
+BELTRANA SILVA (RS012345) PROCURADORIA REGIONAL FEDERAL DA 4ª REGIÃO (RS000001)
+CICLANO SOUZA (RS054321)
+Informações Adicionais
+Justiça Gratuita: Deferida
+Eventos
+Evento Data/Hora Descrição Usuário Documentos
+1 10/01/2023 10:20:30 Distribuído por sorteio (RS01) BELTRANA INIC1 PROC2 DECL3
+15 20/05/2023 14:00:00 Juntada de Contestação PROCURADOR INSS CONTES1
+22 02/10/2026 16:12:00 Despacho/Decisão - Intimação para Réplica JUIZ DESPADEC1`;
+const stamp = (ev: number, doc: string, pag: number) => `Processo ${EPROC_NUMBER}/RS, Evento ${ev}, ${doc}, Página ${pag}`;
+const EPROC_PAGES = [
+  EPROC_COVER,
+  `EXCELENTÍSSIMO SENHOR JUIZ FEDERAL\nFULANO DE TAL vem propor AÇÃO em face do INSS\n${stamp(1, "INIC1", 1)}`,
+  `Dos pedidos.\n${stamp(1, "INIC1", 2)}`,
+  `PROCURAÇÃO\nOutorgante: FULANO DE TAL\n${stamp(1, "PROC2", 1)}`,
+  `CONTESTAÇÃO\nO INSS vem apresentar contestação.\n${stamp(15, "CONTES1", 1)}`,
+  `DESPACHO\nIntime-se a parte autora para réplica, em 15 dias.\nDocumento eletrônico assinado por JUIZ FEDERAL TESTE, Juiz Federal, na forma do artigo 1º, inciso III, da Lei 11.419, de 19 de dezembro de 2006. A conferência da autenticidade do documento está disponível mediante o preenchimento do código verificador 710012345678v2 e do código CRC 1A2B3C4D.\nInformações adicionais da assinatura:\nSignatário (a): JUIZ FEDERAL TESTE\nData e Hora: 02/10/2026, às 16:12:00\n${stamp(22, "DESPADEC1", 1)}`,
+];
+
+describe("processo integral do eproc", () => {
+  it("entende os códigos dos documentos", () => {
+    expect(eprocDoc("INIC1")).toEqual({ type: "inicial", label: "Petição inicial" });
+    expect(eprocDoc("PROCADM5")?.label).toBe("Processo administrativo");
+    expect(eprocDoc("DECL3")?.label).toBe("Declaração");
+    expect(eprocDoc("CONTRAZ1")?.type).toBe("contrarrazoes");
+    expect(eprocDoc("RS01")).toBeNull();
+  });
+
+  it("mostra a referência do documento conforme o sistema", () => {
+    expect(courtRef("123456789")).toBe("Id. 123456789");
+    expect(courtRef("Evento 1, INIC1")).toBe("Evento 1, INIC1");
+    expect(courtRef("710012345678v2")).toBe("Cód. verificador 710012345678v2");
+    expect(courtRef("Petição Inicial · p. 1")).toBeUndefined();
+    expect(courtRef(undefined)).toBeUndefined();
+  });
+
+  it("lê a capa, as partes e os documentos pelo carimbo das páginas", () => {
+    const info = parseCaseFile(EPROC_PAGES);
+    expect(info).toMatchObject({
+      system: "eproc",
+      number: EPROC_NUMBER,
+      className: "Procedimento Comum",
+      body: "Juízo Federal da 1ª VF de Porto Alegre",
+      filedAt: "2023-01-10",
+      subjects: "Aposentadoria por Tempo de Contribuição (Art. 55/6)",
+      secret: false,
+      freeJustice: true,
+    });
+    expect(info.parties).toEqual([
+      { name: "Fulano de Tal", role: "Autor", pole: "ativo", lawyers: ["Beltrana Silva (RS012345)", "Ciclano Souza (RS054321)"] },
+      { name: "Instituto Nacional do Seguro Social - INSS", role: "Réu", pole: "passivo", lawyers: ["Procuradoria Regional Federal da 4ª Região (RS000001)"] },
+    ]);
+    expect(info.docs.map((d) => [d.courtId, d.type, d.title, d.pages, d.date])).toEqual([
+      [undefined, "outro", "Capa do processo", [1, 1], undefined],
+      ["Evento 1, INIC1", "inicial", "Petição inicial (INIC1)", [2, 3], "2023-01-10"],
+      ["Evento 1, PROC2", "procuracao", "Procuração (PROC2)", [4, 4], "2023-01-10"],
+      ["Evento 15, CONTES1", "contestacao", "Contestação (CONTES1)", [5, 5], "2023-05-20"],
+      ["Evento 22, DESPADEC1", "despacho", "Despacho ou decisão (DESPADEC1)", [6, 6], "2026-10-02"],
+    ]);
+    expect(info.docs[4].signer).toBe("Juiz Federal Teste");
+  });
+
+  it("sem carimbo, separa os documentos pelos marcadores do PDF", () => {
+    const pages = EPROC_PAGES.map((p) => p.replace(/\n?Processo [^\n]*, Evento \d+, [A-Z]+\d, Página \d+/, ""));
+    const outline = [
+      { title: "Evento 1", page: 2, leaf: false },
+      { title: "INIC1", page: 2, leaf: true, parent: "Evento 1" },
+      { title: "PROC2", page: 4, leaf: true, parent: "Evento 1" },
+      { title: "Evento 15", page: 5, leaf: false },
+      { title: "CONTES1", page: 5, leaf: true, parent: "Evento 15" },
+      { title: "Evento 22", page: 6, leaf: false },
+      { title: "DESPADEC1", page: 6, leaf: true, parent: "Evento 22" },
+    ];
+    const info = parseCaseFile(pages, { outline });
+    expect(info.system).toBe("eproc");
+    expect(info.parties.map((p) => p.name)).toEqual(["Fulano de Tal", "Instituto Nacional do Seguro Social - INSS"]);
+    expect(info.docs.map((d) => [d.courtId, d.title, d.pages, d.date])).toEqual([
+      [undefined, "Capa do processo", [1, 1], undefined],
+      ["Evento 1, INIC1", "Petição inicial (INIC1)", [2, 3], "2023-01-10"],
+      ["Evento 1, PROC2", "Procuração (PROC2)", [4, 4], "2023-01-10"],
+      ["Evento 15, CONTES1", "Contestação (CONTES1)", [5, 5], "2023-05-20"],
+      ["Evento 22, DESPADEC1", "Despacho ou decisão (DESPADEC1)", [6, 6], "2026-10-02"],
+    ]);
+  });
+
+  it("marcadores de outros sistemas também separam os documentos", () => {
+    const info = parseCaseFile(["PETIÇÃO INICIAL\ntexto", "continua", "SENTENÇA\nJulgo procedente."], {
+      outline: [
+        { title: "Petição Inicial", page: 1 },
+        { title: "Sentença", page: 3 },
+      ],
+    });
+    expect(info.system).toBeUndefined();
+    expect(info.docs.map((d) => [d.title, d.type, d.pages])).toEqual([
+      ["Petição Inicial", "inicial", [1, 2]],
+      ["Sentença", "sentenca", [3, 3]],
+    ]);
+  });
+
+  it("escolhe o nível dos marcadores que são documentos", () => {
+    const pages = ["PETIÇÃO INICIAL\nDos fatos", "Dos pedidos", "SENTENÇA\nJulgo procedente."];
+    // seções dentro da petição não viram documentos
+    const nested = parseCaseFile(pages, {
+      outline: [
+        { title: "Petição inicial", page: 1, depth: 0, leaf: false },
+        { title: "Dos fatos", page: 1, depth: 1, leaf: true, parent: "Petição inicial" },
+        { title: "Dos pedidos", page: 2, depth: 1, leaf: true, parent: "Petição inicial" },
+        { title: "Sentença", page: 3, depth: 0, leaf: true },
+      ],
+    });
+    expect(nested.docs.map((d) => [d.title, d.pages])).toEqual([
+      ["Petição inicial", [1, 2]],
+      ["Sentença", [3, 3]],
+    ]);
+    // eproc sem os códigos: os documentos ficam abaixo de cada evento
+    const events = parseCaseFile(["capa", ...pages], {
+      outline: [
+        { title: "Evento 1", page: 2, depth: 0, leaf: false },
+        { title: "Petição inicial", page: 2, depth: 1, leaf: true, parent: "Evento 1" },
+        { title: "Evento 8 - Sentença", page: 4, depth: 0, leaf: true },
+      ],
+    });
+    expect(events.system).toBe("eproc");
+    expect(events.docs.map((d) => [d.title, d.type, d.pages])).toEqual([
+      ["Capa do processo", "outro", [1, 1]],
+      ["Petição inicial (Evento 1)", "inicial", [2, 3]],
+      ["Evento 8 - Sentença", "sentenca", [4, 4]],
+    ]);
   });
 });

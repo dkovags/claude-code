@@ -1,5 +1,6 @@
 import { ChevronDown, FileStack, FileText, Search, Sparkles, Trash } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { courtRef } from "../../../domain/casefile";
 import { formatDate } from "../../../domain/dates";
 import { DOC_TYPES, ORDER_TYPES } from "../../../domain/labels";
 import { docsOfCase } from "../../../domain/select";
@@ -25,7 +26,7 @@ function DocRow({ d, child }: { d: Doc; child?: boolean }) {
           <div className="doc-meta">
             <span className="chip tone-muted">{DOC_TYPES[d.type]}</span>
             {d.date && <span>{formatDate(d.date)}</span>}
-            {d.courtId && <span>Id. {d.courtId}</span>}
+            {courtRef(d.courtId) && <span>{courtRef(d.courtId)}</span>}
             {d.signer && <span className="hide-sm">{d.signer}</span>}
             {pages ? <span>{pages === 1 ? "1 página" : `${pages} páginas`}</span> : null}
           </div>
@@ -149,7 +150,7 @@ export function CaseDocuments({ c, q: initialQ }: { c: Case; q?: string }) {
         </div>
       ) : !docs.length ? (
         <Empty icon={<FileStack size={28} />} title="Nenhum documento na base deste processo">
-          Envie o PDF do processo inteiro (baixado do PJe ou do e-SAJ): ele é separado em documentos e fica pesquisável.
+          Envie o PDF do processo inteiro (baixado do PJe, do eproc ou do e-SAJ): ele é separado em documentos e fica pesquisável.
         </Empty>
       ) : filtered ? (
         <div className="doc-list">

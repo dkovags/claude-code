@@ -1,7 +1,8 @@
 import { CalendarClock, FileStack, Files, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { analyze, classifyText } from "../../domain/analysis";
-import { parseCaseFile, type CaseFileInfo } from "../../domain/casefile";
+import { courtRef, parseCaseFile, type CaseFileInfo } from "../../domain/casefile";
+import { formatDate } from "../../domain/dates";
 import { findDates } from "../../domain/text";
 import { DOC_TYPES, POLES } from "../../domain/labels";
 import { caseLabel } from "../../domain/select";
@@ -34,7 +35,7 @@ interface ReadFile {
 }
 
 const MODES: { id: Mode; title: string; text: string; icon: ReactNode }[] = [
-  { id: "processo", title: "Processo integral", text: "O PDF do processo inteiro, baixado do PJe ou do e-SAJ. Lê a capa e as partes e separa cada documento.", icon: <FileStack size={22} /> },
+  { id: "processo", title: "Processo integral", text: "O PDF do processo inteiro, baixado do PJe, do eproc ou do e-SAJ. Lê a capa e as partes e separa cada documento.", icon: <FileStack size={22} /> },
   { id: "documento", title: "Documentos", text: "Petições, decisões, provas, contratos (PDF, Word, texto). Cada arquivo vira um documento da base.", icon: <Files size={22} /> },
   { id: "expediente", title: "Expediente", text: "Intimação, citação ou publicação do DJEN. Guarda o texto e abre o registro do prazo.", icon: <CalendarClock size={22} /> },
 ];
@@ -121,7 +122,7 @@ export function ImportDialog({
     }
     setItems(out);
     if (mode === "processo" && out[0]) {
-      const parsed = parseCaseFile(out[0].text.pages);
+      const parsed = parseCaseFile(out[0].text.pages, { outline: out[0].text.outline });
       setInfo(parsed);
       const existing = caseId || (parsed.number ? A.findCaseByNumber(ds, parsed.number)?.id : undefined) || "";
       setTarget(existing);
@@ -388,7 +389,11 @@ export function ImportDialog({
                   {info.parties.map((p, i) => (
                     <label key={i} className="check">
                       <input type="radio" name="client" checked={clientIdx === i} onChange={() => setClientIdx(i)} />
-                      {p.name} <span className="muted">({p.role} · {POLES[p.pole].toLowerCase()})</span>
+                      {p.name}{" "}
+                      <span className="muted">
+                        ({p.role} · {POLES[p.pole].toLowerCase()})
+                        {p.lawyers.length > 0 && ` · ${p.lawyers.length === 1 ? "procurador" : "procuradores"}: ${p.lawyers.join(", ")}`}
+                      </span>
                     </label>
                   ))}
                 </fieldset>
@@ -402,8 +407,9 @@ export function ImportDialog({
                     <span className="chip tone-muted">{DOC_TYPES[d.type]}</span>
                     <span>{d.title}</span>
                     <span className="muted small">
-                      {d.date ? d.date.split("-").reverse().join("/") : ""} · p. {d.pages[0]}
-                      {d.pages[1] > d.pages[0] ? `–${d.pages[1]}` : ""}
+                      {[courtRef(d.courtId), d.date && formatDate(d.date), `p. ${d.pages[0]}${d.pages[1] > d.pages[0] ? `–${d.pages[1]}` : ""}`]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
                   </div>
                 ))}

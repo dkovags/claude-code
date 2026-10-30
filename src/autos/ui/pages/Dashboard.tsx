@@ -37,7 +37,7 @@ function Welcome() {
         <button className="welcome-card" onClick={() => ui.open({ type: "import", mode: "processo" })}>
           <FileUp size={26} />
           <strong>Importar o PDF do processo</strong>
-          <span>Baixe o processo inteiro no PJe ou no e-SAJ: o {APP_NAME} lê a capa, as partes e separa os documentos.</span>
+          <span>Baixe o processo inteiro no PJe, no eproc ou no e-SAJ: o {APP_NAME} lê a capa, as partes e separa os documentos.</span>
         </button>
         <button className="welcome-card" onClick={() => ui.open({ type: "case" })}>
           <FolderPlus size={26} />

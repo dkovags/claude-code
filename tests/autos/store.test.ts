@@ -161,6 +161,22 @@ describe("leitura de arquivos", () => {
     expect(out.pages).toEqual(["Número: 0801234-56.2023.8.20.5001\nClasse: PROCEDIMENTO COMUM CÍVEL", "DESPACHO\nIntime-se para réplica."]);
     expect(out.empty).toEqual([]);
     expect(progress).toEqual([1, 2]);
+    expect(out.outline).toBeUndefined();
+  });
+
+  it("lê os marcadores do PDF com a página de cada um", async () => {
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const pdf = simplePdf([["Capa"], ["Peticao inicial"], ["continua"], ["Despacho"]], [
+      { title: "Evento 1", page: 2, kids: [{ title: "INIC1", page: 2 }] },
+      { title: "Evento 3", page: 4, kids: [{ title: "DESPADEC1", page: 4 }] },
+    ]);
+    const out = await extractPdf(pdf, pdfjs as never);
+    expect(out.outline).toEqual([
+      { title: "Evento 1", page: 2, depth: 0, leaf: false, parent: undefined },
+      { title: "INIC1", page: 2, depth: 1, leaf: true, parent: "Evento 1" },
+      { title: "Evento 3", page: 4, depth: 0, leaf: false, parent: undefined },
+      { title: "DESPADEC1", page: 4, depth: 1, leaf: true, parent: "Evento 3" },
+    ]);
   });
 
   it("lê Word (.docx) e divide textos longos", () => {
@@ -208,12 +224,17 @@ describe("cópia de segurança e exportações", () => {
   });
 });
 
-/** PDF mínimo com texto (fonte Helvetica, acentos em WinAnsi), para testar a leitura com o pdf.js. */
-function simplePdf(pages: string[][]): Uint8Array {
+interface Mark {
+  title: string;
+  page: number;
+  kids?: Mark[];
+}
+
+/** PDF mínimo com texto (fonte Helvetica, acentos em WinAnsi) e marcadores, para testar a leitura com o pdf.js. */
+function simplePdf(pages: string[][], outline: Mark[] = []): Uint8Array {
   const objs: string[] = [];
   const pageIds: number[] = [];
   const esc = (s: string) => s.replace(/[\\()]/g, (c) => "\\" + c);
-  objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
   objs[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
   let next = 4;
   for (const lines of pages) {
@@ -225,6 +246,27 @@ function simplePdf(pages: string[][]): Uint8Array {
     pageIds.push(pageId);
   }
   objs[2] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`;
+  // marcadores: cada um aponta para a página com um destino explícito [página /XYZ x y zoom]
+  const marks = (items: Mark[], parent: number): number[] => {
+    const ids = items.map(() => next++);
+    items.forEach((m, i) => {
+      const kids = m.kids?.length ? marks(m.kids, ids[i]) : [];
+      const links = [
+        `/Parent ${parent} 0 R`,
+        i > 0 ? `/Prev ${ids[i - 1]} 0 R` : "",
+        i < ids.length - 1 ? `/Next ${ids[i + 1]} 0 R` : "",
+        kids.length ? `/First ${kids[0]} 0 R /Last ${kids[kids.length - 1]} 0 R /Count ${kids.length}` : "",
+      ].join(" ");
+      objs[ids[i]] = `<< /Title (${esc(m.title)}) ${links} /Dest [${pageIds[m.page - 1]} 0 R /XYZ 0 792 0] >>`;
+    });
+    return ids;
+  };
+  if (outline.length) {
+    const root = next++;
+    const top = marks(outline, root);
+    objs[root] = `<< /Type /Outlines /First ${top[0]} 0 R /Last ${top[top.length - 1]} 0 R /Count ${top.length} >>`;
+    objs[1] = `<< /Type /Catalog /Pages 2 0 R /Outlines ${root} 0 R >>`;
+  } else objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
   let out = "%PDF-1.4\n";
   const offsets: number[] = [];
   for (let i = 1; i < objs.length; i++) {

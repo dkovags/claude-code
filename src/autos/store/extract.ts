@@ -3,11 +3,25 @@ import { unzipSync, strFromU8 } from "fflate";
 // Texto de arquivos: PDF (pdf.js), Word (.docx), LibreOffice (.odt), HTML e texto simples.
 // Funciona no navegador e no Node (testes); o pdf.js é passado de fora, porque cada ambiente carrega o seu.
 
+/** Marcador (índice) do PDF: título e página onde começa. */
+export interface OutlineItem {
+  title: string;
+  page: number;
+  /** Nível no índice (0 = primeiro nível). */
+  depth: number;
+  /** Não tem marcadores dentro dele. */
+  leaf: boolean;
+  /** Título do marcador de cima (ex.: "Evento 1" para o documento "INIC1"). */
+  parent?: string;
+}
+
 export interface Extracted {
   pages: string[];
   /** Páginas sem texto (imagem digitalizada). */
   empty: number[];
   kind: "pdf" | "docx" | "odt" | "html" | "text" | "image" | "other";
+  /** Marcadores do PDF, quando o arquivo tem índice (o eproc e outros sistemas geram um por documento). */
+  outline?: OutlineItem[];
 }
 
 interface TextItemLike {
@@ -60,12 +74,54 @@ export function itemsToText(raw: unknown[]): string {
   return out.join("\n").replace(/([a-zà-ú])-\n([a-zà-ú])/g, "$1$2");
 }
 
+interface OutlineNode {
+  title: string;
+  dest: string | unknown[] | null;
+  items?: OutlineNode[];
+}
+
+interface PdfDoc {
+  numPages: number;
+  getPage(n: number): Promise<{ getTextContent(): Promise<{ items: unknown[] }>; cleanup(): void }>;
+  getOutline(): Promise<OutlineNode[] | null>;
+  getDestination(name: string): Promise<unknown[] | null>;
+  getPageIndex(ref: unknown): Promise<number>;
+}
+
 export type PdfJs = {
   getDocument(src: { data: Uint8Array; isEvalSupported?: boolean; verbosity?: number }): {
-    promise: Promise<{ numPages: number; getPage(n: number): Promise<{ getTextContent(): Promise<{ items: unknown[] }>; cleanup(): void }> }>;
+    promise: Promise<PdfDoc>;
     destroy(): Promise<void>;
   };
 };
+
+/** Marcadores do PDF em lista, na ordem do índice, com a página de cada um. */
+async function readOutline(doc: PdfDoc): Promise<OutlineItem[]> {
+  const root = await doc.getOutline().catch(() => null);
+  if (!root?.length) return [];
+  const out: OutlineItem[] = [];
+  const walk = async (nodes: OutlineNode[], depth: number, parent?: string) => {
+    for (const n of nodes) {
+      if (out.length >= 5000) return;
+      let page: number | undefined;
+      try {
+        const dest = typeof n.dest === "string" ? await doc.getDestination(n.dest) : n.dest;
+        const ref = Array.isArray(dest) ? dest[0] : undefined;
+        // alguns geradores gravam o número da página; outros, a referência ao objeto da página
+        if (typeof ref === "number") page = ref + 1;
+        else if (ref) page = (await doc.getPageIndex(ref)) + 1;
+      } catch {
+        page = undefined;
+      }
+      const title = (n.title || "").replace(/\s+/g, " ").trim();
+      const kids = depth < 4 ? n.items || [] : [];
+      if (page && title) out.push({ title, page, depth, leaf: !kids.length, parent });
+      if (kids.length) await walk(kids, depth + 1, title || parent);
+    }
+  };
+  await walk(root, 0);
+  return out;
+}
 
 export async function extractPdf(data: Uint8Array, pdfjs: PdfJs, onProgress?: (done: number, total: number) => void): Promise<Extracted> {
   // verbosity 0: só erros no console (avisos sobre fontes não importam para ler o texto)
@@ -83,10 +139,11 @@ export async function extractPdf(data: Uint8Array, pdfjs: PdfJs, onProgress?: (d
       page.cleanup();
       onProgress?.(n, doc.numPages);
     }
+    const outline = await readOutline(doc);
+    return { pages, empty, kind: "pdf", outline: outline.length ? outline : undefined };
   } finally {
     await task.destroy();
   }
-  return { pages, empty, kind: "pdf" };
 }
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };

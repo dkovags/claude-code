@@ -37,9 +37,21 @@ function cnj(seq, year, j, tr, origin) {
   return `${seq}-${dv}.${year}.${j}.${tr}.${origin}`;
 }
 
+/** Gera um PDF com uma página para cada trecho de HTML (com os títulos como marcadores, se pedido). */
+async function renderPdf(path, pages, { outline = false } = {}) {
+  const page = await browser.newPage();
+  await page.setContent(`<html><head><style>
+    body { font-family: Arial, sans-serif; font-size: 12px; margin: 0 }
+    .p { height: 1040px; position: relative; padding: 30px; box-sizing: border-box; page-break-after: always }
+    .stamp { position: absolute; bottom: 20px; left: 30px; font-size: 9px }
+    table { border-collapse: collapse } td, th { padding: 2px 12px 2px 0; text-align: left; vertical-align: top }
+  </style></head><body>${pages.map((p) => `<div class="p">${p}</div>`).join("")}</body></html>`);
+  await page.pdf({ path, format: "A4", margin: { top: 0, bottom: 0, left: 0, right: 0 }, outline, tagged: outline });
+  await page.close();
+}
+
 /** PDF no formato do "processo integral" do PJe: capa com partes e índice, e o carimbo "Num. Id - Pág. n" em cada página. */
 async function makeCaseFilePdf(path, number) {
-  const page = await browser.newPage();
   const stamp = (id, pag) => `<div class="stamp">Assinado eletronicamente por: JUIZ TESTE - 02/10/2026 16:12:00<br>Num. ${id} - Pág. ${pag}</div>`;
   const pages = [
     `<p><b>Número:</b> ${number}</p><p><b>Classe:</b> PROCEDIMENTO COMUM CÍVEL</p><p><b>Órgão julgador:</b> 5ª Vara Cível da Comarca de Mossoró</p>
@@ -60,14 +72,35 @@ async function makeCaseFilePdf(path, number) {
     `<h3>CONTESTAÇÃO</h3><p>TELEFONIA GAMA S.A. sustenta a regularidade da cobrança e a inexistência de dano moral.</p>${stamp("40000003", 1)}`,
     `<h3>DESPACHO</h3><p>Intime-se a parte autora para, no prazo de 15 (quinze) dias, apresentar réplica à contestação, devendo juntar o extrato atualizado do SPC e comprovante de residência atualizado.</p><p>Após, conclusos.</p>${stamp("40000004", 1)}`,
   ];
-  await page.setContent(`<html><head><style>
-    body { font-family: Arial, sans-serif; font-size: 12px; margin: 0 }
-    .p { height: 1040px; position: relative; padding: 30px; box-sizing: border-box; page-break-after: always }
-    .stamp { position: absolute; bottom: 20px; left: 30px; font-size: 9px }
-    table { border-collapse: collapse } td, th { padding: 2px 12px 2px 0; text-align: left }
-  </style></head><body>${pages.map((p) => `<div class="p">${p}</div>`).join("")}</body></html>`);
-  await page.pdf({ path, format: "A4", margin: { top: 0, bottom: 0, left: 0, right: 0 } });
-  await page.close();
+  await renderPdf(path, pages);
+}
+
+/** PDF no formato do processo completo do eproc: capa com "Partes e Representantes" e eventos, e o carimbo do evento em cada página. */
+async function makeEprocPdf(path, number) {
+  const stamp = (ev, doc, pag) => `<div class="stamp">Processo ${number}/RS, Evento ${ev}, ${doc}, Página ${pag}</div>`;
+  const pages = [
+    `<p><b>Nº do processo:</b> ${number}</p><p><b>Classe da ação:</b> PROCEDIMENTO COMUM</p><p><b>Data de autuação:</b> 12/01/2026 09:15:00</p>
+     <p><b>Órgão Julgador:</b> Juízo Federal da 1ª VF de Porto Alegre</p><p><b>Nível de sigilo do processo:</b> Sem Sigilo (Nível 0)</p>
+     <p><b>Assuntos</b></p>
+     <table><tr><th>Código</th><th>Descrição</th><th>Principal</th></tr><tr><td>6114</td><td>Aposentadoria por Tempo de Contribuição (Art. 55/6)</td><td>Sim</td></tr></table>
+     <p><b>Partes e Representantes</b></p>
+     <table style="font-size: 11px"><tr><th>AUTOR</th><th>RÉU</th></tr>
+     <tr><td>JOÃO SEGURADO (123.456.789-09)<br>Procurador(es):<br>VOCÊ ADVOGADO (RS012345)</td>
+     <td>INSTITUTO NACIONAL DO SEGURO SOCIAL - INSS (29.979.036/0001-40)<br>Procurador(es):<br>PROCURADORIA REGIONAL FEDERAL DA 4ª REGIÃO (RS000001)</td></tr></table>
+     <p><b>Informações Adicionais</b></p><p>Justiça Gratuita: Deferida</p>
+     <p><b>Eventos</b></p>
+     <table><tr><th>Evento</th><th>Data/Hora</th><th>Descrição</th><th>Documentos</th></tr>
+     <tr><td>1</td><td>12/01/2026 09:15:00</td><td>Distribuído por sorteio</td><td>INIC1 PROC2</td></tr>
+     <tr><td>15</td><td>18/05/2026 14:00:00</td><td>Juntada de Contestação</td><td>CONTES1</td></tr>
+     <tr><td>22</td><td>05/10/2026 16:12:00</td><td>Despacho/Decisão</td><td>DESPADEC1</td></tr></table>`,
+    `<h3>EXCELENTÍSSIMO SENHOR JUIZ FEDERAL DA 1ª VARA FEDERAL DE PORTO ALEGRE</h3><p>JOÃO SEGURADO vem propor AÇÃO PREVIDENCIÁRIA em face do INSTITUTO NACIONAL DO SEGURO SOCIAL - INSS, para obter a aposentadoria por tempo de contribuição.</p>${stamp(1, "INIC1", 1)}`,
+    `<p>Dos pedidos. Requer a concessão do benefício desde o requerimento administrativo.</p>${stamp(1, "INIC1", 2)}`,
+    `<h3>PROCURAÇÃO</h3><p>Outorgante: JOÃO SEGURADO. Outorgado: VOCÊ ADVOGADO.</p>${stamp(1, "PROC2", 1)}`,
+    `<h3>CONTESTAÇÃO</h3><p>O INSS sustenta que não foi comprovado o tempo especial alegado na inicial.</p>${stamp(15, "CONTES1", 1)}`,
+    `<h3>DESPACHO/DECISÃO</h3><p>Intime-se a parte autora para, no prazo de 15 (quinze) dias, apresentar réplica à contestação, devendo juntar cópia integral do processo administrativo.</p>
+     <p>Documento eletrônico assinado por JUIZ FEDERAL TESTE, Juiz Federal, na forma do artigo 1º, inciso III, da Lei 11.419, de 19 de dezembro de 2006.</p>${stamp(22, "DESPADEC1", 1)}`,
+  ];
+  await renderPdf(path, pages);
 }
 
 const ACORDAO = `Superior Tribunal de Justiça
@@ -165,6 +198,53 @@ try {
   await closed(page);
   await page.getByRole("tab", { name: /Expedientes e prazos/ }).click();
   await page.getByText("Extrato atualizado do SPC", { exact: true }).waitFor();
+
+  // processo completo do eproc: a capa tem "Partes e Representantes" e cada página traz o evento e o documento
+  const eprocNumber = cnj("5004321", "2026", "4", "04", "7100");
+  const eprocPath = `${OUT}/processo-eproc.pdf`;
+  await makeEprocPdf(eprocPath, eprocNumber);
+  await page.goto(URL + "#/processos");
+  await page.getByRole("button", { name: /Importar PDF do processo/ }).click();
+  await page.locator(".modal input[type=file]").setInputFiles(eprocPath);
+  await page.getByText("Conferir o processo").waitFor();
+  expect(await page.getByText(eprocNumber).count(), "número do processo não foi lido da capa do eproc");
+  const eprocRows = await page.locator(".doc-preview-row").allInnerTexts();
+  expect(eprocRows.length === 5, `eproc: esperava 5 documentos, veio ${eprocRows.length}`);
+  expect(eprocRows.some((r) => r.includes("Evento 15, CONTES1") && r.includes("18/05/2026")), `eproc: contestação sem evento ou data: ${eprocRows.join(" | ")}`);
+  await page.getByText(/procurador: Procuradoria Regional Federal da 4ª Região \(RS000001\)/).waitFor();
+  await shot(page, "09b-importar-eproc");
+  await page.getByRole("button", { name: "Criar o processo" }).click();
+  await closed(page);
+  await page.getByRole("heading", { name: "João Segurado x Instituto Nacional do Seguro Social - INSS" }).waitFor();
+  await page.getByRole("tab", { name: /Resumo/ }).click();
+  await page.getByText(/parece pedir "Réplica"/).waitFor();
+  await page.getByRole("tab", { name: /Documentos/ }).click();
+  await page.getByRole("button", { name: /\d+ documentos/ }).click();
+  await page.getByText("Evento 22, DESPADEC1").waitFor();
+  await shot(page, "09c-documentos-eproc");
+
+  // PDF de outro sistema, sem carimbo: os marcadores (índice) do PDF separam os documentos
+  const marksPath = `${OUT}/processo-marcadores.pdf`;
+  await renderPdf(
+    marksPath,
+    [
+      `<h1>Petição inicial</h1><h2>Dos fatos</h2><p>A autora contratou o serviço e foi cobrada em duplicidade.</p>`,
+      `<h2>Dos pedidos</h2><p>Requer a devolução em dobro.</p>`,
+      `<h1>Sentença</h1><p>Ante o exposto, julgo procedente o pedido.</p>`,
+    ],
+    { outline: true },
+  );
+  await page.goto(URL + "#/processos");
+  await page.getByRole("button", { name: /Importar PDF do processo/ }).click();
+  await page.locator(".modal input[type=file]").setInputFiles(marksPath);
+  await page.getByText("Conferir o processo").waitFor();
+  const markRows = await page.locator(".doc-preview-row").allInnerTexts();
+  expect(
+    markRows.length === 2 && markRows[0].includes("Petição inicial") && markRows[0].includes("p. 1–2") && markRows[1].includes("Sentença"),
+    `marcadores: documentos inesperados: ${markRows.join(" | ")}`,
+  );
+  await page.getByRole("button", { name: "Fechar" }).click();
+  await closed(page);
 
   // jurisprudência: cola o acórdão e confere as partes
   await page.goto(URL + "#/jurisprudencia");
@@ -284,7 +364,7 @@ try {
   await page.reload();
   await page.goto(URL + "#/processos");
   await page.getByText("Ana Cliente x Telefonia Gama S.A.").waitFor();
-  expect((await page.locator(".case-row").count()) === 3, "processos não ficaram guardados");
+  expect((await page.locator(".case-row").count()) === 4, "processos não ficaram guardados");
   await page.getByText("Ana Cliente x Telefonia Gama S.A.").click();
   await page.getByRole("tab", { name: /Documentos/ }).click();
   await page.getByLabel("Pesquisar nos documentos do processo").fill("negativação");

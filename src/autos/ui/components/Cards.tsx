@@ -1,5 +1,6 @@
 import { ChevronDown, CircleCheck, FileText, Gavel, Pencil, RotateCcw, Trash } from "lucide-react";
 import { useState } from "react";
+import { courtRef } from "../../domain/casefile";
 import { formatDate, formatDateWeek } from "../../domain/dates";
 import { CHANNELS, deadlineReport, NOTICE_KINDS, noticeDeadline, taskDue, taskInternalDue, urgencyOf, type DeadlineResult } from "../../domain/deadlines";
 import { DOC_TYPES, TASK_KINDS, TASK_STATUS } from "../../domain/labels";
@@ -119,7 +120,7 @@ export function TaskCard({ task }: { task: Task }) {
                 {hint && (
                   <button className="link-btn small" onClick={() => runAction(A.toggleCheck, task.id, i.id, true, hint.id)} title="Marcar com o documento que já está na base">
                     já está nos autos: {hint.title}
-                    {hint.courtId ? ` (Id. ${hint.courtId})` : ""}
+                    {courtRef(hint.courtId) ? ` (${courtRef(hint.courtId)})` : ""}
                   </button>
                 )}
               </div>

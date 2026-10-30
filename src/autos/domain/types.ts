@@ -206,7 +206,7 @@ export interface Doc {
   title: string;
   type: DocType;
   date?: string;
-  /** Identificador no sistema do tribunal (Id. do PJe, código do e-SAJ). */
+  /** Identificador no sistema do tribunal (Id. do PJe, código do e-SAJ, evento e documento do eproc). */
   courtId?: string;
   signer?: string;
   origin: "arquivo" | "texto" | "processo";
