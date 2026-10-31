@@ -198,14 +198,20 @@ try {
   await page.getByRole("button", { name: "Adicionar uma despesa" }).first().click();
   await page.getByLabel("Descrição").fill("Aluguel");
   await page.getByLabel("Valor").fill("2400");
-  await page.getByLabel("Data").first().fill("2026-08-05");
+  // data de dois meses atrás: gera a de um mês atrás e a deste mês (3 no total), em qualquer dia em que o teste rodar
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+  const pad = (n) => String(n).padStart(2, "0");
+  const startISO = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(Math.min(now.getDate(), lastDay))}`;
+  await page.getByLabel("Data").first().fill(startISO);
   await page.getByRole("button", { name: "Observações e repetição" }).click();
   await page.locator(".repeat-field select").selectOption("monthly");
   await page.getByRole("button", { name: "Salvar" }).click();
   await closed(page);
   await page.reload();
   await page.waitForTimeout(300);
-  await waitCount(page.locator(".expense-row", { hasText: "Aluguel" }), 3, "aluguéis de ago, set e out");
+  await waitCount(page.locator(".expense-row", { hasText: "Aluguel" }), 3, "aluguel de dois meses atrás, do mês passado e deste mês");
   await shot(page, "19b-recorrente");
 
   // busca
