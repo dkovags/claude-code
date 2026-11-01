@@ -1,0 +1,65 @@
+[
+  {
+    "id": "exemplo-booking",
+    "date": "2027-03-01T00:07:00Z",
+    "sender": "noreply@booking.com",
+    "subject": "Detalhes da reserva de voo Brasília – Salvador",
+    "plaintextBody": "| De Brasília (BSB) para Salvador (SSA) |\n| sex., 9 de abr. · 15h55 - sex., 9 de abr. · 17h40 |\n| Direto · 1 h 45 min · Econômica |\n| Azul Linhas Aéreas Brasileiras · AD1111 |\n| Referência da reserva: AAA111 |\n| Bagagem |\n| • 1 item pessoal | • 1 bagagem de mão | • Nenhuma bagagem despachada |\n| Voo de volta |\n| De Salvador (SSA) para Brasília (BSB) |\n| qui., 15 de abr. · 9h05 - qui., 15 de abr. · 10h55 |\n| Direto · 1 h 50 min · Econômica |\n| Azul Linhas Aéreas Brasileiras · AD2222 |\n| Referência da reserva: AAA111 |"
+  },
+  {
+    "id": "exemplo-ryanair-itinerario",
+    "date": "2027-03-02T15:55:38Z",
+    "sender": "itinerary@ryanair.com",
+    "subject": "Itinerário de Viagem Ryanair",
+    "plaintextBody": "myRyanair | Destino:: Sevilha Reserva: BBB222 | A tua informação de voo | Para Sevilha FR1234 Lisboa - | Sevilha 10/04/2027 | Hora de partida - 22:20 | Hora de chegada - 23:55 | (LIS) - | (SVQ) | Passageiro(s): Sra. MARIA SOUSA ● Voo de ida: FR1234 | Recibo: | 29.99 EUR"
+  },
+  {
+    "id": "exemplo-ryanair-atraso",
+    "date": "2027-04-10T21:26:39Z",
+    "sender": "no-reply@ryanair.com",
+    "subject": "Atraso no voo: FR1234. Reserva Ryanair: BBB222",
+    "plaintextBody": "| Olá Maria Sousa, |\n| Lamentamos informar que o teu FR1234, de Lisboa para Sevilha está atrasado e a nova hora de partida prevista é 23:25. Pedimos desculpa pelo incómodo. |"
+  },
+  {
+    "id": "exemplo-kiwi-confirmacao",
+    "date": "2027-03-02T16:02:09Z",
+    "sender": "tickets@kiwi.com",
+    "subject": "Booking 900000001: Your booking is confirmed, Maria",
+    "plaintextBody": "| Booking number 900 000 001 |\n| ## Seville Vienna |\n| 19:20 |\n| Thu, 12.04. |\n| Seville • SVQ |\n| Seville Airport |\n| 4h 10m |\n| Wizz Air |\n| W69999 |\n| 01:30 |\n| Fri, 13.04. |\n| Vienna • VIE |\n| Vienna International |"
+  },
+  {
+    "id": "exemplo-kiwi-atraso",
+    "date": "2027-04-12T12:22:17Z",
+    "sender": "tickets@kiwi.com",
+    "subject": "Booking 900000001: Your departure is delayed",
+    "plaintextBody": "| Booking number 900 000 001 |\nYour *flight W69999* Seville → Vienna *was delayed*. For the new expected departure time, *please check the departure boards at the airport.*"
+  },
+  {
+    "id": "exemplo-wizzair",
+    "date": "2027-03-02T16:18:09Z",
+    "sender": "noreply@wizzair.com",
+    "subject": "Your travel itinerary: CCC333",
+    "plaintextBody": "| Flight confirmation code: | CCC333 |\n| Title | First name | Last name | Route | Cabin baggage | Checked-in bag | Seat |\n| MRS | Maria | Sousa | VIE-OTP | 1/40x30x20 | 0 | 12C |\n| GOING OUT | | Flight Number: W6 8888 |\n| Departs from: | | Arrives to: |\n| Vienna - Terminal 3 (VIE) | | Bucharest - Terminal 1 (OTP) |\n| 15/04/2027 16:15 | | 15/04/2027 22:50 |"
+  },
+  {
+    "id": "exemplo-edreams",
+    "date": "2027-03-02T16:16:59Z",
+    "sender": "notifications@mailer.edreams.com",
+    "subject": "A tua reserva está confirmada! (Referência: 10000000001)",
+    "plaintextBody": "| Referência da reserva da eDreams: 10000000001 |\n| Itinerário |\n| QUINTA 15 ABRIL 2027 | Confirmado |\n| Partida | | | 3h 35m |\n| 16:15 |\n| Viena | (Áustria) |\n| VIE · Aeroporto Schwechat |\n| Wizz Air · W6 8888 |\n| Referência da companhia aérea CCC333 |\n| 22:50 |\n| Bucareste | (Roménia) |\n| OTP · Aeroporto Henri Coanda |"
+  },
+  {
+    "id": "exemplo-azal",
+    "date": "2027-04-01T09:53:41Z",
+    "sender": "no.reply@azal.az",
+    "subject": "Your tickets",
+    "plaintextBody": "| Booking reference (PNR) DDD444 | | Email address maria@example.com |\n| Flight Information: |\n| Departure airport | | Arrival airport | | Departure date | | Arrival date | | Flight Number | | Class |\n| Heydar Aliyev International Airport , Terminal: 1 | | Tbilisi | | 18 Apr 2027 20:50 | | 18 Apr 2027 22:00 | | J2 7777 | | Budget |\n| Passengers | | Ticket number | | Cabin baggage | | Checked baggage | | Seat | | Meal |\n| Sousa Maria | | 1234567890123 | | 10 kg | | - | | | |"
+  },
+  {
+    "id": "exemplo-skyexpress",
+    "date": "2027-03-02T16:32:48Z",
+    "sender": "noreply@skyexpress.com",
+    "subject": "Your SKY express reservation: EEE555",
+    "plaintextBody": "| Flight information |\n| Confirmation Number: EEE555 |\n| Tbilisi International Airport (TBS) - Eleftherios Venizelos Airport (ATH) |\n| Sun 20 / 04 / 2027 |\n| 02:45 TBS | | 03:45 ATH |\n| Travel time: 3h 0m |\n| Flight number:GQ555 |\n| HAND LUGGAGE 8 KGS + 1 PERSONAL ITEM |"
+  }
+]

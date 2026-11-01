@@ -10,3 +10,6 @@ test-results/
 screenshots/
 dist-cloud/
 dist-preview/
+
+__pycache__/
+*.pyc
