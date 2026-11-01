@@ -6,6 +6,9 @@
 <title>Controle de Voos</title>
 <style>
 :root{
+  /* Tema escuro assumido: o app nasceu escuro e fica escuro nos dois temas
+     do hospedeiro. Por isso todas as cores são explícitas aqui. */
+  color-scheme:dark;
   --fundo:#0f1621; --painel:#172232; --borda:#243448; --linha:#1d2a3c;
   --texto:#e6edf5; --fraco:#9fb0c6; --azul:#4f8ef7;
   --verde:#2ed573; --ambar:#ffd93d; --vermelho:#ff4757; --roxo:#5f27cd; --teal:#00b894;
@@ -14,8 +17,9 @@
 body{margin:0;background:var(--fundo);color:var(--texto);
   font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
-.env{max-width:1320px;margin:0 auto;padding:16px}
-@media(max-width:700px){.env{padding:12px}}
+.env{max-width:1320px;margin:0 auto;padding-block:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px))}
 
 header.topo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:18px}
 .marca{font-size:20px;font-weight:800;letter-spacing:-.3px}
@@ -135,6 +139,13 @@ textarea.colar{width:100%;min-height:150px;background:var(--fundo);border:1px so
 <dialog id="dlgVoo"><form method="dialog" class="corpo" id="formVoo"></form></dialog>
 <dialog id="dlgImportar"><div class="corpo" id="corpoImportar"></div></dialog>
 <dialog id="dlgExportar"><div class="corpo" id="corpoExportar"></div></dialog>
+<dialog id="dlgConfirmar"><div class="corpo">
+  <h2 id="txtConfirmar"></h2>
+  <div class="acoes">
+    <button class="bt" id="naoConfirmar">Cancelar</button>
+    <button class="bt perigo" id="simConfirmar">Excluir</button>
+  </div>
+</div></dialog>
 
 <script>
 "use strict";
@@ -189,6 +200,12 @@ const LEGENDA = [
 // Quantos dias sem conferir até cobrar. A Azul remarca sem mandar e-mail, por
 // isso ela é cobrada mais cedo que as outras.
 const PRAZO_CONFERENCIA = { Azul: 14, padrão: 30 };
+
+// Salvar arquivo só funciona com o HTML aberto direto no navegador. Publicada,
+// a página roda em quadro restrito e o navegador engole o download sem erro,
+// então o botão some em vez de ficar ali sem fazer nada. A cópia funciona nos
+// dois casos.
+const PODE_BAIXAR = (() => { try { return window.self === window.top; } catch (e) { return false; } })();
 
 const SEMENTE = __DADOS__;
 
@@ -743,17 +760,65 @@ function abrirExportar() {
     <p class="ajuda">O JSON é o backup completo, com linha do tempo. O CSV sai nas 17
       colunas da planilha, pronto para colar.</p>
     <div class="acoes" style="justify-content:flex-start">
-      <button class="bt" id="expJson">JSON completo (${dados.length})</button>
-      <button class="bt" id="expCsvFut">CSV dos futuros (${futuros.length})</button>
-      <button class="bt" id="expCsvTudo">CSV de tudo (${dados.length})</button>
+      <button class="bt" data-exp="json">JSON completo (${dados.length})</button>
+      <button class="bt" data-exp="csvFut">CSV dos futuros (${futuros.length})</button>
+      <button class="bt" data-exp="csvTudo">CSV de tudo (${dados.length})</button>
     </div>
-    <div class="acoes"><button class="bt" id="fecharExport">Fechar</button></div>`;
+    <p class="ajuda" id="avisoExport"></p>
+    <textarea class="colar" id="saidaExport" readonly hidden></textarea>
+    <div class="acoes">
+      <button class="bt" id="copiarExport" hidden>Copiar</button>
+      <button class="bt" id="baixarExport" hidden>Baixar arquivo</button>
+      <button class="bt" id="fecharExport">Fechar</button>
+    </div>`;
   const hojeBr = hoje();
-  $("#expJson").onclick = () => baixar(`voos-${hojeBr}.json`, JSON.stringify(dados, null, 1), "application/json");
-  $("#expCsvFut").onclick = () => baixar(`voos-futuros-${hojeBr}.csv`, paraCsv(futuros), "text/csv");
-  $("#expCsvTudo").onclick = () => baixar(`voos-${hojeBr}.csv`, paraCsv(dados), "text/csv");
+  const conteudos = {
+    json: [`voos-${hojeBr}.json`, () => JSON.stringify(dados, null, 1), "application/json"],
+    csvFut: [`voos-futuros-${hojeBr}.csv`, () => paraCsv(futuros), "text/csv"],
+    csvTudo: [`voos-${hojeBr}.csv`, () => paraCsv(dados), "text/csv"],
+  };
+  let escolhido = null;
+  $("#corpoExportar").onclick = ev => {
+    const alvo = ev.target.closest("[data-exp]");
+    if (!alvo) return;
+    const [nome, gerar, tipo] = conteudos[alvo.dataset.exp];
+    escolhido = { nome, texto: gerar(), tipo };
+    const saida = $("#saidaExport");
+    saida.value = escolhido.texto; saida.hidden = false;
+    $("#copiarExport").hidden = false;
+    $("#baixarExport").hidden = !PODE_BAIXAR;
+    $("#avisoExport").textContent = `${nome} — ${escolhido.texto.split("\n").length} linha(s). `
+      + (PODE_BAIXAR ? "Copie o texto ou baixe o arquivo." : "Copie o texto: nesta página o navegador não deixa salvar arquivo.");
+  };
+  $("#copiarExport").onclick = async () => {
+    const saida = $("#saidaExport");
+    try {
+      await navigator.clipboard.writeText(escolhido.texto);
+      $("#avisoExport").textContent = "Copiado.";
+    } catch (e) {
+      // Área de transferência negada: deixa o texto selecionado para copiar à mão.
+      saida.focus(); saida.select();
+      $("#avisoExport").textContent = "Não consegui copiar sozinho: o texto está selecionado.";
+    }
+  };
+  // Download só funciona com o arquivo local; na página publicada ele é inerte,
+  // e por isso a cópia existe ao lado.
+  $("#baixarExport").onclick = () => baixar(escolhido.nome, escolhido.texto, escolhido.tipo);
   $("#fecharExport").onclick = () => $("#dlgExportar").close();
   $("#dlgExportar").showModal();
+}
+
+// Confirmação própria: o diálogo nativo do navegador não aparece quando a
+// página roda publicada, e confirm() devolve false na calada.
+function confirmar(texto) {
+  return new Promise(resolve => {
+    $("#txtConfirmar").textContent = texto;
+    const fechar = r => { $("#dlgConfirmar").close(); resolve(r); };
+    $("#simConfirmar").onclick = () => fechar(true);
+    $("#naoConfirmar").onclick = () => fechar(false);
+    $("#dlgConfirmar").oncancel = () => resolve(false);
+    $("#dlgConfirmar").showModal();
+  });
 }
 
 // --- Eventos ---------------------------------------------------------------
@@ -771,9 +836,8 @@ function ligarEventosConteudo() {
     else if (b.dataset.editar) abrirVoo(b.dataset.editar);
     else if (b.dataset.excluir) {
       const r = dados.find(x => x.id === b.dataset.excluir);
-      if (r && confirm(`Excluir o voo ${r.localizador} ${r.origem}→${r.destino} de ${brDate(r.data)}?`)) {
-        dados = dados.filter(x => x.id !== r.id); salvar(); render();
-      }
+      if (r) confirmar(`Excluir o voo ${r.localizador} ${r.origem}→${r.destino} de ${brDate(r.data)}?`)
+        .then(sim => { if (sim) { dados = dados.filter(x => x.id !== r.id); salvar(); render(); } });
     }
     else if (b.dataset.conferir) marcarConferido(b.dataset.conferir);
     else if (b.dataset.ordenar) {
