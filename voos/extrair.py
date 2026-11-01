@@ -21,6 +21,18 @@ import unicodedata
 from dataclasses import dataclass, field, asdict
 from datetime import date, datetime
 
+# Estados da coluna "Alterado".
+#
+#   Não ──alteração──▶ Alterado ──remarcação──▶ Remarcado ──alteração──▶ Alterado
+#
+# "Alterado" é voo que a companhia mexeu e que ainda não foi remarcado.
+# "Remarcado" é voo que já foi refeito depois da alteração, e continua assim
+# até sofrer uma alteração nova. Remarcação voluntária, sem alteração antes,
+# não muda nada: a coluna registra o que a companhia fez, não o que você fez.
+NAO = "Não"
+ALTERADO = "Alterado"
+REMARCADO = "Remarcado"
+
 # Colunas da aba "Voos", na ordem exata da planilha.
 COLUNAS = [
     "Data", "Localizador", "Cidade", "Origem", "H. Ida", "Destino", "H. Chegada",
@@ -88,7 +100,12 @@ class Voo:
     localizador: str = ""
     forma: str = ""
     assento: str = ""
-    alterado: str = "Não"
+    alterado: str = NAO
+    # 'confirmacao' = e-mail de reserva; 'consulta' = print/consulta ao
+    # site da companhia. Muda a leitura de uma diferença de horário:
+    # na consulta é a companhia mexendo sem avisar; na confirmação, pode
+    # ser a remarcação de um voo que já estava alterado.
+    tipo: str = "confirmacao"
     conexoes: str = ""
     observacoes: str = ""
     # Procedência: não vai para a planilha, serve para auditar cada linha.
@@ -594,7 +611,7 @@ def consolidar(resultado: Resultado) -> Resultado:
     for alteracao in resultado.alteracoes:
         for voo in unicos.values():
             if so_digitos(voo.voo) == so_digitos(alteracao.voo):
-                voo.alterado = "Sim"
+                voo.alterado = ALTERADO
                 voo.observacoes = " ".join(
                     p for p in [voo.observacoes, f"{alteracao.descricao} "
                                 f"(aviso de {alteracao.fonte_data})."] if p
@@ -611,6 +628,150 @@ def _prioridade(voo: Voo) -> int:
     return 2 if voo.forma in {
         "Wizz Air", "Ryanair", "AZAL", "SKY express", "Aegean", "Azul", "Gol", "Latam"
     } else 1
+
+
+# --------------------------------------------------------------------------
+# Coluna "Alterado": máquina de estados e fusão com a planilha
+# --------------------------------------------------------------------------
+
+# O que uma observação nova pode contradizer.
+CAMPOS_DE_HORARIO = ("Data", "Origem", "H. Ida", "Destino", "H. Chegada", "Voo")
+
+# O que só a planilha sabe. O Gmail não vê nada disso e não pode sobrescrever.
+# "Alterado" está aqui de propósito: a Azul muda voo sem mandar e-mail, então
+# quem registra a alteração é você, olhando o app.
+COLUNAS_DA_PLANILHA = (
+    "Alterado", "Assento", "Ida", "Volta", "Antecipação Desejada?",
+)
+
+
+def proximo_estado(atual: str, evento: str) -> str:
+    """Avança a coluna "Alterado".
+
+        Não ──alteração──▶ Alterado ──remarcação──▶ Remarcado ──alteração──▶ Alterado
+
+    - ``alteracao``: a companhia mexeu no voo. De qualquer estado vai para
+      Alterado, inclusive de Remarcado: alteração nova sobre voo já remarcado
+      volta a ser alteração pendente.
+    - ``remarcacao``: a reserva foi refeita. Só promove voo que estava
+      Alterado; remarcação voluntária, sem alteração antes, não suja a coluna,
+      porque ela registra o que a companhia fez, não o que você fez.
+    """
+    atual = (atual or "").strip() or NAO
+    if evento == "alteracao":
+        return ALTERADO
+    if evento == "remarcacao":
+        return REMARCADO if atual in (ALTERADO, REMARCADO) else atual
+    return atual
+
+
+def chave_reserva(linha: dict) -> tuple:
+    """Identidade do trecho entre a planilha e o que se observa depois.
+
+    Casa por localizador + destino, nunca por data: quando a companhia muda a
+    data (05/11 vira 04/11) ou o aeroporto de origem (CGH vira GRU), continua
+    sendo o mesmo trecho da mesma reserva — e é justamente esse caso que
+    precisa ser detectado, não ignorado.
+    """
+    return (
+        (linha.get("Localizador") or "").strip().upper(),
+        (linha.get("Destino") or "").strip().upper(),
+    )
+
+
+def carregar_planilha(caminho: str) -> list[dict]:
+    """Lê a aba Voos exportada em CSV, descartando as linhas de legenda."""
+    with open(caminho, encoding="utf-8-sig", newline="") as arquivo:
+        return [
+            linha for linha in csv.DictReader(arquivo)
+            if re.fullmatch(r"\d{2}/\d{2}/\d{4}", (linha.get("Data") or "").strip())
+        ]
+
+
+def comparar(antes: dict, depois: dict) -> list[str]:
+    """Diferenças de horário entre a linha da planilha e a observada."""
+    diferencas = []
+    for campo in CAMPOS_DE_HORARIO:
+        velho = (antes.get(campo) or "").strip()
+        novo = (depois.get(campo) or "").strip()
+        if novo and velho != novo:
+            diferencas.append(f"{campo} {velho or '(vazio)'} → {novo}")
+    return diferencas
+
+
+def mesclar(planilha: list[dict], observados: list[Voo]) -> tuple[list[dict], list[str]]:
+    """Funde a planilha com o que foi observado, preservando o que só ela sabe.
+
+    A planilha é a base: linha sem observação nova fica intacta. Observação
+    que bate com uma linha atualiza só os campos de horário e avança a coluna
+    "Alterado". Observação sem linha correspondente entra como linha nova.
+    """
+    por_chave = {chave_reserva(linha): linha for linha in planilha}
+    usadas = set()
+    notas: list[str] = []
+    saida = [dict(linha) for linha in planilha]
+    indice = {chave_reserva(linha): i for i, linha in enumerate(saida)}
+
+    for voo in observados:
+        nova = voo.linha()
+        chave = chave_reserva(nova)
+        antiga = por_chave.get(chave)
+
+        if antiga is None:
+            nova["Alterado"] = voo.alterado
+            saida.append(nova)
+            notas.append(
+                f"NOVA LINHA {nova['Data']} {nova['Origem']}→{nova['Destino']} "
+                f"{nova['Companhia']} {nova['Voo']} ({voo.fonte_assunto})"
+            )
+            continue
+
+        usadas.add(chave)
+        diferencas = comparar(antiga, nova)
+        estado = (antiga.get("Alterado") or NAO).strip() or NAO
+
+        if voo.alterado == ALTERADO:
+            evento = "alteracao"          # a companhia avisou
+        elif not diferencas:
+            evento = ""
+        elif voo.tipo == "consulta":
+            evento = "alteracao"          # mudou sem avisar; só o app mostrou
+        elif estado == ALTERADO:
+            evento = "remarcacao"         # confirmação nova sobre voo alterado
+        else:
+            evento = "alteracao"
+
+        mesclada = dict(antiga)
+        for campo in CAMPOS_DE_HORARIO + ("Cidade", "Companhia", "Conexões"):
+            if (nova.get(campo) or "").strip():
+                mesclada[campo] = nova[campo]
+        for campo in COLUNAS_DA_PLANILHA:
+            mesclada[campo] = antiga.get(campo, "")
+        if not (mesclada.get("Forma") or "").strip():
+            mesclada["Forma"] = nova.get("Forma", "")
+        mesclada["Alterado"] = proximo_estado(estado, evento)
+
+        if diferencas:
+            rotulo = {"alteracao": "ALTERADO", "remarcacao": "REMARCADO"}.get(evento, "")
+            notas.append(
+                f"{rotulo} {chave[0]} → {chave[1]}: " + "; ".join(diferencas)
+            )
+            mesclada["Observações"] = " ".join(
+                p for p in [antiga.get("Observações", ""),
+                            f"[{rotulo}] " + "; ".join(diferencas) + "."] if p
+            ).strip()
+
+        saida[indice[chave]] = mesclada
+
+    saida.sort(key=lambda linha: _data_br(linha.get("Data", "")))
+    return saida, notas
+
+
+def _data_br(texto: str) -> date:
+    try:
+        return datetime.strptime(texto.strip(), "%d/%m/%Y").date()
+    except ValueError:
+        return date.max
 
 
 def escrever_csv(voos: list[Voo], caminho: str) -> None:
@@ -647,6 +808,12 @@ def escrever_relatorio(resultado: Resultado, caminho: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mensagens", help="JSON com a lista de mensagens do Gmail")
+    parser.add_argument(
+        "--planilha",
+        help="CSV da aba Voos atual. Com ele a planilha vira a base: o que "
+             "só ela sabe (Alterado, Assento, Ida/Volta) é preservado e as "
+             "divergências avançam a coluna Alterado.",
+    )
     parser.add_argument("--csv", help="arquivo CSV de saída, no formato da planilha")
     parser.add_argument("--relatorio", help="arquivo Markdown com o resumo e as alterações")
     parser.add_argument("--json", help="arquivo JSON com os voos normalizados")
@@ -658,6 +825,23 @@ def main(argv: list[str] | None = None) -> int:
         mensagens = mensagens.get("messages", [])
 
     resultado = extrair(mensagens)
+
+    if args.planilha:
+        linhas, notas = mesclar(carregar_planilha(args.planilha), resultado.voos)
+        for nota in notas:
+            print(nota, file=sys.stderr)
+        if args.csv:
+            with open(args.csv, "w", newline="", encoding="utf-8") as arquivo:
+                escritor = csv.DictWriter(arquivo, fieldnames=COLUNAS)
+                escritor.writeheader()
+                escritor.writerows(linhas)
+        elif not args.relatorio and not args.json:
+            escritor = csv.DictWriter(sys.stdout, fieldnames=COLUNAS)
+            escritor.writeheader()
+            escritor.writerows(linhas)
+        if args.relatorio:
+            escrever_relatorio(resultado, args.relatorio)
+        return 0
 
     if args.csv:
         escrever_csv(resultado.voos, args.csv)
