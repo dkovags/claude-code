@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle de Voos</title>
+<style>
+:root{
+  --fundo:#0f1621; --painel:#172232; --borda:#243448; --linha:#1d2a3c;
+  --texto:#e6edf5; --fraco:#9fb0c6; --azul:#4f8ef7;
+  --verde:#2ed573; --ambar:#ffd93d; --vermelho:#ff4757; --roxo:#5f27cd; --teal:#00b894;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--texto);
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.env{max-width:1320px;margin:0 auto;padding:16px}
+@media(max-width:700px){.env{padding:12px}}
+
+header.topo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:18px}
+.marca{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.marca small{display:block;font-size:11px;font-weight:500;color:var(--fraco);letter-spacing:0}
+.cresce{flex:1}
+.salvo{font-size:11px;color:var(--verde)}
+
+.bt{background:var(--painel);border:1px solid var(--borda);border-radius:9px;
+  padding:8px 13px;cursor:pointer;font-size:13px;font-weight:600}
+.bt:hover{border-color:var(--azul)}
+.bt.primario{background:var(--azul);border-color:var(--azul);color:#06101f}
+.bt.perigo{border-color:#5a2730;color:#ff8c96}
+.bt.mini{padding:4px 9px;font-size:11px;border-radius:7px}
+
+nav.abas{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+nav.abas button{background:none;border:1px solid transparent;border-radius:9px;
+  padding:8px 14px;cursor:pointer;color:var(--fraco);font-weight:600}
+nav.abas button[aria-selected=true]{background:var(--painel);border-color:var(--borda);color:var(--texto)}
+
+.cartoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+.cartao{background:var(--painel);border:1px solid var(--borda);border-radius:13px;padding:14px}
+.cartao .n{font-size:26px;font-weight:800;line-height:1.1}
+.cartao .r{font-size:11px;color:var(--fraco);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+.cartao.alerta{border-color:#5a2730}
+.cartao.alerta .n{color:var(--vermelho)}
+.cartao.aviso{border-color:#5a4f1e}
+.cartao.aviso .n{color:var(--ambar)}
+
+.bloco{background:var(--painel);border:1px solid var(--borda);border-radius:13px;
+  padding:15px;margin-bottom:16px}
+.bloco h2{margin:0 0 4px;font-size:14px}
+.bloco p.ajuda{margin:0 0 12px;font-size:12px;color:var(--fraco)}
+
+.ferramentas{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.ferramentas input[type=search]{flex:1;min-width:190px;background:var(--fundo);
+  border:1px solid var(--borda);border-radius:9px;padding:9px 12px}
+.ferramentas select{background:var(--fundo);border:1px solid var(--borda);
+  border-radius:9px;padding:9px 11px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 10px;color:var(--fraco);font-size:11px;
+  text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--borda);
+  cursor:pointer;white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--linha);vertical-align:top}
+tr.voo:hover{background:#1b2838}
+.rolagem{overflow-x:auto}
+.vazio{padding:28px;text-align:center;color:var(--fraco)}
+
+.selo{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.selo.nao{background:var(--verde);color:#09240f}
+.selo.remarcado{background:var(--ambar);color:#332a00}
+.selo.alterado{background:var(--vermelho);color:#fff}
+.selo.ida{background:var(--roxo);color:#fff}
+.selo.volta{background:var(--teal);color:#042a22}
+.selo.cia{background:#2b3b52;color:#cfe0f5}
+
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.fraco{color:var(--fraco)}
+.linhatempo{margin:6px 0 0;padding:0 0 0 15px;border-left:2px solid var(--borda);
+  list-style:none;font-size:12px}
+.linhatempo li{margin-bottom:7px}
+.linhatempo .quando{color:var(--fraco);font-size:11px}
+
+.pendencia{display:flex;gap:10px;align-items:center;padding:9px 0;
+  border-bottom:1px solid var(--linha);flex-wrap:wrap}
+.pendencia:last-child{border-bottom:0}
+.dias{font-weight:800;min-width:54px}
+.dias.ok{color:var(--verde)} .dias.atencao{color:var(--ambar)} .dias.vencido{color:var(--vermelho)}
+
+dialog{background:var(--painel);color:var(--texto);border:1px solid var(--borda);
+  border-radius:15px;padding:0;max-width:760px;width:94vw}
+dialog::backdrop{background:#000b;backdrop-filter:blur(2px)}
+dialog .corpo{padding:18px;max-height:80vh;overflow:auto}
+dialog h2{margin:0 0 12px;font-size:16px}
+.campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:11px}
+label.campo{display:block;font-size:11px;color:var(--fraco);font-weight:600}
+label.campo>span{display:block;margin-bottom:4px}
+label.campo input,label.campo select,label.campo textarea{width:100%;background:var(--fundo);
+  border:1px solid var(--borda);border-radius:8px;padding:8px 10px;color:var(--texto)}
+.largo{grid-column:1/-1}
+textarea.colar{width:100%;min-height:150px;background:var(--fundo);border:1px solid var(--borda);
+  border-radius:9px;padding:11px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.acoes{display:flex;gap:9px;justify-content:flex-end;margin-top:15px;flex-wrap:wrap}
+
+.previa{font-size:12.5px}
+.previa .grupo{margin-bottom:13px}
+.previa .grupo h3{margin:0 0 6px;font-size:12px;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--fraco)}
+.previa .item{background:var(--fundo);border:1px solid var(--borda);border-radius:9px;
+  padding:9px 11px;margin-bottom:6px}
+.de{color:var(--vermelho)} .para{color:var(--verde)}
+.legenda{font-size:11.5px;color:var(--fraco)}
+.legenda b{color:var(--texto)}
+.legenda div{margin-bottom:3px}
+</style>
+</head>
+<body>
+<div class="env">
+  <header class="topo">
+    <div class="marca">✈️ Controle de Voos<small>Gestão pessoal de passagens aéreas</small></div>
+    <div class="cresce"></div>
+    <span class="salvo" id="salvo"></span>
+    <button class="bt" id="btImportar">⤓ Importar</button>
+    <button class="bt" id="btExportar">⤒ Exportar</button>
+    <button class="bt primario" id="btNovo">+ Novo voo</button>
+  </header>
+
+  <nav class="abas" role="tablist">
+    <button role="tab" data-aba="painel" aria-selected="true">Painel</button>
+    <button role="tab" data-aba="Voos" aria-selected="false">Voos futuros</button>
+    <button role="tab" data-aba="Historico" aria-selected="false">Histórico</button>
+  </nav>
+
+  <main id="conteudo"></main>
+</div>
+
+<dialog id="dlgVoo"><form method="dialog" class="corpo" id="formVoo"></form></dialog>
+<dialog id="dlgImportar"><div class="corpo" id="corpoImportar"></div></dialog>
+<dialog id="dlgExportar"><div class="corpo" id="corpoExportar"></div></dialog>
+
+<script>
+"use strict";
+// ===========================================================================
+// Controle de Voos
+//
+// Página única, sem dependência externa: abre offline, com arquivo local.
+// Os dados vivem no localStorage; a semente embutida só é usada na primeira
+// abertura. Importação, detecção de alteração e exportação estão todas aqui.
+// ===========================================================================
+
+// --- Estados da coluna "Alterado" -----------------------------------------
+//
+//   Não ──alteração──▶ Alterado ──remarcação──▶ Remarcado ──alteração──▶ Alterado
+//
+// "Alterado" é voo que a companhia mexeu e que ainda não foi remarcado.
+// "Remarcado" é voo já refeito depois da alteração, e continua assim até
+// sofrer alteração nova. Remarcação voluntária, sem alteração antes, não muda
+// nada: a coluna registra o que a companhia fez, não o que você fez.
+const NAO = "Não", ALTERADO = "Alterado", REMARCADO = "Remarcado";
+
+function proximoEstado(atual, evento) {
+  atual = (atual || "").trim() || NAO;
+  if (evento === "alteracao") return ALTERADO;
+  if (evento === "remarcacao") return (atual === ALTERADO || atual === REMARCADO) ? REMARCADO : atual;
+  return atual;
+}
+
+// Qualquer coisa fora de "Não" e "Remarcado" conta como pendência. Os códigos
+// antigos com asterisco ("Sim*", "Não***") continuam valendo e são tratados
+// pelo que significam: "Sim..." é pendência, "Não..." não é.
+const ehPendente = v => !!v && v !== NAO && v !== REMARCADO && !/^Não/.test(v);
+
+const CHAVE = "voos_app_data_v5";
+const CHAVES_ANTIGAS = ["voos_app_data_v4", "voos_app_data_v3"];
+
+const COLUNAS_CSV = ["Data","Localizador","Cidade","Origem","H. Ida","Destino","H. Chegada",
+  "Companhia","Voo","Alterado","Forma","Assento","Ida","Volta","Antecipação Desejada?",
+  "Conexões","Observações"];
+
+const LEGENDA = [
+  [ALTERADO, "A companhia mexeu no voo e ele ainda não foi remarcado"],
+  [REMARCADO, "Já refeito depois da alteração; continua assim até sofrer alteração nova"],
+  ["*", "Outro voo do mesmo localizador alterado"],
+  ["**", "Aparentemente sim. Companhia não confirmou"],
+  ["***", "Alteração inferior a 30 minutos (doméstico) ou 60 minutos (internacional)"],
+  ["****", "Recebi a notificação de alteração/cancelamento do voo"],
+  ["*****", "Sistema não permite consulta / Erro na busca"],
+  ["******", "Dificuldade de reacomodação com a empresa"],
+];
+
+// Quantos dias sem conferir até cobrar. A Azul remarca sem mandar e-mail, por
+// isso ela é cobrada mais cedo que as outras.
+const PRAZO_CONFERENCIA = { Azul: 14, padrão: 30 };
+
+const SEMENTE = __DADOS__;
+
+// --- Utilidades ------------------------------------------------------------
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const hoje = () => new Date().toISOString().slice(0, 10);
+const brDate = iso => /^\d{4}-\d{2}-\d{2}$/.test(iso || "")
+  ? iso.slice(8,10) + "/" + iso.slice(5,7) + "/" + iso.slice(0,4) : (iso || "");
+const isoDate = br => /^\d{2}\/\d{2}\/\d{4}$/.test(br || "")
+  ? br.slice(6,10) + "-" + br.slice(3,5) + "-" + br.slice(0,2) : (br || "");
+// Nunca conferido conta como 999 dias: fica no topo da fila sem virar NaN
+// na hora de ordenar.
+const NUNCA = 999;
+const diasDesde = iso => iso
+  ? Math.floor((Date.parse(hoje()) - Date.parse(iso)) / 86400000) : NUNCA;
+
+// Identidade de um trecho: localizador + destino, nunca a data. Quando a
+// companhia muda a data (05/11 virar 04/11) ou o aeroporto de origem (CGH
+// virar GRU), continua sendo o mesmo trecho da mesma reserva, e é esse caso
+// que precisa ser detectado em vez de virar linha duplicada.
+const chave = r => `${(r.localizador||"").trim().toUpperCase()}|${(r.destino||"").trim().toUpperCase()}`;
+
+const CAMPOS_HORARIO = [
+  ["data","Data"], ["origem","Origem"], ["horaIda","Saída"],
+  ["destino","Destino"], ["horaChegada","Chegada"], ["voo","Voo"], ["companhia","Companhia"],
+];
+
+function compararTrecho(antigo, novo) {
+  const difs = [];
+  for (const [campo, rotulo] of CAMPOS_HORARIO) {
+    const a = String(antigo[campo] ?? "").trim();
+    const b = String(novo[campo] ?? "").trim();
+    if (b && a !== b) difs.push({ campo, rotulo, de: a, para: b });
+  }
+  return difs;
+}
+
+// --- Armazenamento ---------------------------------------------------------
+function normalizar(r, i) {
+  return {
+    id: r.id || `v${i}`,
+    data: r.data || "", localizador: r.localizador || "", cidade: r.cidade || "",
+    origem: r.origem || "", horaIda: r.horaIda || "", destino: r.destino || "",
+    horaChegada: r.horaChegada || "", companhia: r.companhia || "", voo: r.voo || "",
+    alterado: r.alterado || NAO, forma: r.forma || "", assento: r.assento || "",
+    ida: !!r.ida, volta: !!r.volta, antecipacao: r.antecipacao || "",
+    conexoes: Array.isArray(r.conexoes) ? r.conexoes : [],
+    conexoesRaw: r.conexoesRaw || "", observacoes: r.observacoes || "",
+    aba: r.aba === "Historico" ? "Historico" : "Voos",
+    historico: Array.isArray(r.historico) ? r.historico : [],
+    conferidoEm: r.conferidoEm || "",
+    fonte: r.fonte || "",
+  };
+}
+
+// Voo com data passada sai da aba Voos sozinho.
+function arquivar(regs) {
+  const a = hoje();
+  return regs.map(r => (r.aba === "Voos" && r.data && r.data < a) ? { ...r, aba: "Historico" } : r);
+}
+
+function carregar() {
+  for (const k of [CHAVE, ...CHAVES_ANTIGAS]) {
+    try {
+      const bruto = localStorage.getItem(k);
+      if (!bruto) continue;
+      const lido = JSON.parse(bruto);
+      if (!Array.isArray(lido) || !lido.length) continue;
+      // Versão antiga: absorve o que houver nela e completa com a semente,
+      // sem apagar a chave antiga, para dar caminho de volta.
+      if (k !== CHAVE) {
+        // Aqui a chave é exata (inclui a data): o objetivo é não duplicar o
+        // que já existe, não casar trechos remarcados.
+        const exata = r => chave(r) + "|" + (r.data || "");
+        const vistos = new Set(lido.map(exata));
+        const faltando = SEMENTE.filter(r => !vistos.has(exata(r)));
+        return arquivar([...lido, ...faltando].map(normalizar));
+      }
+      return arquivar(lido.map(normalizar));
+    } catch (e) { /* chave corrompida: tenta a próxima */ }
+  }
+  return arquivar(SEMENTE.map(normalizar));
+}
+
+let dados = carregar();
+
+function salvar() {
+  try {
+    localStorage.setItem(CHAVE, JSON.stringify(dados));
+    const s = $("#salvo");
+    s.textContent = "✓ salvo";
+    clearTimeout(salvar._t);
+    salvar._t = setTimeout(() => { s.textContent = ""; }, 1800);
+  } catch (e) {
+    $("#salvo").textContent = "⚠ não foi possível salvar";
+  }
+}
+
+function registrar(r, tipo, texto, fonte) {
+  r.historico = r.historico || [];
+  r.historico.push({ em: hoje(), tipo, texto, fonte: fonte || "" });
+}
+
+// --- Importação ------------------------------------------------------------
+// Aceita JSON (lista de objetos) ou CSV com o cabeçalho da planilha.
+function lerEntrada(texto) {
+  texto = texto.trim();
+  if (!texto) return [];
+  if (texto[0] === "[" || texto[0] === "{") {
+    const j = JSON.parse(texto);
+    return (Array.isArray(j) ? j : [j]).map(converterJson);
+  }
+  return lerCsv(texto);
+}
+
+function converterJson(o) {
+  const r = { ...o };
+  if (r.data && r.data.includes("/")) r.data = isoDate(r.data);
+  if (r.h_ida && !r.horaIda) r.horaIda = r.h_ida;
+  if (r.h_chegada && !r.horaChegada) r.horaChegada = r.h_chegada;
+  return r;
+}
+
+function lerCsv(texto) {
+  const linhas = dividirCsv(texto);
+  if (!linhas.length) return [];
+  const cab = linhas[0].map(c => c.trim());
+  const idx = n => cab.indexOf(n);
+  const pos = {
+    data: idx("Data"), localizador: idx("Localizador"), cidade: idx("Cidade"),
+    origem: idx("Origem"), horaIda: idx("H. Ida"), destino: idx("Destino"),
+    horaChegada: idx("H. Chegada"), companhia: idx("Companhia"), voo: idx("Voo"),
+    alterado: idx("Alterado"), forma: idx("Forma"), assento: idx("Assento"),
+    conexoesRaw: idx("Conexões"), observacoes: idx("Observações"),
+  };
+  const saida = [];
+  for (const l of linhas.slice(1)) {
+    const pegar = k => pos[k] >= 0 ? (l[pos[k]] || "").trim() : "";
+    const data = pegar("data");
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(data)) continue;   // pula legenda e vazios
+    saida.push({
+      data: isoDate(data), localizador: pegar("localizador"), cidade: pegar("cidade"),
+      origem: pegar("origem"), horaIda: pegar("horaIda"), destino: pegar("destino"),
+      horaChegada: pegar("horaChegada"), companhia: pegar("companhia"), voo: pegar("voo"),
+      alterado: pegar("alterado"), forma: pegar("forma"), assento: pegar("assento"),
+      conexoesRaw: pegar("conexoesRaw"), observacoes: pegar("observacoes"),
+    });
+  }
+  return saida;
+}
+
+function dividirCsv(texto) {
+  const linhas = []; let campo = "", linha = [], aspas = false;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    if (aspas) {
+      if (c === '"') { if (texto[i+1] === '"') { campo += '"'; i++; } else aspas = false; }
+      else campo += c;
+    } else if (c === '"') aspas = true;
+    else if (c === ",") { linha.push(campo); campo = ""; }
+    else if (c === "\n") { linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
+    else if (c !== "\r") campo += c;
+  }
+  if (campo || linha.length) { linha.push(campo); linhas.push(linha); }
+  return linhas.filter(l => l.some(c => c.trim()));
+}
+
+// Monta a prévia da importação sem aplicar nada.
+// `tipo` muda a leitura de uma divergência de horário:
+//   "consulta"    = print ou consulta ao site da companhia. Divergência é
+//                   alteração silenciosa, daquelas que a Azul não manda por e-mail.
+//   "confirmacao" = e-mail de reserva. Sobre voo que já estava Alterado,
+//                   divergência quer dizer que a reserva foi refeita: remarcação.
+function planejarImportacao(entrada, tipo, fonte) {
+  // Só as reservas ativas entram no casamento. O mesmo localizador costuma
+  // aparecer também no histórico: uma reserva remarcada de um ano para o
+  // outro deixa dois trechos com localizador e destino iguais, um arquivado
+  // e um ativo. Importação nunca
+  // reescreve voo arquivado; se houver mais de um ativo, vale o mais recente.
+  const porChave = new Map();
+  for (const r of dados.filter(r => r.aba === "Voos")) {
+    const k = chave(r), anterior = porChave.get(k);
+    if (!anterior || (r.data || "") > (anterior.data || "")) porChave.set(k, r);
+  }
+  const plano = { novos: [], mudados: [], iguais: 0, tipo, fonte };
+  for (const bruto of entrada) {
+    const nova = normalizar(bruto, Math.random());
+    if (!nova.localizador || !nova.data) continue;
+    const atual = porChave.get(chave(nova));
+    if (!atual) { plano.novos.push(nova); continue; }
+    const difs = compararTrecho(atual, nova);
+    if (!difs.length) { plano.iguais++; continue; }
+    const estadoAtual = atual.alterado || NAO;
+    let evento;
+    if (tipo === "consulta") evento = "alteracao";
+    else if (estadoAtual === ALTERADO) evento = "remarcacao";
+    else evento = "alteracao";
+    plano.mudados.push({ atual, nova, difs, evento, estadoNovo: proximoEstado(estadoAtual, evento) });
+  }
+  return plano;
+}
+
+function aplicarImportacao(plano) {
+  for (const n of plano.novos) {
+    n.fonte = plano.fonte;
+    n.conferidoEm = plano.tipo === "consulta" ? hoje() : n.conferidoEm;
+    registrar(n, "cadastro", "Cadastrado pela importação", plano.fonte);
+    dados.push(n);
+  }
+  for (const m of plano.mudados) {
+    const texto = m.difs.map(d => `${d.rotulo}: ${d.de || "(vazio)"} → ${d.para}`).join("; ");
+    Object.assign(m.atual, {
+      data: m.nova.data || m.atual.data,
+      origem: m.nova.origem || m.atual.origem,
+      horaIda: m.nova.horaIda || m.atual.horaIda,
+      destino: m.nova.destino || m.atual.destino,
+      horaChegada: m.nova.horaChegada || m.atual.horaChegada,
+      voo: m.nova.voo || m.atual.voo,
+      companhia: m.nova.companhia || m.atual.companhia,
+      cidade: m.nova.cidade || m.atual.cidade,
+      conexoesRaw: m.nova.conexoesRaw || m.atual.conexoesRaw,
+      alterado: m.estadoNovo,
+      fonte: plano.fonte,
+      conferidoEm: plano.tipo === "consulta" ? hoje() : m.atual.conferidoEm,
+    });
+    registrar(m.atual, m.evento, texto, plano.fonte);
+  }
+  dados = arquivar(dados);
+  salvar();
+}
+
+// --- Exportação ------------------------------------------------------------
+function paraCsv(regs) {
+  const campo = v => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const linhas = [COLUNAS_CSV.join(",")];
+  for (const r of regs) linhas.push([
+    brDate(r.data), r.localizador, r.cidade, r.origem, r.horaIda, r.destino, r.horaChegada,
+    r.companhia, r.voo, r.alterado, r.forma, r.assento, r.ida ? "x" : "", r.volta ? "x" : "",
+    r.antecipacao, r.conexoesRaw, r.observacoes,
+  ].map(campo).join(","));
+  return linhas.join("\n");
+}
+
+function baixar(nome, conteudo, tipo) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
+  a.download = nome;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+// --- Conferência -----------------------------------------------------------
+// Agrupa por localizador: é a reserva que se confere, não o trecho.
+function pendenciasDeConferencia() {
+  const porLoc = new Map();
+  for (const r of dados.filter(r => r.aba === "Voos")) {
+    const atual = porLoc.get(r.localizador);
+    const dias = diasDesde(r.conferidoEm);
+    if (!atual || dias > atual.dias) {
+      porLoc.set(r.localizador, {
+        localizador: r.localizador, companhia: r.companhia,
+        conferidoEm: r.conferidoEm, dias,
+        prazo: PRAZO_CONFERENCIA[r.companhia] || PRAZO_CONFERENCIA["padrão"],
+      });
+    }
+  }
+  return [...porLoc.values()].sort((a, b) => (b.dias - b.prazo) - (a.dias - a.prazo));
+}
+
+function marcarConferido(localizador) {
+  for (const r of dados) if (r.localizador === localizador && r.aba === "Voos") {
+    r.conferidoEm = hoje();
+    registrar(r, "conferencia", "Conferido na companhia, sem mudança", "manual");
+  }
+  salvar(); render();
+}
+
+// --- Estado da tela --------------------------------------------------------
+const tela = { aba: "painel", busca: "", estado: "todos", ordem: "data", cresc: true, aberto: null };
+
+function visiveis() {
+  let v = dados.filter(r => r.aba === tela.aba);
+  const b = tela.busca.trim().toLowerCase();
+  if (b) v = v.filter(r => [r.localizador, r.cidade, r.companhia, r.voo, r.origem, r.destino,
+    r.observacoes].join(" ").toLowerCase().includes(b));
+  if (tela.estado === "pendentes") v = v.filter(r => ehPendente(r.alterado));
+  else if (tela.estado === "remarcados") v = v.filter(r => r.alterado === REMARCADO);
+  else if (tela.estado === "limpos") v = v.filter(r => !ehPendente(r.alterado) && r.alterado !== REMARCADO);
+  const s = tela.cresc ? 1 : -1;
+  return v.sort((a, b2) => s * String(a[tela.ordem] ?? "").localeCompare(String(b2[tela.ordem] ?? "")));
+}
+
+// --- Render ----------------------------------------------------------------
+function seloEstado(v) {
+  const cls = !v || v === NAO ? "nao" : v === REMARCADO ? "remarcado"
+    : ehPendente(v) ? "alterado" : "nao";
+  return `<span class="selo ${cls}">${esc(v || NAO)}</span>`;
+}
+
+function render() {
+  document.querySelectorAll("nav.abas button").forEach(b =>
+    b.setAttribute("aria-selected", String(b.dataset.aba === tela.aba)));
+  $("#conteudo").innerHTML = tela.aba === "painel" ? painel() : lista();
+  ligarEventosConteudo();
+}
+
+function painel() {
+  const futuros = dados.filter(r => r.aba === "Voos");
+  const pendentes = futuros.filter(r => ehPendente(r.alterado));
+  const remarcados = futuros.filter(r => r.alterado === REMARCADO);
+  const proximo = [...futuros].sort((a, b) => a.data.localeCompare(b.data))[0];
+  const pend = pendenciasDeConferencia();
+  const vencidas = pend.filter(p => p.dias >= p.prazo);
+
+  const recentes = dados.flatMap(r => (r.historico || [])
+      .filter(h => h.tipo === "alteracao" || h.tipo === "remarcacao")
+      .map(h => ({ ...h, voo: r })))
+    .sort((a, b) => b.em.localeCompare(a.em)).slice(0, 12);
+
+  return `
+  <div class="cartoes">
+    <div class="cartao"><div class="n">${futuros.length}</div><div class="r">Voos futuros</div></div>
+    <div class="cartao ${pendentes.length ? "alerta" : ""}">
+      <div class="n">${pendentes.length}</div><div class="r">Alterados pendentes</div></div>
+    <div class="cartao ${remarcados.length ? "aviso" : ""}">
+      <div class="n">${remarcados.length}</div><div class="r">Remarcados</div></div>
+    <div class="cartao ${vencidas.length ? "alerta" : ""}">
+      <div class="n">${vencidas.length}</div><div class="r">Conferências vencidas</div></div>
+  </div>
+
+  ${proximo ? `<div class="bloco">
+    <h2>Próximo voo</h2>
+    <p class="ajuda">${esc(brDate(proximo.data))} · faltam ${Math.max(0, diasDesde(proximo.data) * -1)} dia(s)</p>
+    <div><b>${esc(proximo.origem)} ${esc(proximo.horaIda)} → ${esc(proximo.destino)} ${esc(proximo.horaChegada)}</b>
+      · ${esc(proximo.companhia)} ${esc(proximo.voo)}
+      · <span class="mono">${esc(proximo.localizador)}</span> ${seloEstado(proximo.alterado)}</div>
+  </div>` : ""}
+
+  <div class="bloco">
+    <h2>O que mudou</h2>
+    <p class="ajuda">Alterações e remarcações registradas, da mais recente para a mais antiga.</p>
+    ${recentes.length ? recentes.map(h => `
+      <div class="pendencia">
+        <span class="selo ${h.tipo === "remarcacao" ? "remarcado" : "alterado"}">${h.tipo === "remarcacao" ? "Remarcado" : "Alterado"}</span>
+        <span><b>${esc(h.voo.localizador)}</b> ${esc(h.voo.origem)}→${esc(h.voo.destino)}
+          <span class="fraco">${esc(h.texto)}</span></span>
+        <span class="cresce"></span>
+        <span class="fraco">${esc(brDate(h.em))}</span>
+      </div>`).join("") : `<p class="fraco">Nada registrado ainda.</p>`}
+  </div>
+
+  <div class="bloco">
+    <h2>Conferência pendente</h2>
+    <p class="ajuda">A Azul remarca voo sem mandar e-mail: essas reservas precisam ser abertas
+      no site ou no app. Prazo de ${PRAZO_CONFERENCIA.Azul} dias para a Azul,
+      ${PRAZO_CONFERENCIA["padrão"]} para as demais.</p>
+    ${pend.length ? pend.map(p => {
+      const cls = p.dias >= p.prazo ? "vencido" : p.dias >= p.prazo * 0.6 ? "atencao" : "ok";
+      return `<div class="pendencia">
+        <span class="dias ${cls}">${p.dias === NUNCA ? "—" : p.dias + "d"}</span>
+        <span class="mono"><b>${esc(p.localizador)}</b></span>
+        <span class="selo cia">${esc(p.companhia)}</span>
+        <span class="fraco">${p.conferidoEm ? "conferido em " + esc(brDate(p.conferidoEm)) : "nunca conferido"}</span>
+        <span class="cresce"></span>
+        <button class="bt mini" data-conferir="${esc(p.localizador)}">Conferi agora</button>
+      </div>`; }).join("") : `<p class="fraco">Nenhuma reserva futura.</p>`}
+  </div>
+
+  <div class="bloco">
+    <h2>Legenda</h2>
+    <div class="legenda">${LEGENDA.map(([m, t]) => `<div><b>${esc(m)}</b> — ${esc(t)}</div>`).join("")}</div>
+  </div>`;
+}
+
+function lista() {
+  const regs = visiveis();
+  const col = (campo, rotulo) => `<th data-ordenar="${campo}">${rotulo}${tela.ordem === campo ? (tela.cresc ? " ↑" : " ↓") : ""}</th>`;
+  return `
+  <div class="ferramentas">
+    <input type="search" id="busca" placeholder="Buscar por localizador, cidade, companhia, voo..." value="${esc(tela.busca)}">
+    <select id="filtroEstado">
+      <option value="todos"${tela.estado === "todos" ? " selected" : ""}>Todos os estados</option>
+      <option value="pendentes"${tela.estado === "pendentes" ? " selected" : ""}>Só alterados pendentes</option>
+      <option value="remarcados"${tela.estado === "remarcados" ? " selected" : ""}>Só remarcados</option>
+      <option value="limpos"${tela.estado === "limpos" ? " selected" : ""}>Sem alteração</option>
+    </select>
+  </div>
+  <div class="bloco" style="padding:0">
+    <div class="rolagem"><table>
+      <thead><tr>
+        ${col("data","Data")}${col("localizador","Loc.")}${col("cidade","Cidade")}
+        ${col("origem","Orig.")}${col("horaIda","Saída")}${col("destino","Dest.")}
+        ${col("horaChegada","Cheg.")}${col("companhia","Cia.")}${col("voo","Voo")}
+        ${col("alterado","Alterado")}${col("forma","Forma")}<th>Conexões</th><th></th>
+      </tr></thead>
+      <tbody>${regs.length ? regs.map(linhaVoo).join("") : ""}</tbody>
+    </table></div>
+    ${regs.length ? "" : `<div class="vazio">Nenhum voo encontrado.</div>`}
+  </div>`;
+}
+
+function linhaVoo(r) {
+  const aberta = tela.aberto === r.id;
+  const hist = (r.historico || []).slice().reverse();
+  return `
+  <tr class="voo">
+    <td>${esc(brDate(r.data))}</td>
+    <td class="mono">${esc(r.localizador)}</td>
+    <td>${esc(r.cidade)}
+      ${r.ida ? '<span class="selo ida">IDA</span>' : ""}
+      ${r.volta ? '<span class="selo volta">VOLTA</span>' : ""}</td>
+    <td>${esc(r.origem)}</td><td>${esc(r.horaIda)}</td>
+    <td>${esc(r.destino)}</td><td>${esc(r.horaChegada)}</td>
+    <td><span class="selo cia">${esc(r.companhia)}</span></td>
+    <td>${esc(r.voo || "-")}</td>
+    <td>${seloEstado(r.alterado)}</td>
+    <td class="fraco">${esc(r.forma)}</td>
+    <td class="fraco">${esc(r.conexoesRaw || "Direto")}</td>
+    <td style="white-space:nowrap">
+      <button class="bt mini" data-abrir="${r.id}">${aberta ? "▴" : "▾"}${hist.length ? " " + hist.length : ""}</button>
+      <button class="bt mini" data-editar="${r.id}">✏️</button>
+      <button class="bt mini perigo" data-excluir="${r.id}">🗑️</button>
+    </td>
+  </tr>
+  ${aberta ? `<tr><td colspan="13" style="background:#131d2b">
+    ${r.observacoes ? `<div style="margin-bottom:7px">${esc(r.observacoes)}</div>` : ""}
+    ${r.fonte ? `<div class="fraco" style="font-size:11px;margin-bottom:7px">Fonte: ${esc(r.fonte)}</div>` : ""}
+    ${r.assento ? `<div class="fraco" style="font-size:11px">Assento ${esc(r.assento)}</div>` : ""}
+    <b style="font-size:12px">Linha do tempo</b>
+    ${hist.length ? `<ul class="linhatempo">${hist.map(h => `
+      <li><span class="quando">${esc(brDate(h.em))}</span> · <b>${esc(h.tipo)}</b> — ${esc(h.texto)}
+        ${h.fonte ? `<span class="quando">(${esc(h.fonte)})</span>` : ""}</li>`).join("")}</ul>`
+      : `<p class="fraco" style="font-size:12px">Sem registro de alteração.</p>`}
+  </td></tr>` : ""}`;
+}
+
+// --- Formulário de voo -----------------------------------------------------
+function abrirVoo(id) {
+  const r = id ? dados.find(x => x.id === id) : normalizar({ data: hoje(), aba: "Voos" }, Date.now());
+  const campo = (k, rot, tipo = "text") =>
+    `<label class="campo"><span>${rot}</span><input name="${k}" type="${tipo}" value="${esc(r[k])}"></label>`;
+  $("#formVoo").innerHTML = `
+    <h2>${id ? "Editar voo" : "Novo voo"}</h2>
+    <div class="campos">
+      <label class="campo"><span>Data</span><input name="data" type="date" value="${esc(r.data)}"></label>
+      ${campo("localizador","Localizador")}${campo("cidade","Cidade")}
+      ${campo("origem","Origem")}${campo("horaIda","Saída")}
+      ${campo("destino","Destino")}${campo("horaChegada","Chegada")}
+      ${campo("companhia","Companhia")}${campo("voo","Nº do voo")}
+      <label class="campo"><span>Alterado</span><select name="alterado">
+        ${[NAO, ALTERADO, REMARCADO].concat(LEGENDA.slice(2).map(l => "Sim" + l[0]))
+          .map(v => `<option${v === r.alterado ? " selected" : ""}>${esc(v)}</option>`).join("")}
+      </select></label>
+      ${campo("forma","Forma")}${campo("assento","Assento")}
+      ${campo("conexoesRaw","Conexões")}
+      <label class="campo"><span>Aba</span><select name="aba">
+        <option${r.aba === "Voos" ? " selected" : ""}>Voos</option>
+        <option${r.aba === "Historico" ? " selected" : ""}>Historico</option></select></label>
+      <label class="campo largo"><span>Observações</span><textarea name="observacoes" rows="3">${esc(r.observacoes)}</textarea></label>
+    </div>
+    <div class="acoes">
+      <button class="bt" value="cancel">Cancelar</button>
+      <button class="bt primario" value="ok" id="salvarVoo">Salvar</button>
+    </div>`;
+  $("#formVoo").onsubmit = ev => {
+    if (ev.submitter?.value !== "ok") return;
+    const fd = new FormData(ev.target);
+    const antes = { ...r };
+    for (const [k, v] of fd.entries()) r[k] = v;
+    r.ida = !!r.ida; r.volta = !!r.volta;
+    if (!id) { registrar(r, "cadastro", "Cadastrado à mão", "manual"); dados.push(r); }
+    else {
+      const difs = compararTrecho(antes, r);
+      if (difs.length) registrar(r, "edicao",
+        difs.map(d => `${d.rotulo}: ${d.de || "(vazio)"} → ${d.para}`).join("; "), "manual");
+    }
+    dados = arquivar(dados); salvar(); render();
+  };
+  $("#dlgVoo").showModal();
+}
+
+// --- Importar / exportar ---------------------------------------------------
+function abrirImportar() {
+  $("#corpoImportar").innerHTML = `
+    <h2>Importar voos</h2>
+    <p class="ajuda">Cole JSON ou o CSV com o cabeçalho da planilha. Nada é aplicado
+      antes da prévia.</p>
+    <div class="campos" style="margin-bottom:11px">
+      <label class="campo"><span>Procedência</span><select id="tipoImport">
+        <option value="confirmacao">E-mail de confirmação da reserva</option>
+        <option value="consulta">Consulta ao site ou app da companhia</option>
+      </select></label>
+      <label class="campo"><span>Fonte (vai para a linha do tempo)</span>
+        <input id="fonteImport" placeholder="ex.: Gmail 01/11/2026"></label>
+    </div>
+    <textarea class="colar" id="textoImport" placeholder='[{"data":"2028-04-10","localizador":"ABC123","origem":"BSB","destino":"SSA",...}]'></textarea>
+    <div id="previaImport"></div>
+    <div class="acoes">
+      <button class="bt" id="fecharImport">Fechar</button>
+      <button class="bt" id="analisarImport">Analisar</button>
+      <button class="bt primario" id="aplicarImport" disabled>Aplicar</button>
+    </div>`;
+  let plano = null;
+  $("#fecharImport").onclick = () => $("#dlgImportar").close();
+  $("#analisarImport").onclick = () => {
+    try {
+      const entrada = lerEntrada($("#textoImport").value);
+      plano = planejarImportacao(entrada, $("#tipoImport").value,
+        $("#fonteImport").value.trim() || "importação " + brDate(hoje()));
+      $("#previaImport").innerHTML = previaHtml(plano);
+      $("#aplicarImport").disabled = !(plano.novos.length || plano.mudados.length);
+    } catch (e) {
+      $("#previaImport").innerHTML = `<p style="color:var(--vermelho)">Não consegui ler: ${esc(e.message)}</p>`;
+      $("#aplicarImport").disabled = true;
+    }
+  };
+  $("#aplicarImport").onclick = () => {
+    if (!plano) return;
+    aplicarImportacao(plano);
+    $("#dlgImportar").close();
+    tela.aba = "painel"; render();
+  };
+  $("#dlgImportar").showModal();
+}
+
+function previaHtml(p) {
+  return `<div class="previa" style="margin-top:13px">
+    <div class="grupo"><h3>Resumo</h3>
+      <div>${p.novos.length} novo(s) · ${p.mudados.length} com divergência · ${p.iguais} sem mudança</div></div>
+    ${p.mudados.length ? `<div class="grupo"><h3>Divergências</h3>${p.mudados.map(m => `
+      <div class="item">
+        <b class="mono">${esc(m.atual.localizador)}</b> ${esc(m.atual.origem)}→${esc(m.atual.destino)}
+        ${seloEstado(m.atual.alterado)} → ${seloEstado(m.estadoNovo)}
+        <div>${m.difs.map(d => `${esc(d.rotulo)}: <span class="de">${esc(d.de || "(vazio)")}</span>
+          → <span class="para">${esc(d.para)}</span>`).join("<br>")}</div>
+      </div>`).join("")}</div>` : ""}
+    ${p.novos.length ? `<div class="grupo"><h3>Novos</h3>${p.novos.map(n => `
+      <div class="item"><b class="mono">${esc(n.localizador)}</b> ${esc(brDate(n.data))}
+        ${esc(n.origem)}→${esc(n.destino)} ${esc(n.companhia)} ${esc(n.voo)}</div>`).join("")}</div>` : ""}
+  </div>`;
+}
+
+function abrirExportar() {
+  const futuros = dados.filter(r => r.aba === "Voos");
+  $("#corpoExportar").innerHTML = `
+    <h2>Exportar</h2>
+    <p class="ajuda">O JSON é o backup completo, com linha do tempo. O CSV sai nas 17
+      colunas da planilha, pronto para colar.</p>
+    <div class="acoes" style="justify-content:flex-start">
+      <button class="bt" id="expJson">JSON completo (${dados.length})</button>
+      <button class="bt" id="expCsvFut">CSV dos futuros (${futuros.length})</button>
+      <button class="bt" id="expCsvTudo">CSV de tudo (${dados.length})</button>
+    </div>
+    <div class="acoes"><button class="bt" id="fecharExport">Fechar</button></div>`;
+  const hojeBr = hoje();
+  $("#expJson").onclick = () => baixar(`voos-${hojeBr}.json`, JSON.stringify(dados, null, 1), "application/json");
+  $("#expCsvFut").onclick = () => baixar(`voos-futuros-${hojeBr}.csv`, paraCsv(futuros), "text/csv");
+  $("#expCsvTudo").onclick = () => baixar(`voos-${hojeBr}.csv`, paraCsv(dados), "text/csv");
+  $("#fecharExport").onclick = () => $("#dlgExportar").close();
+  $("#dlgExportar").showModal();
+}
+
+// --- Eventos ---------------------------------------------------------------
+function ligarEventosConteudo() {
+  const busca = $("#busca");
+  if (busca) busca.oninput = e => { tela.busca = e.target.value; const p = e.target.selectionStart;
+    render(); const n = $("#busca"); n.focus(); n.setSelectionRange(p, p); };
+  const filtro = $("#filtroEstado");
+  if (filtro) filtro.onchange = e => { tela.estado = e.target.value; render(); };
+
+  $("#conteudo").onclick = e => {
+    const b = e.target.closest("button, th[data-ordenar]");
+    if (!b) return;
+    if (b.dataset.abrir) { tela.aberto = tela.aberto === b.dataset.abrir ? null : b.dataset.abrir; render(); }
+    else if (b.dataset.editar) abrirVoo(b.dataset.editar);
+    else if (b.dataset.excluir) {
+      const r = dados.find(x => x.id === b.dataset.excluir);
+      if (r && confirm(`Excluir o voo ${r.localizador} ${r.origem}→${r.destino} de ${brDate(r.data)}?`)) {
+        dados = dados.filter(x => x.id !== r.id); salvar(); render();
+      }
+    }
+    else if (b.dataset.conferir) marcarConferido(b.dataset.conferir);
+    else if (b.dataset.ordenar) {
+      if (tela.ordem === b.dataset.ordenar) tela.cresc = !tela.cresc;
+      else { tela.ordem = b.dataset.ordenar; tela.cresc = true; }
+      render();
+    }
+  };
+}
+
+document.querySelectorAll("nav.abas button").forEach(b =>
+  b.onclick = () => { tela.aba = b.dataset.aba; tela.aberto = null; render(); });
+$("#btNovo").onclick = () => abrirVoo(null);
+$("#btImportar").onclick = abrirImportar;
+$("#btExportar").onclick = abrirExportar;
+
+salvar();
+render();
+
+// Exposto para teste automatizado.
+window.__voos = { get dados() { return dados; }, proximoEstado, chave, compararTrecho,
+  planejarImportacao, aplicarImportacao, lerEntrada, paraCsv, ehPendente, render };
+</script>
+</body>
+</html>
