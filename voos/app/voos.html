@@ -37,7 +37,8 @@ header.topo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-botto
 nav.abas{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
 nav.abas button{background:none;border:1px solid transparent;border-radius:9px;
   padding:8px 14px;cursor:pointer;color:var(--fraco);font-weight:600}
-nav.abas button[aria-selected=true]{background:var(--painel);border-color:var(--borda);color:var(--texto)}
+nav.abas button[aria-selected=true]{background:var(--painel);border-color:var(--azul);
+  color:var(--texto);box-shadow:inset 0 -2px 0 var(--azul)}
 
 .cartoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
 .cartao{background:var(--painel);border:1px solid var(--borda);border-radius:13px;padding:14px}
@@ -685,7 +686,7 @@ function diagnosticar(r, base) {
 const comDireito = () => dados
   .map(r => ({ voo: r, achados: diagnosticar(r) }))
   .filter(x => x.achados.some(a => a.peso >= 2))
-  .sort((a, b) => (b.voo.data || "").localeCompare(a.voo.data || ""));
+  .sort((a, b) => ordemNatural(b.voo, a.voo));   // mais recente primeiro
 
 // --- Conferência -----------------------------------------------------------
 // Agrupa por localizador: é a reserva que se confere, não o trecho.
@@ -713,6 +714,14 @@ function marcarConferido(localizador) {
   salvar(); render();
 }
 
+// Ordem natural de um voo: data e, dentro do mesmo dia, horário de partida.
+// Sem o desempate pelo horário, dois voos do mesmo dia saem na ordem em que
+// foram cadastrados, e o de 22:30 aparece antes do de 08:35.
+const ordemNatural = (a, b) =>
+  (a.data || "").localeCompare(b.data || "")
+  || (minutos(a.horaIda) ?? 0) - (minutos(b.horaIda) ?? 0)
+  || (a.origem || "").localeCompare(b.origem || "");
+
 // --- Estado da tela --------------------------------------------------------
 const tela = { aba: "painel", busca: "", estado: "todos", ordem: "data", cresc: true, aberto: null };
 
@@ -725,7 +734,12 @@ function visiveis() {
   else if (tela.estado === "remarcados") v = v.filter(r => r.alterado === REMARCADO);
   else if (tela.estado === "limpos") v = v.filter(r => !ehPendente(r.alterado) && r.alterado !== REMARCADO);
   const s = tela.cresc ? 1 : -1;
-  return v.sort((a, b2) => s * String(a[tela.ordem] ?? "").localeCompare(String(b2[tela.ordem] ?? "")));
+  return v.sort((a, b) => {
+    // Ordenar por data já é a ordem natural; nas outras colunas ela desempata.
+    const primario = tela.ordem === "data" ? 0
+      : String(a[tela.ordem] ?? "").localeCompare(String(b[tela.ordem] ?? ""), "pt-BR");
+    return s * (primario || ordemNatural(a, b));
+  });
 }
 
 // --- Render ----------------------------------------------------------------
@@ -747,7 +761,7 @@ function painel() {
   const futuros = dados.filter(r => r.aba === "Voos");
   const pendentes = futuros.filter(r => ehPendente(r.alterado));
   const remarcados = futuros.filter(r => r.alterado === REMARCADO);
-  const proximo = [...futuros].sort((a, b) => a.data.localeCompare(b.data))[0];
+  const proximo = [...futuros].sort(ordemNatural)[0];
   const pend = pendenciasDeConferencia();
   const vencidas = pend.filter(p => p.dias >= p.prazo);
 
@@ -876,8 +890,7 @@ function direitos() {
 
 // Dossiê de uma reserva: o que serve de anexo, com data, delta e fonte.
 function dossie(localizador) {
-  const trechos = dados.filter(r => r.localizador === localizador)
-    .sort((a, b) => (a.data || "").localeCompare(b.data || ""));
+  const trechos = dados.filter(r => r.localizador === localizador).sort(ordemNatural);
   const rein = controleReincidencia(localizador);
   const L = [`DOSSIÊ DA RESERVA ${localizador}`,
     `Gerado em ${brDate(hoje())}`,

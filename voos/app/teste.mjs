@@ -17,9 +17,9 @@ const base = await p.evaluate(() => ({
   futuros: window.__voos.dados.filter(r => r.aba === 'Voos').length,
   chave: !!localStorage.getItem('voos_app_data_v5'),
 }));
-t('carrega 210 registros', base.total === 6, 'total=' + base.total);
+t('carrega a base de exemplo', base.total === 8, 'total=' + base.total);
 t('grava na chave v5', base.chave);
-t('separa futuros', base.futuros === 4, 'futuros=' + base.futuros);
+t('separa futuros', base.futuros === 6, 'futuros=' + base.futuros);
 
 // 2. máquina de estados (unidade)
 const est = await p.evaluate(() => {
@@ -109,7 +109,28 @@ const depois = await p.evaluate(() => ({
   total: window.__voos.dados.length,
   nova: window.__voos.dados.some(r => r.localizador === 'NOVA99'),
 }));
-t('persiste após recarregar', depois.total === 7 && depois.nova, 'total=' + depois.total);
+t('persiste após recarregar', depois.total === 9 && depois.nova, 'total=' + depois.total);
+
+// 7b. ordem: mesmo dia tem de sair por horário de partida
+const ordem = await p.evaluate(async () => {
+  const v = window.__voos;
+  const doDia = v.dados.filter(r => r.data === '2028-07-04' && r.aba === 'Voos');
+  // ordem como a tabela monta
+  document.querySelector('nav.abas button[data-aba="Voos"]').click();
+  await new Promise(r => setTimeout(r, 300));
+  const linhas = [...document.querySelectorAll('tr.voo')]
+    .map(tr => [...tr.children].map(td => td.innerText.trim()))
+    .filter(c => c[0] === '04/07/2028')
+    .map(c => c[1] + ' ' + c[4]);
+  return { quantos: doDia.length, linhas };
+});
+t('os dois voos do mesmo dia aparecem', ordem.quantos === 2, JSON.stringify(ordem));
+t('mesmo dia sai por horário de partida',
+  ordem.linhas[0]?.startsWith('FFF666') && ordem.linhas[1]?.startsWith('EEE555'),
+  ordem.linhas.join(' | '));
+// volta ao painel: os testes seguintes leem a tela dele
+await p.click('nav.abas button[data-aba="painel"]'); await p.waitForTimeout(400);
+
 
 // 8. interface
 const ui = await p.evaluate(() => {
