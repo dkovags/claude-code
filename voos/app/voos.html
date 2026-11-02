@@ -130,8 +130,8 @@ textarea.colar{width:100%;min-height:150px;background:var(--fundo);border:1px so
   </header>
 
   <nav class="abas" role="tablist">
-    <button role="tab" data-aba="painel" aria-selected="true">Painel</button>
-    <button role="tab" data-aba="Voos" aria-selected="false">Voos futuros</button>
+    <button role="tab" data-aba="Voos" aria-selected="true">Voos futuros</button>
+    <button role="tab" data-aba="painel" aria-selected="false">Painel</button>
     <button role="tab" data-aba="Historico" aria-selected="false">Histórico</button>
     <button role="tab" data-aba="direitos" aria-selected="false">Direitos</button>
   </nav>
@@ -170,7 +170,7 @@ textarea.colar{width:100%;min-height:150px;background:var(--fundo);border:1px so
 // nada: a coluna registra o que a companhia fez, não o que você fez.
 // Versão visível na tela: sem isso não dá para saber se o que está aberto é a
 // cópia nova ou um arquivo antigo que ficou no celular.
-const VERSAO = "3.3";
+const VERSAO = "3.4";
 const VERSAO_EM = "2026-11-02";
 
 const NAO = "Não", ALTERADO = "Alterado", REMARCADO = "Remarcado";
@@ -729,7 +729,9 @@ const ordemNatural = (a, b) =>
   || (a.origem || "").localeCompare(b.origem || "");
 
 // --- Estado da tela --------------------------------------------------------
-const tela = { aba: "painel", busca: "", estado: "todos", ordem: "data", cresc: true, aberto: null };
+// Abre na lista de voos: é o que se quer ver ao abrir o app. O painel fica a
+// um toque de distância.
+const tela = { aba: "Voos", busca: "", estado: "todos", ordem: "data", cresc: true, aberto: null };
 
 function visiveis() {
   let v = dados.filter(r => r.aba === tela.aba);
@@ -1093,7 +1095,7 @@ function abrirImportar() {
     if (!plano) return;
     aplicarImportacao(plano);
     $("#dlgImportar").close();
-    tela.aba = "painel"; render();
+    tela.aba = "painel"; render();   // o resumo do que mudou está no painel
   };
   $("#dlgImportar").showModal();
 }

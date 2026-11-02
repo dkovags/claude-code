@@ -111,6 +111,12 @@ const depois = await p.evaluate(() => ({
 }));
 t('persiste após recarregar', depois.total === 9 && depois.nova, 'total=' + depois.total);
 
+// 7a. a tela de abertura é a lista de voos futuros
+const abertura = await p.evaluate(() => [...document.querySelectorAll('nav.abas button')]
+  .map(b => b.dataset.aba + '=' + b.getAttribute('aria-selected')));
+t('abre em Voos futuros', abertura[0] === 'Voos=true', abertura.join(' '));
+t('Voos futuros é a primeira aba da barra', abertura[0].startsWith('Voos='), abertura.join(' '));
+
 // 7b. ordem: mesmo dia tem de sair por horário de partida
 const ordem = await p.evaluate(async () => {
   const v = window.__voos;
@@ -132,7 +138,8 @@ t('mesmo dia sai por horário de partida',
 await p.click('nav.abas button[data-aba="painel"]'); await p.waitForTimeout(400);
 
 
-// 8. interface
+// 8. interface — o painel agora não é mais a tela de abertura
+await p.click('nav.abas button[data-aba="painel"]'); await p.waitForTimeout(400);
 const ui = await p.evaluate(() => {
   const txt = document.body.innerText;
   return { temPainel: txt.includes('Conferência pendente'),
