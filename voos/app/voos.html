@@ -120,7 +120,8 @@ textarea.colar{width:100%;min-height:150px;background:var(--fundo);border:1px so
 <body>
 <div class="env">
   <header class="topo">
-    <div class="marca">✈️ Controle de Voos<small>Gestão pessoal de passagens aéreas</small></div>
+    <div class="marca">✈️ Controle de Voos<small>Gestão pessoal de passagens aéreas
+      · <span id="versao"></span></small></div>
     <div class="cresce"></div>
     <span class="salvo" id="salvo"></span>
     <button class="bt" id="btImportar">⤓ Importar</button>
@@ -167,6 +168,11 @@ textarea.colar{width:100%;min-height:150px;background:var(--fundo);border:1px so
 // "Remarcado" é voo já refeito depois da alteração, e continua assim até
 // sofrer alteração nova. Remarcação voluntária, sem alteração antes, não muda
 // nada: a coluna registra o que a companhia fez, não o que você fez.
+// Versão visível na tela: sem isso não dá para saber se o que está aberto é a
+// cópia nova ou um arquivo antigo que ficou no celular.
+const VERSAO = "3.3";
+const VERSAO_EM = "2026-11-02";
+
 const NAO = "Não", ALTERADO = "Alterado", REMARCADO = "Remarcado";
 
 function proximoEstado(atual, evento) {
@@ -1227,6 +1233,7 @@ $("#btNovo").onclick = () => abrirVoo(null);
 $("#btImportar").onclick = abrirImportar;
 $("#btExportar").onclick = abrirExportar;
 
+$("#versao").textContent = `versão ${VERSAO} de ${brDate(VERSAO_EM)}`;
 salvar();
 render();
 
