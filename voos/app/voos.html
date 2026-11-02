@@ -131,6 +131,7 @@ textarea.colar{width:100%;min-height:150px;background:var(--fundo);border:1px so
     <button role="tab" data-aba="painel" aria-selected="true">Painel</button>
     <button role="tab" data-aba="Voos" aria-selected="false">Voos futuros</button>
     <button role="tab" data-aba="Historico" aria-selected="false">Histórico</button>
+    <button role="tab" data-aba="direitos" aria-selected="false">Direitos</button>
   </nav>
 
   <main id="conteudo"></main>
@@ -207,6 +208,49 @@ const PRAZO_CONFERENCIA = { Azul: 14, padrão: 30 };
 // dois casos.
 const PODE_BAIXAR = (() => { try { return window.self === window.top; } catch (e) { return false; } })();
 
+// --- Parâmetros da Resolução 400 da ANAC ----------------------------------
+//
+// Limiar e prazo NÃO entram como constante: a norma muda, e quando muda é
+// preciso saber qual redação valia no dia do voo. Cada faixa tem data de
+// início, e o controle guarda qual aplicou.
+//
+// ATENÇÃO: a Resolução ANAC 813/2026 alterou a 400 e está em vigor desde
+// 26/10/2026. Os valores abaixo para essa faixa NÃO foram conferidos no texto
+// consolidado - confira no DOU e corrija aqui. É só editar este bloco.
+const REGRAS = [
+  {
+    desde: "2016-12-13",
+    norma: "Resolução ANAC 400/2016, redação original",
+    limiarDomesticoMin: 30,     // alteração SUPERIOR a isto gera direito
+    limiarInternacionalMin: 60, // 60 minutos exatos não acionam
+    avisoHoras: 72,             // aviso com menos que isto: direito independe do tamanho
+    limiarAtrasoMin: 240,       // art. 21: atraso SUPERIOR a 4 h
+    conferido: true,
+  },
+  {
+    desde: "2026-10-26",
+    norma: "Resolução ANAC 400/2016, com a redação da Resolução 813/2026",
+    limiarDomesticoMin: 30,
+    limiarInternacionalMin: 60,
+    avisoHoras: 72,
+    limiarAtrasoMin: 240,
+    conferido: false,
+    nota: "Valores herdados da redação anterior, ainda não conferidos no texto consolidado.",
+  },
+];
+
+const regraDe = data => REGRAS.filter(r => r.desde <= (data || hoje())).at(-1) || REGRAS[0];
+
+// Aeroportos brasileiros conhecidos da base. Fora desta lista, o trecho conta
+// como internacional, o que muda o limiar de 30 para 60 minutos.
+const AEROPORTOS_BR = new Set(["BSB","CGH","GRU","VCP","GIG","SDU","CNF","SLZ","BEL","REC",
+  "FOR","MCP","MAO","CGB","CGR","RAO","POA","CWB","FLN","NAT","MCZ","SSA","VIX","JOI","THE",
+  "BVB","PVH","RBR","CZS","AJU","JPA","IGU","NVT","PNZ","IOS","LDB","UDI","GYN","MGF"]);
+
+const ehInternacional = r => r.internacional === true ? true
+  : r.internacional === false ? false
+  : !(AEROPORTOS_BR.has((r.origem||"").toUpperCase()) && AEROPORTOS_BR.has((r.destino||"").toUpperCase()));
+
 const SEMENTE = __DADOS__;
 
 // --- Utilidades ------------------------------------------------------------
@@ -260,6 +304,16 @@ function normalizar(r, i) {
     historico: Array.isArray(r.historico) ? r.historico : [],
     conferidoEm: r.conferidoEm || "",
     fonte: r.fonte || "",
+    // Resolução 400: o que sustenta um pedido de reacomodação ou reembolso.
+    avisadoEm: r.avisadoEm || "",        // quando a COMPANHIA avisou (data e hora)
+    original: r.original || null,        // o horário contratado, para calcular o delta
+    internacional: typeof r.internacional === "boolean" ? r.internacional : null,
+    decisao: r.decisao || "",            // aceitou | reacomodado | reembolsado | nada
+    decididoEm: r.decididoEm || "",
+    // Art. 12 e art. 21 são regimes diferentes e não podem ser confundidos:
+    // alteração programada mede-se em 30/60 min; atraso, em 4 h.
+    tipoOcorrencia: r.tipoOcorrencia || "",   // alteracao_programada | atraso
+    atrasoMin: typeof r.atrasoMin === "number" ? r.atrasoMin : null,
   };
 }
 
@@ -462,6 +516,177 @@ function baixar(nome, conteudo, tipo) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
+// --- Controles da Resolução 400 -------------------------------------------
+//
+// Cada controle devolve um achado ou null. Função pura: entra o voo, sai o
+// diagnóstico, sem tocar na tela nem nos dados.
+
+const UM_DIA = 1440;
+
+const minutos = hm => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hm || "");
+  return m ? (+m[1]) * 60 + (+m[2]) : null;
+};
+
+// Delta em minutos, com sinal: negativo antecipou, positivo adiou. Considera
+// virada de data, inclusive a marca (+1) que a planilha usa.
+function deltaMinutos(dataA, horaA, dataB, horaB) {
+  const a = minutos(horaA), b = minutos(horaB);
+  if (a === null || b === null) return null;
+  const diasA = /\(\+(\d)\)/.exec(horaA), diasB = /\(\+(\d)\)/.exec(horaB);
+  const baseA = Date.parse(dataA || hoje()) + (diasA ? +diasA[1] : 0) * 86400000;
+  const baseB = Date.parse(dataB || dataA || hoje()) + (diasB ? +diasB[1] : 0) * 86400000;
+  if (isNaN(baseA) || isNaN(baseB)) return null;
+  return Math.round(((baseB + b * 60000) - (baseA + a * 60000)) / 60000);
+}
+
+// Controle 1 - de quanto foi a mudança, na partida e na chegada.
+function controleDelta(r) {
+  if (!r.original) return null;
+  const dp = deltaMinutos(r.original.data, r.original.horaIda, r.data, r.horaIda);
+  const dc = deltaMinutos(r.original.data, r.original.horaChegada, r.data, r.horaChegada);
+  if (dp === null && dc === null) return null;
+  return { partida: dp, chegada: dc, maior: Math.max(Math.abs(dp || 0), Math.abs(dc || 0)) };
+}
+
+// Controle 2 - o delta passou do limiar da norma vigente no dia do voo?
+function controleLimiar(r) {
+  const regra = regraDe(r.data);
+  const intl = ehInternacional(r);
+  // Atraso no dia do voo: regime do art. 21, que só dá as alternativas acima
+  // de 4 h. Não se mede pelos 30/60 min do art. 12.
+  if (r.tipoOcorrencia === "atraso") {
+    if (typeof r.atrasoMin !== "number") return null;
+    return { intl, regime: "atraso", artigo: "art. 21", limite: regra.limiarAtrasoMin,
+             maior: r.atrasoMin, regra, acionou: r.atrasoMin > regra.limiarAtrasoMin };
+  }
+  const d = controleDelta(r);
+  if (!d) return null;
+  // Mudança de mais de um dia não é alteração de horário: é remarcação de
+  // data. Medir isso em minutos e comparar com os 30/60 min do art. 12 produz
+  // número sem sentido ("mudança de 518410 min"), então vira outro regime.
+  if (d.maior > UM_DIA) {
+    return { intl, regime: "remarcacao_data", artigo: "art. 12", limite: null,
+             maior: d.maior, dias: Math.round(d.maior / UM_DIA), regra, acionou: false };
+  }
+  const limite = intl ? regra.limiarInternacionalMin : regra.limiarDomesticoMin;
+  return { intl, regime: "alteracao_programada", artigo: "art. 12", limite,
+           maior: d.maior, regra,
+           acionou: d.maior > limite };   // SUPERIOR a: o limite exato não aciona
+}
+
+// Controle 3 - a companhia avisou com a antecedência devida?
+// É o controle mais valioso: aviso tardio dá direito às alternativas
+// independentemente do tamanho da mudança.
+function controleAntecedencia(r) {
+  // As 72 h são do art. 12, que trata de alteração programada. Atraso do dia
+  // do voo corre pelo art. 21 e não entra aqui.
+  if (r.tipoOcorrencia === "atraso") return null;
+  if (!r.avisadoEm || !r.original) return null;
+  const partida = Date.parse(`${r.original.data}T${(r.original.horaIda || "00:00").slice(0, 5)}`);
+  const aviso = Date.parse(r.avisadoEm);
+  if (isNaN(partida) || isNaN(aviso)) return null;
+  const regra = regraDe(r.data);
+  const horas = (partida - aviso) / 3600000;
+  return { horas: Math.round(horas * 10) / 10, exigido: regra.avisoHoras, regra,
+           acionou: horas < regra.avisoHoras };
+}
+
+// Controle 4 - a companhia simplesmente não avisou.
+// Alteração vista só em consulta ao site, sem e-mail nenhum: a ausência de
+// aviso é o próprio achado.
+function controleSilencio(r) {
+  const mudancas = (r.historico || []).filter(h => h.tipo === "alteracao");
+  if (!mudancas.length) return null;
+  const semAviso = mudancas.filter(h => /consulta|site|app|print|manual/i.test(h.fonte || "")
+                                     && !/e-?mail/i.test(h.fonte || ""));
+  if (!semAviso.length || r.avisadoEm) return null;
+  return { quantas: semAviso.length, ultima: semAviso.at(-1), acionou: true };
+}
+
+// Controle 5 - a mudança comeu a conexão?
+// Só acusa quando um atraso de CHEGADA realmente alcança a partida seguinte.
+// Medir a escala sozinha não serve: escala curta é escolha do itinerário, e
+// escala que vira a noite daria falso positivo em metade do histórico.
+function controleConexao(r) {
+  if (!r.conexoes || !r.conexoes.length || !r.original) return null;
+  const d = controleDelta(r);
+  // Remarcação de data não conta: ali a "chegada atrasou" meses, e comparar
+  // isso com uma escala de 70 min daria falso positivo em toda reserva movida.
+  if (!d || !(d.chegada > 0) || d.maior > UM_DIA) return null;
+  const quebradas = r.conexoes.filter(c => {
+    const ch = minutos(c.chegada), pa = minutos(c.partida);
+    if (ch === null || pa === null) return false;
+    let espera = pa - ch;
+    if (espera < 0) espera += UM_DIA;        // escala que atravessa a meia-noite
+    return d.chegada >= espera;
+  });
+  if (!quebradas.length) return null;
+  return { quebradas, atraso: d.chegada, acionou: true };
+}
+
+// Controle 6 - quantas vezes a companhia mexeu nesta reserva.
+function controleReincidencia(localizador, base) {
+  const trechos = (base || dados).filter(r => r.localizador === localizador);
+  const total = trechos.reduce((n, r) =>
+    n + (r.historico || []).filter(h => h.tipo === "alteracao").length, 0);
+  return { total, trechos: trechos.length, acionou: total >= 3 };
+}
+
+// Controle 7 - ainda dá para exigir, e ficou alguma decisão por tomar?
+function controleJanela(r) {
+  const voado = (r.data || "") < hoje();
+  const temDireito = ehPendente(r.alterado);
+  return { voado, semDecisao: temDireito && !r.decisao,
+           acionou: temDireito && !r.decisao && !voado };
+}
+
+// Junta tudo: devolve os achados de um voo, do mais forte para o mais fraco.
+function diagnosticar(r, base) {
+  const achados = [];
+  const ante = controleAntecedencia(r);
+  if (ante?.acionou) achados.push({ peso: 3, controle: "Aviso fora do prazo",
+    texto: `A companhia avisou ${ante.horas} h antes da partida, menos que as `
+         + `${ante.exigido} h exigidas. As alternativas são devidas independentemente `
+         + `do tamanho da mudança.`, regra: ante.regra });
+  const sil = controleSilencio(r);
+  if (sil?.acionou) achados.push({ peso: 3, controle: "Sem aviso nenhum",
+    texto: `${sil.quantas} alteração(ões) vista(s) só em consulta à companhia, sem e-mail. `
+         + `A ausência de aviso é o próprio achado.`, regra: regraDe(r.data) });
+  const lim = controleLimiar(r);
+  if (lim?.regime === "remarcacao_data") achados.push({ peso: 2, controle: "Remarcação de data",
+    texto: `O voo foi movido ${lim.dias} dia(s) em relação ao contratado. Mudança de data `
+         + `não se mede pelos 30/60 min do art. 12; é alteração do próprio serviço.`,
+    regra: lim.regra });
+  else if (lim?.acionou) achados.push({ peso: 2, controle: `Acima do limiar (${lim.artigo})`,
+    texto: lim.regime === "atraso"
+      ? `Atraso de ${lim.maior} min, acima das ${lim.limite / 60} h do art. 21.`
+      : `Mudança de ${lim.maior} min, acima dos ${lim.limite} min do trecho `
+        + `${lim.intl ? "internacional" : "doméstico"}.`, regra: lim.regra });
+  else if (lim) achados.push({ peso: 0, controle: `Dentro do limiar (${lim.artigo})`,
+    texto: lim.regime === "atraso"
+      ? `Atraso de ${lim.maior} min, abaixo das ${lim.limite / 60} h do art. 21. `
+        + `A assistência material do art. 20 independe disto.`
+      : `Mudança de ${lim.maior} min, dentro dos ${lim.limite} min do trecho `
+        + `${lim.intl ? "internacional" : "doméstico"}.`, regra: lim.regra });
+  const cx = controleConexao(r);
+  if (cx?.acionou) achados.push({ peso: 2, controle: "Conexão comprometida",
+    texto: `O atraso de ${cx.atraso} min na chegada alcança a partida de `
+         + `${cx.quebradas.map(c => c.iata).join(", ")}.`, regra: regraDe(r.data) });
+  const rein = controleReincidencia(r.localizador, base);
+  if (rein.acionou) achados.push({ peso: 1, controle: "Reincidência",
+    texto: `${rein.total} alterações nesta reserva.`, regra: regraDe(r.data) });
+  const jan = controleJanela(r);
+  if (jan.acionou) achados.push({ peso: 1, controle: "Decisão em aberto",
+    texto: `Direito em aberto e nenhuma providência registrada.`, regra: regraDe(r.data) });
+  return achados.sort((a, b) => b.peso - a.peso);
+}
+
+const comDireito = () => dados
+  .map(r => ({ voo: r, achados: diagnosticar(r) }))
+  .filter(x => x.achados.some(a => a.peso >= 2))
+  .sort((a, b) => (b.voo.data || "").localeCompare(a.voo.data || ""));
+
 // --- Conferência -----------------------------------------------------------
 // Agrupa por localizador: é a reserva que se confere, não o trecho.
 function pendenciasDeConferencia() {
@@ -513,7 +738,8 @@ function seloEstado(v) {
 function render() {
   document.querySelectorAll("nav.abas button").forEach(b =>
     b.setAttribute("aria-selected", String(b.dataset.aba === tela.aba)));
-  $("#conteudo").innerHTML = tela.aba === "painel" ? painel() : lista();
+  $("#conteudo").innerHTML = tela.aba === "painel" ? painel()
+    : tela.aba === "direitos" ? direitos() : lista();
   ligarEventosConteudo();
 }
 
@@ -583,6 +809,101 @@ function painel() {
     <h2>Legenda</h2>
     <div class="legenda">${LEGENDA.map(([m, t]) => `<div><b>${esc(m)}</b> — ${esc(t)}</div>`).join("")}</div>
   </div>`;
+}
+
+function direitos() {
+  const casos = comDireito();
+  const naoConferida = REGRAS.some(r => !r.conferido && r.desde <= hoje());
+  return `
+  ${naoConferida ? `<div class="bloco" style="border-color:#5a4f1e">
+    <h2>⚠️ Parâmetro não conferido</h2>
+    <p class="ajuda" style="margin:0">
+      ${esc(REGRAS.at(-1).norma)} está em vigor desde ${esc(brDate(REGRAS.at(-1).desde))},
+      e os limiares aqui foram herdados da redação anterior sem conferência no texto
+      consolidado. ${esc(REGRAS.at(-1).nota || "")}
+      Confira no DOU e corrija o bloco <span class="mono">REGRAS</span> no código.
+    </p></div>` : ""}
+
+  <div class="bloco">
+    <h2>Voos com direito aberto</h2>
+    <p class="ajuda">Alterações que acionaram pelo menos um controle de peso.
+      Aviso fora do prazo e ausência de aviso valem independentemente do tamanho
+      da mudança — é por isso que aparecem primeiro.</p>
+    ${casos.length ? casos.map(c => {
+      const r = c.voo, d = controleDelta(r);
+      return `<div class="item" style="margin-bottom:11px">
+        <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:7px">
+          <span class="mono"><b>${esc(r.localizador)}</b></span>
+          <span class="selo cia">${esc(r.companhia)}</span>
+          <span>${esc(r.origem)}→${esc(r.destino)}</span>
+          <span class="fraco">${esc(brDate(r.data))}</span>
+          ${seloEstado(r.alterado)}
+          ${r.decisao ? `<span class="selo volta">${esc(r.decisao)}</span>` : ""}
+          <span class="cresce"></span>
+          <button class="bt mini" data-dossie="${esc(r.localizador)}">Dossiê</button>
+        </div>
+        ${r.original ? `<div class="fraco" style="font-size:12px;margin-bottom:5px">
+          Contratado: ${esc(brDate(r.original.data))} ${esc(r.original.horaIda)} →
+          ${esc(r.original.horaChegada)}${r.original.voo ? ", voo " + esc(r.original.voo) : ""}
+          ${d ? " · delta partida " + (d.partida === null ? "?"
+              : (d.partida > 0 ? "+" : "") + d.partida + " min")
+              + ", chegada " + (d.chegada === null ? "?"
+              : (d.chegada > 0 ? "+" : "") + d.chegada + " min") : ""}
+        </div>` : `<div class="fraco" style="font-size:12px;margin-bottom:5px">
+          Sem horário contratado registrado: o delta não pode ser calculado.</div>`}
+        <ul class="linhatempo">${c.achados.map(a => `
+          <li><b>${esc(a.controle)}</b> — ${esc(a.texto)}
+            <span class="quando">${esc(a.regra.norma)}</span></li>`).join("")}</ul>
+      </div>`; }).join("") : `<p class="fraco">Nenhum controle acionado.</p>`}
+  </div>
+
+  <div class="bloco">
+    <h2>Como os controles funcionam</h2>
+    <div class="legenda">
+      <div><b>Aviso fora do prazo</b> — menos de ${REGRAS.at(-1).avisoHoras} h entre o aviso da
+        companhia e a partida contratada. Exige o campo <span class="mono">avisadoEm</span> com hora.</div>
+      <div><b>Sem aviso nenhum</b> — alteração vista só em consulta, sem e-mail.</div>
+      <div><b>Acima do limiar</b> — mudança superior a ${REGRAS.at(-1).limiarDomesticoMin} min
+        (doméstico) ou ${REGRAS.at(-1).limiarInternacionalMin} min (internacional).
+        O limite exato não aciona.</div>
+      <div><b>Remarcação de data</b> — o voo mudou de dia, não só de horário.</div>
+      <div><b>Conexão comprometida</b> — o atraso de chegada alcança a partida seguinte.</div>
+      <div><b>Reincidência</b> — três ou mais alterações na mesma reserva.</div>
+      <div><b>Decisão em aberto</b> — direito vivo e nenhuma providência registrada.</div>
+    </div>
+  </div>`;
+}
+
+// Dossiê de uma reserva: o que serve de anexo, com data, delta e fonte.
+function dossie(localizador) {
+  const trechos = dados.filter(r => r.localizador === localizador)
+    .sort((a, b) => (a.data || "").localeCompare(b.data || ""));
+  const rein = controleReincidencia(localizador);
+  const L = [`DOSSIÊ DA RESERVA ${localizador}`,
+    `Gerado em ${brDate(hoje())}`,
+    `Trechos: ${rein.trechos} · alterações registradas: ${rein.total}`, ""];
+  for (const r of trechos) {
+    L.push(`${brDate(r.data)}  ${r.origem} ${r.horaIda} → ${r.destino} ${r.horaChegada}`);
+    L.push(`  ${r.companhia} ${r.voo} · ${ehInternacional(r) ? "internacional" : "doméstico"}`
+         + ` · estado: ${r.alterado}` + (r.decisao ? ` · providência: ${r.decisao}` : ""));
+    if (r.original) {
+      const d = controleDelta(r);
+      L.push(`  Contratado: ${brDate(r.original.data)} ${r.original.horaIda} → `
+           + `${r.original.horaChegada}${r.original.voo ? `, voo ${r.original.voo}` : ""}`);
+      if (d) L.push(`  Delta: partida ${d.partida > 0 ? "+" : ""}${d.partida} min, `
+                  + `chegada ${d.chegada > 0 ? "+" : ""}${d.chegada} min`);
+    }
+    if (r.avisadoEm) L.push(`  Aviso da companhia: ${r.avisadoEm}`);
+    for (const a of diagnosticar(r)) L.push(`  [${a.controle}] ${a.texto} (${a.regra.norma})`);
+    for (const h of (r.historico || [])) L.push(`  ${brDate(h.em)} · ${h.tipo} · ${h.texto}`
+                                              + (h.fonte ? ` · fonte: ${h.fonte}` : ""));
+    L.push("");
+  }
+  L.push("Parâmetros aplicados:");
+  for (const g of REGRAS) L.push(`  desde ${brDate(g.desde)} · ${g.norma} · `
+    + `${g.limiarDomesticoMin}/${g.limiarInternacionalMin} min · aviso ${g.avisoHoras} h`
+    + (g.conferido ? "" : " · NÃO CONFERIDO no texto consolidado"));
+  return L.join("\n");
 }
 
 function lista() {
@@ -670,6 +991,22 @@ function abrirVoo(id) {
         <option${r.aba === "Voos" ? " selected" : ""}>Voos</option>
         <option${r.aba === "Historico" ? " selected" : ""}>Historico</option></select></label>
       <label class="campo largo"><span>Observações</span><textarea name="observacoes" rows="3">${esc(r.observacoes)}</textarea></label>
+      <label class="campo largo" style="border-top:1px solid var(--borda);padding-top:11px">
+        <span>Resolução 400 — preencha para os controles funcionarem</span></label>
+      <label class="campo"><span>Avisado em (data e hora)</span>
+        <input name="avisadoEm" type="datetime-local" value="${esc((r.avisadoEm||"").slice(0,16))}"></label>
+      <label class="campo"><span>Data contratada</span>
+        <input name="_origData" type="date" value="${esc(r.original?.data || "")}"></label>
+      <label class="campo"><span>Partida contratada</span>
+        <input name="_origIda" value="${esc(r.original?.horaIda || "")}"></label>
+      <label class="campo"><span>Chegada contratada</span>
+        <input name="_origChegada" value="${esc(r.original?.horaChegada || "")}"></label>
+      <label class="campo"><span>Voo contratado</span>
+        <input name="_origVoo" value="${esc(r.original?.voo || "")}"></label>
+      <label class="campo"><span>Providência</span><select name="decisao">
+        ${["", "aceitou", "reacomodado", "reembolsado", "nada"].map(v =>
+          `<option value="${esc(v)}"${v === r.decisao ? " selected" : ""}>${esc(v || "—")}</option>`).join("")}
+      </select></label>
     </div>
     <div class="acoes">
       <button class="bt" value="cancel">Cancelar</button>
@@ -679,7 +1016,13 @@ function abrirVoo(id) {
     if (ev.submitter?.value !== "ok") return;
     const fd = new FormData(ev.target);
     const antes = { ...r };
-    for (const [k, v] of fd.entries()) r[k] = v;
+    for (const [k, v] of fd.entries()) if (!k.startsWith("_")) r[k] = v;
+    const oData = fd.get("_origData"), oIda = fd.get("_origIda");
+    if (oData || oIda || fd.get("_origChegada") || fd.get("_origVoo")) {
+      r.original = { data: oData || r.data, horaIda: oIda || "",
+        horaChegada: fd.get("_origChegada") || "", voo: fd.get("_origVoo") || "" };
+    }
+    if (r.decisao && !r.decididoEm) r.decididoEm = hoje();
     r.ida = !!r.ida; r.volta = !!r.volta;
     if (!id) { registrar(r, "cadastro", "Cadastrado à mão", "manual"); dados.push(r); }
     else {
@@ -840,6 +1183,23 @@ function ligarEventosConteudo() {
         .then(sim => { if (sim) { dados = dados.filter(x => x.id !== r.id); salvar(); render(); } });
     }
     else if (b.dataset.conferir) marcarConferido(b.dataset.conferir);
+    else if (b.dataset.dossie) {
+      const texto = dossie(b.dataset.dossie);
+      $("#corpoExportar").innerHTML = `<h2>Dossiê — ${esc(b.dataset.dossie)}</h2>
+        <p class="ajuda">Linha do tempo, deltas, controles acionados e a norma aplicada.</p>
+        <textarea class="colar" style="min-height:300px" readonly>${esc(texto)}</textarea>
+        <div class="acoes">
+          <button class="bt" id="copiarDossie">Copiar</button>
+          <button class="bt" id="fecharDossie">Fechar</button>
+        </div>`;
+      $("#copiarDossie").onclick = async () => {
+        const ta = $("#corpoExportar textarea");
+        try { await navigator.clipboard.writeText(texto); $("#corpoExportar .ajuda").textContent = "Copiado."; }
+        catch (e) { ta.focus(); ta.select(); }
+      };
+      $("#fecharDossie").onclick = () => $("#dlgExportar").close();
+      $("#dlgExportar").showModal();
+    }
     else if (b.dataset.ordenar) {
       if (tela.ordem === b.dataset.ordenar) tela.cresc = !tela.cresc;
       else { tela.ordem = b.dataset.ordenar; tela.cresc = true; }
@@ -859,7 +1219,10 @@ render();
 
 // Exposto para teste automatizado.
 window.__voos = { get dados() { return dados; }, proximoEstado, chave, compararTrecho,
-  planejarImportacao, aplicarImportacao, lerEntrada, paraCsv, ehPendente, render };
+  planejarImportacao, aplicarImportacao, lerEntrada, paraCsv, ehPendente, render,
+  REGRAS, regraDe, ehInternacional, deltaMinutos, controleDelta, controleLimiar,
+  controleAntecedencia, controleSilencio, controleConexao, controleReincidencia,
+  controleJanela, diagnosticar, comDireito, dossie };
 </script>
 </body>
 </html>
