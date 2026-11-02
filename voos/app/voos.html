@@ -170,7 +170,7 @@ textarea.colar{width:100%;min-height:150px;background:var(--fundo);border:1px so
 // nada: a coluna registra o que a companhia fez, não o que você fez.
 // Versão visível na tela: sem isso não dá para saber se o que está aberto é a
 // cópia nova ou um arquivo antigo que ficou no celular.
-const VERSAO = "3.4";
+const VERSAO = "3.5";
 const VERSAO_EM = "2026-11-02";
 
 const NAO = "Não", ALTERADO = "Alterado", REMARCADO = "Remarcado";
@@ -640,6 +640,14 @@ function controleReincidencia(localizador, base) {
   return { total, trechos: trechos.length, acionou: total >= 3 };
 }
 
+// Controle 8 - falta o horário contratado.
+// Sem ele nenhum delta pode ser calculado, e o voo sumiria da lista em vez de
+// aparecer como pendência. A ausência de base é uma tarefa, não um silêncio.
+function controleSemBase(r) {
+  const mexido = ehPendente(r.alterado) || r.alterado === REMARCADO;
+  return { acionou: mexido && !r.original && r.aba === "Voos" };
+}
+
 // Controle 7 - ainda dá para exigir, e ficou alguma decisão por tomar?
 function controleJanela(r) {
   const voado = (r.data || "") < hoje();
@@ -683,6 +691,11 @@ function diagnosticar(r, base) {
   const rein = controleReincidencia(r.localizador, base);
   if (rein.acionou) achados.push({ peso: 1, controle: "Reincidência",
     texto: `${rein.total} alterações nesta reserva.`, regra: regraDe(r.data) });
+  const semBase = controleSemBase(r);
+  if (semBase.acionou) achados.push({ peso: 2, controle: "Horário contratado ausente",
+    texto: `A reserva foi mexida, mas não há no app o itinerário originalmente `
+         + `contratado. Sem ele não dá para medir a mudança nem afirmar alteração nova: `
+         + `pegue o contratado em Gerenciar reserva, na companhia.`, regra: regraDe(r.data) });
   const jan = controleJanela(r);
   if (jan.acionou) achados.push({ peso: 1, controle: "Decisão em aberto",
     texto: `Direito em aberto e nenhuma providência registrada.`, regra: regraDe(r.data) });
@@ -892,6 +905,7 @@ function direitos() {
       <div><b>Conexão comprometida</b> — o atraso de chegada alcança a partida seguinte.</div>
       <div><b>Reincidência</b> — três ou mais alterações na mesma reserva.</div>
       <div><b>Decisão em aberto</b> — direito vivo e nenhuma providência registrada.</div>
+      <div><b>Horário contratado ausente</b> — a reserva foi mexida e falta a base para medir.</div>
     </div>
   </div>`;
 }
@@ -1244,7 +1258,7 @@ window.__voos = { get dados() { return dados; }, proximoEstado, chave, compararT
   planejarImportacao, aplicarImportacao, lerEntrada, paraCsv, ehPendente, render,
   REGRAS, regraDe, ehInternacional, deltaMinutos, controleDelta, controleLimiar,
   controleAntecedencia, controleSilencio, controleConexao, controleReincidencia,
-  controleJanela, diagnosticar, comDireito, dossie };
+  controleJanela, controleSemBase, diagnosticar, comDireito, dossie };
 </script>
 </body>
 </html>
